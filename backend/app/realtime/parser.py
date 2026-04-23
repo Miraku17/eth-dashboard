@@ -107,3 +107,33 @@ def parse_erc20_log(
 
 def block_timestamp(block: dict) -> datetime:
     return datetime.fromtimestamp(_parse_hex(block.get("timestamp")), tz=UTC)
+
+
+@dataclass(frozen=True)
+class NetworkPoint:
+    ts: datetime
+    tx_count: int
+    base_fee_gwei: float
+    gas_price_gwei: float  # base fee + typical 1 gwei priority — post-Merge approximation
+
+
+GWEI = 10**9
+
+
+def extract_network_activity(block: dict) -> NetworkPoint:
+    """Pull per-block network stats out of an eth_getBlockByNumber result."""
+    ts = block_timestamp(block)
+    txs = block.get("transactions") or []
+    base_fee_wei = _parse_hex(block.get("baseFeePerGas"))
+    base_fee_gwei = base_fee_wei / GWEI
+    # We approximate "gas price" as base fee + 1 gwei priority tip — this is what
+    # most wallet UIs show. For a precise value we'd pull `eth_maxPriorityFeePerGas`
+    # each block, but that's an extra RPC call; the approximation tracks reality
+    # closely at post-Merge base-fee levels.
+    gas_price_gwei = base_fee_gwei + 1.0
+    return NetworkPoint(
+        ts=ts,
+        tx_count=len(txs),
+        base_fee_gwei=base_fee_gwei,
+        gas_price_gwei=gas_price_gwei,
+    )

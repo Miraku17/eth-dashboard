@@ -19,10 +19,12 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
-from app.core.models import PriceCandle, Transfer
+from app.core.models import NetworkActivity, PriceCandle, Transfer
 from app.realtime.parser import (
+    NetworkPoint,
     WhaleTransfer,
     block_timestamp,
+    extract_network_activity,
     parse_erc20_log,
     parse_native_tx,
 )
@@ -65,6 +67,26 @@ def _persist(session: Session, rows: list[WhaleTransfer]) -> int:
     result = session.execute(stmt)
     session.commit()
     return result.rowcount or 0
+
+
+def _persist_network(session: Session, np: NetworkPoint) -> None:
+    """Upsert on ts — two blocks with the same second (rare) collapse."""
+    stmt = insert(NetworkActivity).values(
+        ts=np.ts,
+        tx_count=np.tx_count,
+        gas_price_gwei=np.gas_price_gwei,
+        base_fee=np.base_fee_gwei,
+    )
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["ts"],
+        set_={
+            "tx_count": stmt.excluded.tx_count,
+            "gas_price_gwei": stmt.excluded.gas_price_gwei,
+            "base_fee": stmt.excluded.base_fee,
+        },
+    )
+    session.execute(stmt)
+    session.commit()
 
 
 class AlchemyClient:
@@ -119,6 +141,13 @@ async def _process_block(
     if not block:
         return
     ts = block_timestamp(block)
+
+    try:
+        net_point = extract_network_activity(block)
+        with sessionmaker() as session:
+            _persist_network(session, net_point)
+    except Exception:
+        log.exception("failed to persist network activity for block %d", block_number)
 
     token_addrs = [t.address for t in STABLES]
     logs_res = await client.call(
