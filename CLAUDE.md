@@ -51,6 +51,18 @@ docker-compose.yml
 
 The design doc's v1 scope is fixed. Do **not** implement v2/v3 features (DEX leaderboard, order flow, clustering, derivatives, backtesting) until v1 is shipped and stable. If a change seems to pull in v2+ work, flag it instead of expanding scope.
 
-## Commands (once scaffolded)
+## Commands
 
-To be populated after M0 (skeleton milestone). Will include `docker compose up`, `pytest`, `pnpm dev`, etc.
+- `make up` — start the full stack (postgres, redis, api, worker, realtime, frontend)
+- `make down` — stop stack
+- `make logs` — tail logs
+- `make migrate` — run alembic migrations inside the api container
+- `make backend-test` — run pytest (uses testcontainers for DB)
+- `make frontend-build` — production build of the frontend
+- `make lint` — ruff + eslint
+
+### Local development notes
+
+- Backend Python 3.12 venv at `backend/.venv` (managed via `uv`). Activate with `source backend/.venv/bin/activate` or use `.venv/bin/python` directly.
+- Frontend Node 20; deps installed under `frontend/node_modules`.
+- Host: `http://localhost:8000/api/health` (API), `http://localhost:5173` (frontend).
