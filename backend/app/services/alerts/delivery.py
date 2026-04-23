@@ -50,17 +50,34 @@ def format_telegram_message(rule_name: str, rule_type: str, payload: dict) -> st
         lines.append(
             f"  {_fmt_num(payload.get('price_past'))} → {_fmt_num(payload.get('price_now'))}"
         )
-    elif rule_type == "whale_transfer":
+    elif rule_type in ("whale_transfer", "whale_to_exchange"):
         asset = payload.get("asset")
         amount = _fmt_num(payload.get("amount"))
         usd = payload.get("usd_value")
         usd_s = f" (~${_fmt_num(usd)})" if usd else ""
-        lines.append(f"🐋 {amount} {asset}{usd_s}")
-        lines.append(f"  from `{payload.get('from_addr')}`")
-        lines.append(f"  to   `{payload.get('to_addr')}`")
+        emoji = "🐋➡️🏦" if rule_type == "whale_to_exchange" else "🐋"
+        lines.append(f"{emoji} {amount} {asset}{usd_s}")
+        from_part = payload.get("from_label") or f"`{payload.get('from_addr')}`"
+        to_part = payload.get("to_label") or f"`{payload.get('to_addr')}`"
+        lines.append(f"  from {from_part}")
+        lines.append(f"  to   {to_part}")
         tx = payload.get("tx_hash")
         if tx:
             lines.append(f"  [tx](https://etherscan.io/tx/{tx})")
+    elif rule_type == "exchange_netflow":
+        ex = payload.get("exchange", "ANY")
+        direction = payload.get("direction", "net")
+        value = payload.get("value_usd", 0)
+        threshold = payload.get("threshold_usd", 0)
+        lines.append(
+            f"🏦 *{ex}* {direction} = *${_fmt_num(value)}* "
+            f"over {payload.get('window_h')}h (threshold ${_fmt_num(threshold)})"
+        )
+        lines.append(
+            f"  in ${_fmt_num(payload.get('inflow_usd'))} · "
+            f"out ${_fmt_num(payload.get('outflow_usd'))} · "
+            f"net ${_fmt_num(payload.get('net_usd'))}"
+        )
     else:
         lines.append(f"```json\n{json.dumps(payload, indent=2)}\n```")
     return "\n".join(lines)

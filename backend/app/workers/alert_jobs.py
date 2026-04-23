@@ -14,13 +14,13 @@ from app.core.config import get_settings
 from app.core.db import get_sessionmaker
 from app.core.models import AlertEvent, AlertRule
 from app.services.alerts.delivery import dispatch
-from app.services.alerts.rules import EVALUATORS, Fire, is_price_rule
+from app.services.alerts.rules import EVALUATORS, Fire, is_cooldown_gated
 
 log = logging.getLogger(__name__)
 
 
 def _cooldown_ok(session: Session, rule: AlertRule, default_min: int) -> bool:
-    if not is_price_rule(rule.rule_type):
+    if not is_cooldown_gated(rule.rule_type):
         return True
     params = rule.params or {}
     cooldown_min = params.get("_cooldown_min") or default_min
@@ -77,7 +77,7 @@ async def evaluate_alerts(ctx: dict) -> dict:
                     log.warning("no evaluator for rule_type=%s", rule.rule_type)
                     continue
 
-                if is_price_rule(rule.rule_type) and not _cooldown_ok(
+                if is_cooldown_gated(rule.rule_type) and not _cooldown_ok(
                     session, rule, settings.alert_default_cooldown_min
                 ):
                     results["skipped_cooldown"] += 1

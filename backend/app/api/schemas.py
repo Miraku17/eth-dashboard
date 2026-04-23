@@ -103,8 +103,28 @@ class WhaleTransferParams(BaseModel):
     min_usd: float = Field(gt=0)
 
 
+class WhaleToExchangeParams(BaseModel):
+    rule_type: Literal["whale_to_exchange"] = "whale_to_exchange"
+    asset: WhaleAsset = "ANY"
+    min_usd: float = Field(gt=0)
+    direction: Literal["to", "from", "any"] = "any"
+
+
+class ExchangeNetflowParams(BaseModel):
+    rule_type: Literal["exchange_netflow"] = "exchange_netflow"
+    exchange: str = "ANY"
+    window_h: int = Field(ge=1, le=24 * 30)
+    threshold_usd: float = Field(gt=0)
+    direction: Literal["in", "out", "net"] = "net"
+
+
 RuleParams = Annotated[
-    PriceAboveParams | PriceBelowParams | PriceChangePctParams | WhaleTransferParams,
+    PriceAboveParams
+    | PriceBelowParams
+    | PriceChangePctParams
+    | WhaleTransferParams
+    | WhaleToExchangeParams
+    | ExchangeNetflowParams,
     Field(discriminator="rule_type"),
 ]
 

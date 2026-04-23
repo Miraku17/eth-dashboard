@@ -57,7 +57,7 @@ The design doc's v1 scope is fixed. Do **not** implement v2/v3 features (DEX lea
 - M1 ✅ ETH price & volume (Binance klines sync → `/api/price/candles` → candlestick+volume chart with 1m/5m/15m/1h/4h/1d selector)
 - M2 ✅ on-chain flows (3 Dune queries → `/api/flows/{exchange,stablecoins,onchain-volume}` → panels). Requires Dune query IDs in `.env` (see `docs/dune-setup.md`); panels show "no data yet" gracefully when unset.
 - M3 ✅ whale tracking — Alchemy WS listener persists ETH + USDT/USDC/DAI transfers above threshold to `transfers`; `/api/whales/transfers` exposes them with CEX labels; live-refreshing panel. Needs `ALCHEMY_API_KEY`; thresholds via `WHALE_ETH_THRESHOLD` / `WHALE_STABLE_THRESHOLD_USD`.
-- M4 🚧 alerts engine (Phase A) — arq cron `evaluate_alerts` every minute; rule types `price_above` / `price_below` / `price_change_pct` / `whale_transfer`; Telegram + HMAC-signed webhook delivery; `/api/alerts/{rules,events}` CRUD; dashboard events panel. See `docs/telegram-setup.md`. Phase B adds rule-creation UI + exchange-netflow rules.
+- M4 ✅ alerts engine — arq cron `evaluate_alerts` every minute; 6 rule types (price above/below/change%, whale transfer, whale→exchange, exchange netflow); Telegram + HMAC-signed webhook delivery; `/api/alerts/{rules,events}` CRUD; tabbed dashboard panel (Events / Rules) with form-based create/edit + toast on fire. See `docs/telegram-setup.md`.
 - M5 pending — network activity + polish
 
 ## Environment note

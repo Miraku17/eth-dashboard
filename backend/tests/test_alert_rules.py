@@ -4,11 +4,13 @@ from decimal import Decimal
 import pytest
 from sqlalchemy.orm import sessionmaker
 
-from app.core.models import AlertEvent, AlertRule, PriceCandle, Transfer
+from app.core.models import AlertEvent, AlertRule, ExchangeFlow, PriceCandle, Transfer
 from app.services.alerts.rules import (
+    evaluate_exchange_netflow,
     evaluate_price_above,
     evaluate_price_below,
     evaluate_price_change_pct,
+    evaluate_whale_to_exchange,
     evaluate_whale_transfer,
 )
 
@@ -34,6 +36,7 @@ def session(migrated_engine):
         s.query(AlertRule).delete()
         s.query(PriceCandle).delete()
         s.query(Transfer).delete()
+        s.query(ExchangeFlow).delete()
         s.commit()
         yield s
 
@@ -189,3 +192,162 @@ def test_whale_transfer_respects_last_event_cutoff(session):
 
     fires = evaluate_whale_transfer(session, rule)
     assert {f.payload["tx_hash"] for f in fires} == {"0xfresh"}
+
+
+BINANCE_14 = "0x28c6c06298d514db089934071355e5743bf21d60"  # from labels module
+
+
+def test_whale_to_exchange_fires_when_to_is_labeled(session):
+    rule = AlertRule(
+        name="w2e", rule_type="whale_to_exchange",
+        params={"asset": "ANY", "min_usd": 1_000_000.0, "direction": "any"},
+        channels=[],
+    )
+    session.add(rule)
+    session.commit()
+
+    now = datetime.now(UTC)
+    session.add(Transfer(
+        tx_hash="0xin", log_index=0, block_number=1,
+        ts=now - timedelta(minutes=2),
+        from_addr="0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        to_addr=BINANCE_14,
+        asset="USDT", amount=Decimal("5000000"), usd_value=Decimal("5000000"),
+    ))
+    session.add(Transfer(
+        tx_hash="0xplain", log_index=0, block_number=2,
+        ts=now - timedelta(minutes=1),
+        from_addr="0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        to_addr="0xcccccccccccccccccccccccccccccccccccccccc",
+        asset="USDT", amount=Decimal("5000000"), usd_value=Decimal("5000000"),
+    ))
+    session.commit()
+
+    fires = evaluate_whale_to_exchange(session, rule)
+    assert {f.payload["tx_hash"] for f in fires} == {"0xin"}
+    assert fires[0].payload["to_label"] == "Binance 14"
+    assert fires[0].payload["match_side"] == "to"
+
+
+def test_whale_to_exchange_direction_from_only(session):
+    rule = AlertRule(
+        name="w2e", rule_type="whale_to_exchange",
+        params={"asset": "ANY", "min_usd": 1_000_000.0, "direction": "from"},
+        channels=[],
+    )
+    session.add(rule)
+    session.commit()
+
+    now = datetime.now(UTC)
+    # to is labeled — should NOT fire when direction=from
+    session.add(Transfer(
+        tx_hash="0xto", log_index=0, block_number=1,
+        ts=now - timedelta(minutes=2),
+        from_addr="0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        to_addr=BINANCE_14,
+        asset="USDT", amount=Decimal("5000000"), usd_value=Decimal("5000000"),
+    ))
+    # from is labeled — SHOULD fire
+    session.add(Transfer(
+        tx_hash="0xfrom", log_index=0, block_number=2,
+        ts=now - timedelta(minutes=1),
+        from_addr=BINANCE_14,
+        to_addr="0xcccccccccccccccccccccccccccccccccccccccc",
+        asset="USDT", amount=Decimal("5000000"), usd_value=Decimal("5000000"),
+    ))
+    session.commit()
+
+    fires = evaluate_whale_to_exchange(session, rule)
+    assert {f.payload["tx_hash"] for f in fires} == {"0xfrom"}
+
+
+def test_exchange_netflow_fires_when_inflow_exceeds_threshold(session):
+    rule = AlertRule(
+        name="flow", rule_type="exchange_netflow",
+        params={
+            "exchange": "Binance",
+            "window_h": 24,
+            "threshold_usd": 100_000_000.0,
+            "direction": "in",
+        },
+        channels=[],
+    )
+    session.add(rule)
+    session.commit()
+
+    now = datetime.now(UTC).replace(microsecond=0)
+    for i in range(3):
+        session.add(ExchangeFlow(
+            exchange="Binance", direction="in", asset="ETH",
+            ts_bucket=now - timedelta(hours=2, minutes=i),
+            usd_value=Decimal("50000000"),
+        ))
+    session.add(ExchangeFlow(
+        exchange="Binance", direction="out", asset="ETH",
+        ts_bucket=now - timedelta(hours=1),
+        usd_value=Decimal("10000000"),
+    ))
+    session.commit()
+
+    fires = evaluate_exchange_netflow(session, rule)
+    # 3 × $50M inflow = $150M >= $100M threshold (direction=in)
+    assert len(fires) == 1
+    assert fires[0].payload["inflow_usd"] == 150_000_000.0
+
+
+def test_exchange_netflow_net_mode(session):
+    rule = AlertRule(
+        name="flow", rule_type="exchange_netflow",
+        params={
+            "exchange": "ANY",
+            "window_h": 24,
+            "threshold_usd": 50_000_000.0,
+            "direction": "net",
+        },
+        channels=[],
+    )
+    session.add(rule)
+    session.commit()
+
+    now = datetime.now(UTC).replace(microsecond=0)
+    session.add(ExchangeFlow(
+        exchange="Binance", direction="in", asset="ETH",
+        ts_bucket=now - timedelta(hours=3),
+        usd_value=Decimal("80000000"),
+    ))
+    session.add(ExchangeFlow(
+        exchange="Binance", direction="out", asset="ETH",
+        ts_bucket=now - timedelta(hours=2),
+        usd_value=Decimal("20000000"),
+    ))
+    session.commit()
+
+    fires = evaluate_exchange_netflow(session, rule)
+    # net = 80 - 20 = 60M, |net| > 50M threshold → fires
+    assert len(fires) == 1
+    assert fires[0].payload["net_usd"] == 60_000_000.0
+
+
+def test_exchange_netflow_below_threshold_no_fire(session):
+    rule = AlertRule(
+        name="flow", rule_type="exchange_netflow",
+        params={
+            "exchange": "ANY",
+            "window_h": 24,
+            "threshold_usd": 100_000_000.0,
+            "direction": "net",
+        },
+        channels=[],
+    )
+    session.add(rule)
+    session.commit()
+
+    now = datetime.now(UTC).replace(microsecond=0)
+    session.add(ExchangeFlow(
+        exchange="Binance", direction="in", asset="ETH",
+        ts_bucket=now - timedelta(hours=1),
+        usd_value=Decimal("10000000"),
+    ))
+    session.commit()
+
+    assert evaluate_exchange_netflow(session, rule) == []
