@@ -9,7 +9,12 @@ from app.core.models import ExchangeFlow, OnchainVolume, StablecoinFlow
 def _parse_ts(value: str | datetime) -> datetime:
     if isinstance(value, datetime):
         return value
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    # Dune returns either ISO 8601 ("…Z") or space-separated with "UTC" suffix
+    # (e.g. "2026-04-23 09:00:00.000 UTC"). Normalize to fromisoformat input.
+    s = value.replace(" UTC", "+00:00").replace("Z", "+00:00")
+    if " " in s and "T" not in s:
+        s = s.replace(" ", "T", 1)
+    return datetime.fromisoformat(s)
 
 
 def upsert_exchange_flows(session: Session, rows: list[dict]) -> int:
