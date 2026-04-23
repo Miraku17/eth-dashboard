@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
@@ -71,3 +71,90 @@ class WhaleTransfer(BaseModel):
 
 class WhaleTransfersResponse(BaseModel):
     transfers: list[WhaleTransfer]
+
+
+# ---------- Alerts (M4) ----------
+
+WhaleAsset = Literal["ETH", "USDT", "USDC", "DAI", "ANY"]
+
+
+class PriceAboveParams(BaseModel):
+    rule_type: Literal["price_above"] = "price_above"
+    symbol: str = "ETHUSDT"
+    threshold: float = Field(gt=0)
+
+
+class PriceBelowParams(BaseModel):
+    rule_type: Literal["price_below"] = "price_below"
+    symbol: str = "ETHUSDT"
+    threshold: float = Field(gt=0)
+
+
+class PriceChangePctParams(BaseModel):
+    rule_type: Literal["price_change_pct"] = "price_change_pct"
+    symbol: str = "ETHUSDT"
+    window_min: int = Field(ge=5, le=24 * 60)
+    pct: float = Field(description="signed % — positive=up trigger, negative=down trigger")
+
+
+class WhaleTransferParams(BaseModel):
+    rule_type: Literal["whale_transfer"] = "whale_transfer"
+    asset: WhaleAsset = "ANY"
+    min_usd: float = Field(gt=0)
+
+
+RuleParams = Annotated[
+    PriceAboveParams | PriceBelowParams | PriceChangePctParams | WhaleTransferParams,
+    Field(discriminator="rule_type"),
+]
+
+
+Channel = Literal["telegram", "webhook"]
+
+
+class ChannelSpec(BaseModel):
+    type: Channel
+    url: str | None = None  # required for webhook
+
+
+class AlertRuleIn(BaseModel):
+    name: str = Field(min_length=1, max_length=128)
+    params: RuleParams
+    channels: list[ChannelSpec] = []
+    cooldown_min: int | None = Field(default=None, ge=0, le=24 * 60)
+    enabled: bool = True
+
+
+class AlertRuleOut(BaseModel):
+    id: int
+    name: str
+    rule_type: str
+    params: dict
+    channels: list[ChannelSpec]
+    cooldown_min: int | None
+    enabled: bool
+
+
+class AlertRulePatch(BaseModel):
+    name: str | None = None
+    params: RuleParams | None = None
+    channels: list[ChannelSpec] | None = None
+    cooldown_min: int | None = Field(default=None, ge=0, le=24 * 60)
+    enabled: bool | None = None
+
+
+class AlertEventOut(BaseModel):
+    id: int
+    rule_id: int
+    rule_name: str | None = None
+    fired_at: datetime
+    payload: dict
+    delivered: dict
+
+
+class AlertRulesResponse(BaseModel):
+    rules: list[AlertRuleOut]
+
+
+class AlertEventsResponse(BaseModel):
+    events: list[AlertEventOut]

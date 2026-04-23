@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import type { Timeframe } from "./api";
+import AlertEventsPanel from "./components/AlertEventsPanel";
 import ExchangeFlowsPanel from "./components/ExchangeFlowsPanel";
 import OnchainVolumePanel from "./components/OnchainVolumePanel";
 import PriceChart from "./components/PriceChart";
@@ -30,6 +31,7 @@ export default function App() {
 
         <OnchainVolumePanel />
         <WhaleTransfersPanel />
+        <AlertEventsPanel />
 
         <footer className="pt-4 pb-6 text-center text-[11px] text-slate-600">
           Data: Binance · Dune Analytics · Alchemy · Etherscan · CoinGecko
