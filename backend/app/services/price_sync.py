@@ -32,7 +32,9 @@ def upsert_klines(
     )
     result = session.execute(stmt)
     session.commit()
-    return result.rowcount or 0
+    # PostgreSQL INSERT ON CONFLICT returns -1 for rowcount; count rows instead
+    rowcount = result.rowcount
+    return len(rows) if rowcount == -1 else (rowcount or 0)
 
 
 def _kline_to_row(symbol: str, timeframe: str, k: Kline) -> dict:
@@ -46,3 +48,48 @@ def _kline_to_row(symbol: str, timeframe: str, k: Kline) -> dict:
         "close": k.close,
         "volume": k.volume,
     }
+
+
+import httpx
+
+from app.clients.binance import BinanceClient
+
+SYNC_LATEST_LIMIT = 2
+
+
+async def backfill_timeframe(
+    http: httpx.AsyncClient,
+    session: Session,
+    *,
+    symbol: str,
+    timeframe: str,
+    start_ms: int,
+    end_ms: int,
+    page_size: int = 500,
+) -> int:
+    """Paginate klines from start_ms to end_ms and upsert them. Returns total rows."""
+    client = BinanceClient(http)
+    total = 0
+    cursor = start_ms
+    while cursor < end_ms:
+        batch = await client.fetch_klines(
+            symbol, timeframe, start_ms=cursor, end_ms=end_ms, limit=page_size
+        )
+        if not batch:
+            break
+        total += upsert_klines(session, symbol, timeframe, batch)
+        cursor = batch[-1].open_time_ms + 1
+    return total
+
+
+async def sync_latest(
+    http: httpx.AsyncClient,
+    session: Session,
+    *,
+    symbol: str,
+    timeframe: str,
+) -> int:
+    """Fetch the most recent few candles and upsert."""
+    client = BinanceClient(http)
+    batch = await client.fetch_klines(symbol, timeframe, limit=SYNC_LATEST_LIMIT)
+    return upsert_klines(session, symbol, timeframe, batch)
