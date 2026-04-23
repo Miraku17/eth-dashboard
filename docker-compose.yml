@@ -29,6 +29,7 @@ services:
 
   api:
     build: ./backend
+    dns: [1.1.1.1, 8.8.8.8]
     env_file: .env
     depends_on:
       postgres:
@@ -45,6 +46,7 @@ services:
 
   worker:
     build: ./backend
+    dns: [1.1.1.1, 8.8.8.8]
     env_file: .env
     depends_on:
       redis:
@@ -57,6 +59,7 @@ services:
 
   realtime:
     build: ./backend
+    dns: [1.1.1.1, 8.8.8.8]
     env_file: .env
     depends_on:
       redis:
