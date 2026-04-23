@@ -1,30 +1,31 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
-type Health = { status: string; version: string };
+import { fetchHealth, type Timeframe } from "./api";
+import PriceChart from "./components/PriceChart";
+import TimeframeSelector from "./components/TimeframeSelector";
 
 export default function App() {
-  const { data, isLoading, error } = useQuery<Health>({
+  const [timeframe, setTimeframe] = useState<Timeframe>("1h");
+  const { data: health } = useQuery({
     queryKey: ["health"],
-    queryFn: async () => {
-      const r = await fetch("/api/health");
-      if (!r.ok) throw new Error("health check failed");
-      return r.json();
-    },
+    queryFn: fetchHealth,
   });
 
   return (
-    <main className="min-h-screen p-8">
-      <h1 className="text-3xl font-bold mb-4">Eth Analytics</h1>
-      <section className="rounded-lg border border-neutral-800 p-4">
-        <h2 className="text-lg font-semibold mb-2">Backend status</h2>
-        {isLoading && <p>checking…</p>}
-        {error && <p className="text-red-400">unreachable</p>}
-        {data && (
-          <p className="text-emerald-400">
-            {data.status} (v{data.version})
-          </p>
+    <main className="min-h-screen p-8 space-y-6">
+      <header className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Eth Analytics</h1>
+        {health && (
+          <span className="text-xs text-neutral-500">
+            api: {health.status} (v{health.version})
+          </span>
         )}
-      </section>
+      </header>
+      <div className="flex items-center gap-4">
+        <TimeframeSelector value={timeframe} onChange={setTimeframe} />
+      </div>
+      <PriceChart timeframe={timeframe} />
     </main>
   );
 }
