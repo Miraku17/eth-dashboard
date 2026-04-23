@@ -51,6 +51,19 @@ docker-compose.yml
 
 The design doc's v1 scope is fixed. Do **not** implement v2/v3 features (DEX leaderboard, order flow, clustering, derivatives, backtesting) until v1 is shipped and stable. If a change seems to pull in v2+ work, flag it instead of expanding scope.
 
+## Milestone status
+
+- M0 ✅ scaffold (docker compose, schema, health, React/Vite)
+- M1 ✅ ETH price & volume (Binance klines sync → `/api/price/candles` → candlestick+volume chart with 1m/5m/15m/1h/4h/1d selector)
+- M2 pending — on-chain volume, stablecoin flows, exchange flows (Dune)
+- M3 pending — whale tracking (Alchemy WS)
+- M4 pending — alerts engine
+- M5 pending — network activity + polish
+
+## Environment note
+
+Local ISP (dev machine) DNS-intercepts `api.binance.com` and other crypto-exchange domains, returning a fake "blocking-page-authority" cert. `docker-compose.yml` works around this by pinning container DNS to 1.1.1.1/8.8.8.8. In production (Hetzner/Railway) this override is harmless; remove it only if resolver performance matters.
+
 ## Commands
 
 - `make up` — start the full stack (postgres, redis, api, worker, realtime, frontend)
