@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchStablecoinFlows } from "../api";
+import { fetchStablecoinFlows, rangeToHours, type FlowRange } from "../api";
+import FlowRangeSelector from "./FlowRangeSelector";
 
 function formatUsd(n: number): string {
   if (Math.abs(n) >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
@@ -8,9 +10,11 @@ function formatUsd(n: number): string {
 }
 
 export default function StablecoinSupplyPanel() {
+  const [range, setRange] = useState<FlowRange>("48h");
+  const hours = rangeToHours(range);
   const { data, isLoading, error } = useQuery({
-    queryKey: ["stablecoin-flows"],
-    queryFn: () => fetchStablecoinFlows(500),
+    queryKey: ["stablecoin-flows", hours],
+    queryFn: () => fetchStablecoinFlows(hours),
     refetchInterval: 60_000,
   });
 
@@ -26,7 +30,10 @@ export default function StablecoinSupplyPanel() {
 
   return (
     <div className="rounded-lg border border-neutral-800 p-4">
-      <h2 className="text-lg font-semibold mb-3">Stablecoin supply change (48h)</h2>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-semibold">Stablecoin supply change</h2>
+        <FlowRangeSelector value={range} onChange={setRange} />
+      </div>
       {isLoading && <p className="text-sm text-neutral-500">loading…</p>}
       {error && <p className="text-sm text-red-400">unavailable</p>}
       {!isLoading && !error && Object.keys(net).length === 0 && (

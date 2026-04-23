@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -17,14 +18,21 @@ from app.core.models import ExchangeFlow, OnchainVolume, StablecoinFlow
 
 router = APIRouter(prefix="/flows", tags=["flows"])
 
+HoursParam = Annotated[int, Query(ge=1, le=24 * 60, description="look-back window in hours")]
+
 
 @router.get("/exchange", response_model=ExchangeFlowsResponse)
 def exchange_flows(
     session: Annotated[Session, Depends(get_session)],
-    limit: int = Query(500, ge=1, le=5000),
+    hours: HoursParam = 48,
+    limit: int = Query(5000, ge=1, le=20000),
 ) -> ExchangeFlowsResponse:
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
     rows = session.execute(
-        select(ExchangeFlow).order_by(ExchangeFlow.ts_bucket.desc()).limit(limit)
+        select(ExchangeFlow)
+        .where(ExchangeFlow.ts_bucket >= cutoff)
+        .order_by(ExchangeFlow.ts_bucket.desc())
+        .limit(limit)
     ).scalars().all()
     points = [
         ExchangeFlowPoint(
@@ -42,10 +50,15 @@ def exchange_flows(
 @router.get("/stablecoins", response_model=StablecoinFlowsResponse)
 def stablecoin_flows(
     session: Annotated[Session, Depends(get_session)],
-    limit: int = Query(500, ge=1, le=5000),
+    hours: HoursParam = 48,
+    limit: int = Query(5000, ge=1, le=20000),
 ) -> StablecoinFlowsResponse:
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
     rows = session.execute(
-        select(StablecoinFlow).order_by(StablecoinFlow.ts_bucket.desc()).limit(limit)
+        select(StablecoinFlow)
+        .where(StablecoinFlow.ts_bucket >= cutoff)
+        .order_by(StablecoinFlow.ts_bucket.desc())
+        .limit(limit)
     ).scalars().all()
     points = [
         StablecoinFlowPoint(
@@ -62,10 +75,15 @@ def stablecoin_flows(
 @router.get("/onchain-volume", response_model=OnchainVolumeResponse)
 def onchain_volume(
     session: Annotated[Session, Depends(get_session)],
-    limit: int = Query(500, ge=1, le=5000),
+    hours: HoursParam = 24 * 30,
+    limit: int = Query(5000, ge=1, le=20000),
 ) -> OnchainVolumeResponse:
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
     rows = session.execute(
-        select(OnchainVolume).order_by(OnchainVolume.ts_bucket.desc()).limit(limit)
+        select(OnchainVolume)
+        .where(OnchainVolume.ts_bucket >= cutoff)
+        .order_by(OnchainVolume.ts_bucket.desc())
+        .limit(limit)
     ).scalars().all()
     points = [
         OnchainVolumePoint(

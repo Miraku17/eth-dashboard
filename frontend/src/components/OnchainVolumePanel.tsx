@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Area,
@@ -9,7 +10,8 @@ import {
   YAxis,
 } from "recharts";
 
-import { fetchOnchainVolume } from "../api";
+import { fetchOnchainVolume, rangeToHours, type FlowRange } from "../api";
+import FlowRangeSelector from "./FlowRangeSelector";
 
 const ASSETS = ["ETH", "USDT", "USDC", "DAI", "WETH"] as const;
 const COLORS: Record<string, string> = {
@@ -20,12 +22,16 @@ const COLORS: Record<string, string> = {
   WETH: "#a855f7",
 };
 
+const OPTIONS: FlowRange[] = ["7d", "30d"];
+
 type Row = Record<string, number | string>;
 
 export default function OnchainVolumePanel() {
+  const [range, setRange] = useState<FlowRange>("30d");
+  const hours = rangeToHours(range);
   const { data, isLoading, error } = useQuery({
-    queryKey: ["onchain-volume"],
-    queryFn: () => fetchOnchainVolume(500),
+    queryKey: ["onchain-volume", hours],
+    queryFn: () => fetchOnchainVolume(hours),
     refetchInterval: 60_000,
   });
 
@@ -45,7 +51,10 @@ export default function OnchainVolumePanel() {
 
   return (
     <div className="rounded-lg border border-neutral-800 p-4">
-      <h2 className="text-lg font-semibold mb-3">On-chain tx volume (30d, USD)</h2>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-semibold">On-chain tx volume (USD)</h2>
+        <FlowRangeSelector value={range} onChange={setRange} options={OPTIONS} />
+      </div>
       {isLoading && <p className="text-sm text-neutral-500">loading…</p>}
       {error && <p className="text-sm text-red-400">unavailable</p>}
       {!isLoading && !error && pivot.length === 0 && (

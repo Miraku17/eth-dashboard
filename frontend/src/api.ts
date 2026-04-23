@@ -40,8 +40,17 @@ export type ExchangeFlowPoint = {
   usd_value: number;
 };
 
-export async function fetchExchangeFlows(limit = 500): Promise<ExchangeFlowPoint[]> {
-  const r = await fetch(`/api/flows/exchange?limit=${limit}`);
+export type FlowRange = "24h" | "48h" | "7d" | "30d";
+
+export function rangeToHours(r: FlowRange): number {
+  return { "24h": 24, "48h": 48, "7d": 24 * 7, "30d": 24 * 30 }[r];
+}
+
+export async function fetchExchangeFlows(
+  hours: number,
+  limit = 5000,
+): Promise<ExchangeFlowPoint[]> {
+  const r = await fetch(`/api/flows/exchange?hours=${hours}&limit=${limit}`);
   if (!r.ok) throw new Error(`exchange flows ${r.status}`);
   return (await r.json()).points;
 }
@@ -53,8 +62,11 @@ export type StablecoinFlowPoint = {
   usd_value: number;
 };
 
-export async function fetchStablecoinFlows(limit = 500): Promise<StablecoinFlowPoint[]> {
-  const r = await fetch(`/api/flows/stablecoins?limit=${limit}`);
+export async function fetchStablecoinFlows(
+  hours: number,
+  limit = 5000,
+): Promise<StablecoinFlowPoint[]> {
+  const r = await fetch(`/api/flows/stablecoins?hours=${hours}&limit=${limit}`);
   if (!r.ok) throw new Error(`stablecoin flows ${r.status}`);
   return (await r.json()).points;
 }
@@ -66,8 +78,11 @@ export type OnchainVolumePoint = {
   usd_value: number;
 };
 
-export async function fetchOnchainVolume(limit = 500): Promise<OnchainVolumePoint[]> {
-  const r = await fetch(`/api/flows/onchain-volume?limit=${limit}`);
+export async function fetchOnchainVolume(
+  hours: number,
+  limit = 5000,
+): Promise<OnchainVolumePoint[]> {
+  const r = await fetch(`/api/flows/onchain-volume?hours=${hours}&limit=${limit}`);
   if (!r.ok) throw new Error(`onchain volume ${r.status}`);
   return (await r.json()).points;
 }

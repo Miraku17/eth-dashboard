@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchExchangeFlows } from "../api";
+import { fetchExchangeFlows, rangeToHours, type FlowRange } from "../api";
+import FlowRangeSelector from "./FlowRangeSelector";
 
 function formatUsd(n: number): string {
   if (Math.abs(n) >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
@@ -9,9 +11,11 @@ function formatUsd(n: number): string {
 }
 
 export default function ExchangeFlowsPanel() {
+  const [range, setRange] = useState<FlowRange>("48h");
+  const hours = rangeToHours(range);
   const { data, isLoading, error } = useQuery({
-    queryKey: ["exchange-flows"],
-    queryFn: () => fetchExchangeFlows(1000),
+    queryKey: ["exchange-flows", hours],
+    queryFn: () => fetchExchangeFlows(hours),
     refetchInterval: 60_000,
   });
 
@@ -26,7 +30,10 @@ export default function ExchangeFlowsPanel() {
 
   return (
     <div className="rounded-lg border border-neutral-800 p-4">
-      <h2 className="text-lg font-semibold mb-3">Exchange netflows (48h)</h2>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-semibold">Exchange netflows</h2>
+        <FlowRangeSelector value={range} onChange={setRange} />
+      </div>
       {isLoading && <p className="text-sm text-neutral-500">loading…</p>}
       {error && <p className="text-sm text-red-400">unavailable</p>}
       {!isLoading && !error && sorted.length === 0 && (
