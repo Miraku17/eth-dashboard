@@ -1,0 +1,46 @@
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.api.schemas import Candle, CandlesResponse, Timeframe
+from app.core.db import get_session
+from app.core.models import PriceCandle
+
+router = APIRouter(prefix="/price", tags=["price"])
+
+DEFAULT_SYMBOL = "ETHUSDT"
+
+
+@router.get("/candles", response_model=CandlesResponse)
+def get_candles(
+    session: Annotated[Session, Depends(get_session)],
+    timeframe: Timeframe = "1h",
+    limit: int = Query(500, ge=1, le=2000),
+    symbol: str = DEFAULT_SYMBOL,
+) -> CandlesResponse:
+    rows = session.execute(
+        select(PriceCandle)
+        .where(PriceCandle.symbol == symbol, PriceCandle.timeframe == timeframe)
+        .order_by(PriceCandle.ts.desc())
+        .limit(limit)
+    ).scalars().all()
+
+    rows = list(reversed(rows))
+
+    return CandlesResponse(
+        symbol=symbol,
+        timeframe=timeframe,
+        candles=[
+            Candle(
+                time=int(r.ts.timestamp()),
+                open=float(r.open),
+                high=float(r.high),
+                low=float(r.low),
+                close=float(r.close),
+                volume=float(r.volume),
+            )
+            for r in rows
+        ],
+    )
