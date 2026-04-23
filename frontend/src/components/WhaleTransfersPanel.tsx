@@ -1,0 +1,183 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { fetchWhaleTransfers, type WhaleAsset, type WhaleTransfer } from "../api";
+import { formatUsdCompact, relativeTime, shortAddr } from "../lib/format";
+import Card from "./ui/Card";
+import Pill from "./ui/Pill";
+
+const ASSET_COLORS: Record<string, string> = {
+  ETH: "bg-brand/15 text-brand-soft ring-brand/20",
+  USDT: "bg-up/10 text-up ring-up/20",
+  USDC: "bg-sky-500/10 text-sky-300 ring-sky-400/20",
+  DAI: "bg-amber-500/10 text-amber-300 ring-amber-400/20",
+};
+
+function AssetBadge({ asset }: { asset: string }) {
+  const cls = ASSET_COLORS[asset] ?? "bg-surface-raised text-slate-300 ring-surface-border";
+  return (
+    <span
+      className={
+        "inline-flex items-center justify-center text-[10px] font-semibold tracking-wider rounded px-1.5 py-0.5 ring-1 " +
+        cls
+      }
+    >
+      {asset}
+    </span>
+  );
+}
+
+function Party({ addr, label }: { addr: string; label: string | null }) {
+  if (label) {
+    return (
+      <a
+        href={`https://etherscan.io/address/${addr}`}
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/10 text-amber-300 ring-1 ring-amber-400/20 px-1.5 py-0.5 text-xs hover:bg-amber-500/20"
+        title={addr}
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+        {label}
+      </a>
+    );
+  }
+  return (
+    <a
+      href={`https://etherscan.io/address/${addr}`}
+      target="_blank"
+      rel="noreferrer"
+      className="font-mono text-xs text-slate-400 hover:text-slate-200 transition"
+      title={addr}
+    >
+      {shortAddr(addr)}
+    </a>
+  );
+}
+
+const ASSET_OPTIONS: readonly { value: WhaleAsset | "ALL"; label: string }[] = [
+  { value: "ALL", label: "All" },
+  { value: "ETH", label: "ETH" },
+  { value: "USDT", label: "USDT" },
+  { value: "USDC", label: "USDC" },
+  { value: "DAI", label: "DAI" },
+] as const;
+
+const HOUR_OPTIONS = [
+  { value: 1, label: "1h" },
+  { value: 24, label: "24h" },
+  { value: 24 * 7, label: "7d" },
+] as const;
+
+export default function WhaleTransfersPanel() {
+  const [asset, setAsset] = useState<WhaleAsset | "ALL">("ALL");
+  const [hours, setHours] = useState<number>(24);
+
+  const { data, isLoading, error } = useQuery<WhaleTransfer[]>({
+    queryKey: ["whale-transfers", hours, asset],
+    queryFn: () => fetchWhaleTransfers(hours, asset === "ALL" ? undefined : asset),
+    refetchInterval: 15_000,
+  });
+
+  const total = (data ?? []).reduce((s, t) => s + (t.usd_value ?? 0), 0);
+
+  return (
+    <Card
+      title="Whale transfers"
+      subtitle={
+        data && data.length > 0
+          ? `${data.length} moves · ${formatUsdCompact(total)} total · last ${hours}h`
+          : "ETH ≥ 500 · Stables ≥ $1M"
+      }
+      live
+      actions={
+        <div className="flex gap-2">
+          <Pill size="xs" value={asset} onChange={setAsset} options={ASSET_OPTIONS} />
+          <Pill size="xs" value={hours} onChange={setHours} options={HOUR_OPTIONS} />
+        </div>
+      }
+      bodyClassName="p-0"
+    >
+      {isLoading && <p className="p-5 text-sm text-slate-500">loading…</p>}
+      {error && <p className="p-5 text-sm text-down">unavailable</p>}
+      {!isLoading && !error && data && data.length === 0 && (
+        <p className="p-5 text-sm text-slate-500">
+          no whale transfers yet — listener needs <code className="text-slate-300">ALCHEMY_API_KEY</code>{" "}
+          and a few blocks
+        </p>
+      )}
+
+      {data && data.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-separate border-spacing-0">
+            <thead className="text-[11px] tracking-wider uppercase text-slate-500">
+              <tr>
+                <th className="text-left font-medium px-5 py-3 border-b border-surface-divider">
+                  Time
+                </th>
+                <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">
+                  Asset
+                </th>
+                <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">
+                  From
+                </th>
+                <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">
+                  To
+                </th>
+                <th className="text-right font-medium px-3 py-3 border-b border-surface-divider">
+                  Amount
+                </th>
+                <th className="text-right font-medium px-3 py-3 border-b border-surface-divider">
+                  USD
+                </th>
+                <th className="text-right font-medium px-5 py-3 border-b border-surface-divider">
+                  Tx
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((t, i) => (
+                <tr
+                  key={`${t.tx_hash}-${t.log_index}`}
+                  className={
+                    "row-hover transition " +
+                    (i % 2 === 0 ? "bg-transparent" : "bg-surface-sunken/40")
+                  }
+                >
+                  <td className="px-5 py-2.5 text-slate-400 whitespace-nowrap border-b border-surface-divider/60">
+                    {relativeTime(t.ts)}
+                  </td>
+                  <td className="px-3 py-2.5 border-b border-surface-divider/60">
+                    <AssetBadge asset={t.asset} />
+                  </td>
+                  <td className="px-3 py-2.5 border-b border-surface-divider/60">
+                    <Party addr={t.from_addr} label={t.from_label} />
+                  </td>
+                  <td className="px-3 py-2.5 border-b border-surface-divider/60">
+                    <Party addr={t.to_addr} label={t.to_label} />
+                  </td>
+                  <td className="px-3 py-2.5 text-right font-mono tabular-nums text-slate-100 border-b border-surface-divider/60">
+                    {t.amount >= 1000 ? t.amount.toFixed(0) : t.amount.toFixed(2)}{" "}
+                    <span className="text-slate-500">{t.asset}</span>
+                  </td>
+                  <td className="px-3 py-2.5 text-right font-mono tabular-nums text-up border-b border-surface-divider/60">
+                    {formatUsdCompact(t.usd_value)}
+                  </td>
+                  <td className="px-5 py-2.5 text-right border-b border-surface-divider/60">
+                    <a
+                      href={`https://etherscan.io/tx/${t.tx_hash}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-mono text-xs text-slate-500 hover:text-brand-soft transition"
+                    >
+                      {t.tx_hash.slice(0, 8)}…
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+  );
+}

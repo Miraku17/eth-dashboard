@@ -1,43 +1,40 @@
-import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { fetchHealth, type Timeframe } from "./api";
+import type { Timeframe } from "./api";
 import ExchangeFlowsPanel from "./components/ExchangeFlowsPanel";
 import OnchainVolumePanel from "./components/OnchainVolumePanel";
 import PriceChart from "./components/PriceChart";
+import PriceHero from "./components/PriceHero";
 import StablecoinSupplyPanel from "./components/StablecoinSupplyPanel";
-import TimeframeSelector from "./components/TimeframeSelector";
+import Topbar from "./components/Topbar";
+import WhaleTransfersPanel from "./components/WhaleTransfersPanel";
 
 export default function App() {
   const [timeframe, setTimeframe] = useState<Timeframe>("1h");
-  const { data: health } = useQuery({
-    queryKey: ["health"],
-    queryFn: fetchHealth,
-  });
 
   return (
-    <main className="min-h-screen p-8 space-y-6">
-      <header className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Eth Analytics</h1>
-        {health && (
-          <span className="text-xs text-neutral-500">
-            api: {health.status} (v{health.version})
-          </span>
-        )}
-      </header>
-      <div className="flex items-center gap-4">
-        <TimeframeSelector value={timeframe} onChange={setTimeframe} />
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <PriceChart timeframe={timeframe} />
+    <div className="min-h-screen">
+      <Topbar />
+      <main className="mx-auto max-w-[1600px] px-6 py-6 space-y-6">
+        <PriceHero />
+
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          <div className="xl:col-span-2">
+            <PriceChart timeframe={timeframe} onTimeframeChange={setTimeframe} />
+          </div>
+          <div className="space-y-6">
+            <ExchangeFlowsPanel />
+            <StablecoinSupplyPanel />
+          </div>
         </div>
-        <div className="space-y-6">
-          <ExchangeFlowsPanel />
-          <StablecoinSupplyPanel />
-        </div>
-      </div>
-      <OnchainVolumePanel />
-    </main>
+
+        <OnchainVolumePanel />
+        <WhaleTransfersPanel />
+
+        <footer className="pt-4 pb-6 text-center text-[11px] text-slate-600">
+          Data: Binance · Dune Analytics · Alchemy · Etherscan · CoinGecko
+        </footer>
+      </main>
+    </div>
   );
 }

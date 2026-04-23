@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -12,7 +12,7 @@ from app.main import app
 @pytest.fixture
 def seeded_session(migrated_engine):
     Session = sessionmaker(bind=migrated_engine, expire_on_commit=False)
-    base = datetime(2026, 4, 23, 12, 0, tzinfo=timezone.utc)
+    base = datetime(2026, 4, 23, 12, 0, tzinfo=UTC)
     with Session() as s:
         s.query(PriceCandle).delete()
         for i in range(10):

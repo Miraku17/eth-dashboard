@@ -1,13 +1,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchStablecoinFlows, rangeToHours, type FlowRange } from "../api";
+import { formatUsdCompact } from "../lib/format";
+import Card from "./ui/Card";
 import FlowRangeSelector from "./FlowRangeSelector";
-
-function formatUsd(n: number): string {
-  if (Math.abs(n) >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
-  if (Math.abs(n) >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
-  return `$${n.toFixed(0)}`;
-}
 
 export default function StablecoinSupplyPanel() {
   const [range, setRange] = useState<FlowRange>("48h");
@@ -29,31 +25,32 @@ export default function StablecoinSupplyPanel() {
   const max = Math.max(1, ...Object.values(net).map((v) => Math.abs(v)));
 
   return (
-    <div className="rounded-lg border border-neutral-800 p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold">Stablecoin supply change</h2>
-        <FlowRangeSelector value={range} onChange={setRange} />
-      </div>
-      {isLoading && <p className="text-sm text-neutral-500">loading…</p>}
-      {error && <p className="text-sm text-red-400">unavailable</p>}
+    <Card
+      title="Stablecoin supply Δ"
+      subtitle={`last ${range} · mint vs burn`}
+      actions={<FlowRangeSelector value={range} onChange={setRange} />}
+    >
+      {isLoading && <p className="text-sm text-slate-500">loading…</p>}
+      {error && <p className="text-sm text-down">unavailable</p>}
       {!isLoading && !error && Object.keys(net).length === 0 && (
-        <p className="text-sm text-neutral-500">no data yet — waiting for Dune sync</p>
+        <p className="text-sm text-slate-500">no data yet — waiting for Dune sync</p>
       )}
-      <ul className="space-y-2">
+      <ul className="space-y-2.5">
         {Object.entries(net).map(([asset, delta]) => {
           const pct = (Math.abs(delta) / max) * 100;
+          const up = delta >= 0;
           return (
             <li key={asset} className="text-sm">
               <div className="flex justify-between mb-1">
-                <span className="text-neutral-300">{asset}</span>
-                <span className={delta >= 0 ? "text-emerald-400" : "text-red-400"}>
-                  {delta >= 0 ? "+" : ""}
-                  {formatUsd(delta)}
+                <span className="text-slate-200 font-medium">{asset}</span>
+                <span className={"font-mono tabular-nums " + (up ? "text-up" : "text-down")}>
+                  {up ? "+" : ""}
+                  {formatUsdCompact(delta)}
                 </span>
               </div>
-              <div className="h-1.5 rounded bg-neutral-800 overflow-hidden">
+              <div className="h-1.5 rounded-full bg-surface-raised overflow-hidden">
                 <div
-                  className={delta >= 0 ? "bg-emerald-500 h-full" : "bg-red-500 h-full"}
+                  className={(up ? "bg-up/80" : "bg-down/80") + " h-full rounded-full"}
                   style={{ width: `${pct}%` }}
                 />
               </div>
@@ -61,6 +58,6 @@ export default function StablecoinSupplyPanel() {
           );
         })}
       </ul>
-    </div>
+    </Card>
   );
 }

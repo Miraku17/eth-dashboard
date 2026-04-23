@@ -8,12 +8,15 @@ import {
 } from "lightweight-charts";
 
 import { fetchCandles, type Timeframe } from "../api";
+import Card from "./ui/Card";
+import TimeframeSelector from "./TimeframeSelector";
 
 type Props = {
   timeframe: Timeframe;
+  onTimeframeChange: (tf: Timeframe) => void;
 };
 
-export default function PriceChart({ timeframe }: Props) {
+export default function PriceChart({ timeframe, onTimeframeChange }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -30,24 +33,34 @@ export default function PriceChart({ timeframe }: Props) {
 
     const chart = createChart(containerRef.current, {
       layout: {
-        background: { color: "#0a0a0a" },
-        textColor: "#d4d4d4",
+        background: { color: "transparent" },
+        textColor: "#8b95a1",
+        fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
       },
       grid: {
-        vertLines: { color: "#262626" },
-        horzLines: { color: "#262626" },
+        vertLines: { color: "rgba(255,255,255,0.03)" },
+        horzLines: { color: "rgba(255,255,255,0.04)" },
+      },
+      rightPriceScale: { borderColor: "transparent" },
+      timeScale: {
+        timeVisible: true,
+        secondsVisible: false,
+        borderColor: "transparent",
+      },
+      crosshair: {
+        vertLine: { color: "rgba(124,131,255,0.35)", width: 1, style: 3 },
+        horzLine: { color: "rgba(124,131,255,0.35)", width: 1, style: 3 },
       },
       width: containerRef.current.clientWidth,
-      height: 420,
-      timeScale: { timeVisible: true, secondsVisible: false },
+      height: 460,
     });
 
     const candleSeries = chart.addCandlestickSeries({
-      upColor: "#10b981",
-      downColor: "#ef4444",
+      upColor: "#19c37d",
+      downColor: "#ff5c62",
       borderVisible: false,
-      wickUpColor: "#10b981",
-      wickDownColor: "#ef4444",
+      wickUpColor: "#19c37d",
+      wickDownColor: "#ff5c62",
     });
 
     const volumeSeries = chart.addHistogramSeries({
@@ -55,7 +68,7 @@ export default function PriceChart({ timeframe }: Props) {
       priceScaleId: "volume",
     });
     chart.priceScale("volume").applyOptions({
-      scaleMargins: { top: 0.8, bottom: 0 },
+      scaleMargins: { top: 0.82, bottom: 0 },
     });
 
     chartRef.current = chart;
@@ -90,7 +103,7 @@ export default function PriceChart({ timeframe }: Props) {
     const volumes = data.candles.map((c) => ({
       time: c.time as UTCTimestamp,
       value: c.volume,
-      color: c.close >= c.open ? "#10b98155" : "#ef444455",
+      color: c.close >= c.open ? "rgba(25,195,125,0.45)" : "rgba(255,92,98,0.45)",
     }));
 
     candleSeriesRef.current.setData(candles);
@@ -98,13 +111,20 @@ export default function PriceChart({ timeframe }: Props) {
   }, [data]);
 
   return (
-    <div className="rounded-lg border border-neutral-800 p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold">ETH / USDT</h2>
-        {isLoading && <span className="text-sm text-neutral-500">loading…</span>}
-        {error && <span className="text-sm text-red-400">chart unavailable</span>}
-      </div>
-      <div ref={containerRef} />
-    </div>
+    <Card
+      title="ETH / USDT"
+      subtitle={
+        isLoading
+          ? "loading…"
+          : error
+            ? "chart unavailable"
+            : `${data?.candles.length ?? 0} ${timeframe} candles · Binance`
+      }
+      live
+      actions={<TimeframeSelector value={timeframe} onChange={onTimeframeChange} />}
+      bodyClassName="p-0"
+    >
+      <div ref={containerRef} className="px-2 pt-2 pb-3" />
+    </Card>
   );
 }

@@ -53,3 +53,21 @@ class OnchainVolumePoint(BaseModel):
 
 class OnchainVolumeResponse(BaseModel):
     points: list[OnchainVolumePoint]
+
+
+class WhaleTransfer(BaseModel):
+    tx_hash: str
+    log_index: int
+    block_number: int
+    ts: datetime
+    from_addr: str
+    to_addr: str
+    from_label: str | None = None
+    to_label: str | None = None
+    asset: str
+    amount: float
+    usd_value: float | None = None
+
+
+class WhaleTransfersResponse(BaseModel):
+    transfers: list[WhaleTransfer]

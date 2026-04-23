@@ -4,6 +4,7 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
+  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -11,15 +12,17 @@ import {
 } from "recharts";
 
 import { fetchOnchainVolume, rangeToHours, type FlowRange } from "../api";
+import { formatUsdCompact } from "../lib/format";
+import Card from "./ui/Card";
 import FlowRangeSelector from "./FlowRangeSelector";
 
 const ASSETS = ["ETH", "USDT", "USDC", "DAI", "WETH"] as const;
 const COLORS: Record<string, string> = {
-  ETH: "#10b981",
-  USDT: "#06b6d4",
+  ETH: "#7c83ff",
+  USDT: "#19c37d",
   USDC: "#3b82f6",
   DAI: "#f59e0b",
-  WETH: "#a855f7",
+  WETH: "#d946ef",
 };
 
 const OPTIONS: FlowRange[] = ["7d", "30d"];
@@ -45,35 +48,68 @@ export default function OnchainVolumePanel() {
       byDay.set(day, existing);
     }
     pivot.push(
-      ...Array.from(byDay.values()).sort((a, b) => String(a.day).localeCompare(String(b.day))),
+      ...Array.from(byDay.values()).sort((a, b) =>
+        String(a.day).localeCompare(String(b.day)),
+      ),
     );
   }
 
   return (
-    <div className="rounded-lg border border-neutral-800 p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold">On-chain tx volume (USD)</h2>
-        <FlowRangeSelector value={range} onChange={setRange} options={OPTIONS} />
-      </div>
-      {isLoading && <p className="text-sm text-neutral-500">loading…</p>}
-      {error && <p className="text-sm text-red-400">unavailable</p>}
+    <Card
+      title="On-chain transfer volume"
+      subtitle="stacked daily USD across ETH, stables, WETH"
+      actions={<FlowRangeSelector value={range} onChange={setRange} options={OPTIONS} />}
+    >
+      {isLoading && <p className="text-sm text-slate-500">loading…</p>}
+      {error && <p className="text-sm text-down">unavailable</p>}
       {!isLoading && !error && pivot.length === 0 && (
-        <p className="text-sm text-neutral-500">no data yet — waiting for Dune sync</p>
+        <p className="text-sm text-slate-500">no data yet — waiting for Dune sync</p>
       )}
       {pivot.length > 0 && (
-        <div className="h-64">
+        <div className="h-72 -mx-2">
           <ResponsiveContainer>
-            <AreaChart data={pivot}>
-              <CartesianGrid stroke="#262626" strokeDasharray="3 3" />
-              <XAxis dataKey="day" stroke="#737373" tick={{ fontSize: 11 }} />
-              <YAxis
-                stroke="#737373"
-                tick={{ fontSize: 11 }}
-                tickFormatter={(v: number) =>
-                  v >= 1e9 ? `${(v / 1e9).toFixed(1)}B` : `${(v / 1e6).toFixed(0)}M`
-                }
+            <AreaChart data={pivot} margin={{ top: 5, right: 8, bottom: 0, left: 0 }}>
+              <defs>
+                {ASSETS.map((a) => (
+                  <linearGradient key={a} id={`grad-${a}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={COLORS[a]} stopOpacity={0.45} />
+                    <stop offset="95%" stopColor={COLORS[a]} stopOpacity={0.02} />
+                  </linearGradient>
+                ))}
+              </defs>
+              <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" />
+              <XAxis
+                dataKey="day"
+                stroke="#4b5563"
+                tick={{ fontSize: 11, fill: "#8b95a1" }}
+                tickLine={false}
+                axisLine={false}
               />
-              <Tooltip contentStyle={{ background: "#0a0a0a", border: "1px solid #262626" }} />
+              <YAxis
+                stroke="#4b5563"
+                tick={{ fontSize: 11, fill: "#8b95a1" }}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(v: number) => formatUsdCompact(v)}
+                width={60}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: "#10141b",
+                  border: "1px solid #1b2028",
+                  borderRadius: 8,
+                  fontSize: 12,
+                }}
+                labelStyle={{ color: "#8b95a1" }}
+                formatter={(v: number, name: string) => [formatUsdCompact(v), name]}
+              />
+              <Legend
+                verticalAlign="top"
+                align="right"
+                iconType="circle"
+                iconSize={8}
+                wrapperStyle={{ fontSize: 11, paddingBottom: 8, color: "#8b95a1" }}
+              />
               {ASSETS.map((a) => (
                 <Area
                   key={a}
@@ -81,14 +117,14 @@ export default function OnchainVolumePanel() {
                   dataKey={a}
                   stackId="1"
                   stroke={COLORS[a]}
-                  fill={COLORS[a]}
-                  fillOpacity={0.35}
+                  strokeWidth={1.5}
+                  fill={`url(#grad-${a})`}
                 />
               ))}
             </AreaChart>
           </ResponsiveContainer>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
