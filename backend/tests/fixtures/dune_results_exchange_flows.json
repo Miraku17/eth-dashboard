@@ -1,0 +1,12 @@
+{
+  "execution_id": "01H6V2ZZABCD1234",
+  "query_id": 12345,
+  "state": "QUERY_STATE_COMPLETED",
+  "result": {
+    "rows": [
+      {"ts_bucket": "2026-04-23T10:00:00Z", "exchange": "Binance", "direction": "in",  "asset": "ETH",  "usd_value": 12000000},
+      {"ts_bucket": "2026-04-23T10:00:00Z", "exchange": "Binance", "direction": "out", "asset": "ETH",  "usd_value":  8000000},
+      {"ts_bucket": "2026-04-23T10:00:00Z", "exchange": "Coinbase","direction": "in",  "asset": "USDC", "usd_value":  4500000}
+    ]
+  }
+}
