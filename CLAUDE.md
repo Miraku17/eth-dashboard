@@ -55,7 +55,7 @@ The design doc's v1 scope is fixed. Do **not** implement v2/v3 features (DEX lea
 
 - M0 ✅ scaffold (docker compose, schema, health, React/Vite)
 - M1 ✅ ETH price & volume (Binance klines sync → `/api/price/candles` → candlestick+volume chart with 1m/5m/15m/1h/4h/1d selector)
-- M2 pending — on-chain volume, stablecoin flows, exchange flows (Dune)
+- M2 ✅ on-chain flows (3 Dune queries → `/api/flows/{exchange,stablecoins,onchain-volume}` → panels). Requires Dune query IDs in `.env` (see `docs/dune-setup.md`); panels show "no data yet" gracefully when unset.
 - M3 pending — whale tracking (Alchemy WS)
 - M4 pending — alerts engine
 - M5 pending — network activity + polish
