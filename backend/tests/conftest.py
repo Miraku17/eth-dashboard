@@ -2,11 +2,12 @@ import os
 from collections.abc import Iterator
 
 import pytest
-from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from testcontainers.postgres import PostgresContainer
+
+from alembic import command
 
 
 @pytest.fixture(scope="session")

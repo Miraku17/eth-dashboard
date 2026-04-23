@@ -26,6 +26,17 @@ class Settings(BaseSettings):
     # Minutes between Dune syncs. Free tier ≈ 500 executions/month total.
     dune_sync_interval_min: int = 240
 
+    # Whale-tracking thresholds (M3). ETH compared against native value;
+    # stablecoins against USD notional (1:1 peg assumed).
+    whale_eth_threshold: float = 500.0
+    whale_stable_threshold_usd: float = 1_000_000.0
+
+    @property
+    def alchemy_ws_url(self) -> str:
+        if not self.alchemy_api_key:
+            return ""
+        return f"wss://eth-mainnet.g.alchemy.com/v2/{self.alchemy_api_key}"
+
     @property
     def database_url(self) -> str:
         return (

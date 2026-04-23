@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -12,7 +12,7 @@ from app.main import app
 @pytest.fixture
 def seeded(migrated_engine):
     Session = sessionmaker(bind=migrated_engine, expire_on_commit=False)
-    ts = datetime(2026, 4, 23, 10, 0, tzinfo=timezone.utc)
+    ts = datetime(2026, 4, 23, 10, 0, tzinfo=UTC)
     with Session() as s:
         s.query(ExchangeFlow).delete()
         s.query(StablecoinFlow).delete()

@@ -6,7 +6,6 @@ import pytest
 
 from app.clients.binance import BinanceClient, Kline
 
-
 FIXTURE = Path(__file__).parent / "fixtures" / "binance_klines_1h.json"
 
 

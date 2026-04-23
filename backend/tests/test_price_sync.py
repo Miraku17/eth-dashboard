@@ -1,5 +1,4 @@
-from datetime import datetime, timedelta, timezone
-from decimal import Decimal
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import select
@@ -41,7 +40,7 @@ def test_upsert_inserts_new_candles(session):
     ).scalars().all()
     assert len(rows) == 2
     assert float(rows[0].close) == 3040.0
-    expected_ts = datetime.fromtimestamp(1714089600, tz=timezone.utc)
+    expected_ts = datetime.fromtimestamp(1714089600, tz=UTC)
     assert rows[0].ts == expected_ts
     assert rows[0].symbol == "ETHUSDT"
     assert rows[0].timeframe == "1h"

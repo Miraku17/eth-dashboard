@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
@@ -41,7 +41,7 @@ def _kline_to_row(symbol: str, timeframe: str, k: Kline) -> dict:
     return {
         "symbol": symbol,
         "timeframe": timeframe,
-        "ts": datetime.fromtimestamp(k.open_time_ms / 1000, tz=timezone.utc),
+        "ts": datetime.fromtimestamp(k.open_time_ms / 1000, tz=UTC),
         "open": k.open,
         "high": k.high,
         "low": k.low,

@@ -86,3 +86,31 @@ export async function fetchOnchainVolume(
   if (!r.ok) throw new Error(`onchain volume ${r.status}`);
   return (await r.json()).points;
 }
+
+export type WhaleAsset = "ETH" | "USDT" | "USDC" | "DAI";
+
+export type WhaleTransfer = {
+  tx_hash: string;
+  log_index: number;
+  block_number: number;
+  ts: string;
+  from_addr: string;
+  to_addr: string;
+  from_label: string | null;
+  to_label: string | null;
+  asset: string;
+  amount: number;
+  usd_value: number | null;
+};
+
+export async function fetchWhaleTransfers(
+  hours: number,
+  asset?: WhaleAsset,
+  limit = 100,
+): Promise<WhaleTransfer[]> {
+  const params = new URLSearchParams({ hours: String(hours), limit: String(limit) });
+  if (asset) params.set("asset", asset);
+  const r = await fetch(`/api/whales/transfers?${params}`);
+  if (!r.ok) throw new Error(`whale transfers ${r.status}`);
+  return (await r.json()).transfers;
+}

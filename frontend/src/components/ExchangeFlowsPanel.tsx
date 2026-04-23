@@ -1,14 +1,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchExchangeFlows, rangeToHours, type FlowRange } from "../api";
+import { formatUsdCompact } from "../lib/format";
+import Card from "./ui/Card";
 import FlowRangeSelector from "./FlowRangeSelector";
-
-function formatUsd(n: number): string {
-  if (Math.abs(n) >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
-  if (Math.abs(n) >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
-  if (Math.abs(n) >= 1e3) return `$${(n / 1e3).toFixed(2)}K`;
-  return `$${n.toFixed(0)}`;
-}
 
 export default function ExchangeFlowsPanel() {
   const [range, setRange] = useState<FlowRange>("48h");
@@ -27,29 +22,46 @@ export default function ExchangeFlowsPanel() {
     }
   }
   const sorted = Object.entries(summary).sort((a, b) => b[1] - a[1]);
+  const maxAbs = Math.max(1, ...sorted.map(([, v]) => Math.abs(v)));
 
   return (
-    <div className="rounded-lg border border-neutral-800 p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-semibold">Exchange netflows</h2>
-        <FlowRangeSelector value={range} onChange={setRange} />
-      </div>
-      {isLoading && <p className="text-sm text-neutral-500">loading…</p>}
-      {error && <p className="text-sm text-red-400">unavailable</p>}
+    <Card
+      title="Exchange netflows"
+      subtitle={`last ${range} · Dune · labeled CEX wallets`}
+      actions={<FlowRangeSelector value={range} onChange={setRange} />}
+    >
+      {isLoading && <p className="text-sm text-slate-500">loading…</p>}
+      {error && <p className="text-sm text-down">unavailable</p>}
       {!isLoading && !error && sorted.length === 0 && (
-        <p className="text-sm text-neutral-500">no data yet — waiting for Dune sync</p>
+        <p className="text-sm text-slate-500">no data yet — waiting for Dune sync</p>
       )}
-      <ul className="space-y-2">
-        {sorted.map(([exchange, net]) => (
-          <li key={exchange} className="flex justify-between text-sm">
-            <span className="text-neutral-300">{exchange}</span>
-            <span className={net >= 0 ? "text-emerald-400" : "text-red-400"}>
-              {net >= 0 ? "+" : ""}
-              {formatUsd(net)}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
+      {sorted.length > 0 && (
+        <ul className="space-y-2.5">
+          {sorted.map(([exchange, net]) => {
+            const pct = (Math.abs(net) / maxAbs) * 100;
+            const up = net >= 0;
+            return (
+              <li key={exchange} className="text-sm">
+                <div className="flex items-baseline justify-between mb-1">
+                  <span className="text-slate-200">{exchange}</span>
+                  <span
+                    className={"font-mono tabular-nums " + (up ? "text-up" : "text-down")}
+                  >
+                    {up ? "+" : ""}
+                    {formatUsdCompact(net)}
+                  </span>
+                </div>
+                <div className="h-1.5 rounded-full bg-surface-raised overflow-hidden">
+                  <div
+                    className={(up ? "bg-up/80" : "bg-down/80") + " h-full rounded-full"}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </Card>
   );
 }

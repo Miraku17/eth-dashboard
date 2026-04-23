@@ -9,7 +9,7 @@ This project reads 3 queries from Dune Analytics. You need to save them to your 
 3. For each file under `backend/dune/*.sql`:
    - Paste the SQL into the editor
    - Click **Run** once to verify it executes
-   - Click **Save** → give it a name (e.g. "eth-analytics exchange flows")
+   - Click **Save** → give it a name (e.g. "etherscope exchange flows")
    - The URL now reads `https://dune.com/queries/<QUERY_ID>/…` — copy the numeric ID
 4. Paste the three IDs into `.env`:
 

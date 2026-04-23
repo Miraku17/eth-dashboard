@@ -1,6 +1,6 @@
-# Eth — On-Chain Analytics Dashboard
+# Etherscope
 
-Personal Ethereum trading & on-chain analytics dashboard.
+Ethereum trading & on-chain analytics dashboard.
 
 See `docs/superpowers/specs/2026-04-23-eth-analytics-dashboard-design.md` for the full design.
 

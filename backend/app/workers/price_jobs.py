@@ -1,6 +1,6 @@
 """arq task entrypoints for price sync. Thin wrappers around services.price_sync."""
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 
@@ -27,7 +27,7 @@ async def backfill_price_history(ctx: dict) -> dict:
     http: httpx.AsyncClient = ctx["http"]
     SessionLocal = get_sessionmaker()
     results: dict[str, int] = {}
-    end_ms = int(datetime.now(tz=timezone.utc).timestamp() * 1000)
+    end_ms = int(datetime.now(tz=UTC).timestamp() * 1000)
     with SessionLocal() as session:
         for tf in TIMEFRAMES:
             days = BACKFILL_WINDOWS_DAYS[tf]
