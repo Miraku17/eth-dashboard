@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -18,3 +19,37 @@ class CandlesResponse(BaseModel):
     symbol: str
     timeframe: Timeframe
     candles: list[Candle]
+
+
+class ExchangeFlowPoint(BaseModel):
+    ts_bucket: datetime
+    exchange: str
+    direction: str
+    asset: str
+    usd_value: float
+
+
+class ExchangeFlowsResponse(BaseModel):
+    points: list[ExchangeFlowPoint]
+
+
+class StablecoinFlowPoint(BaseModel):
+    ts_bucket: datetime
+    asset: str
+    direction: str
+    usd_value: float
+
+
+class StablecoinFlowsResponse(BaseModel):
+    points: list[StablecoinFlowPoint]
+
+
+class OnchainVolumePoint(BaseModel):
+    ts_bucket: datetime
+    asset: str
+    tx_count: int
+    usd_value: float
+
+
+class OnchainVolumeResponse(BaseModel):
+    points: list[OnchainVolumePoint]
