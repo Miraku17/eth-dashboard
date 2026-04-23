@@ -19,6 +19,13 @@ class Settings(BaseSettings):
     app_env: str = "dev"
     log_level: str = "INFO"
 
+    dune_query_id_exchange_flows: int = 0
+    dune_query_id_stablecoin_supply: int = 0
+    dune_query_id_onchain_volume: int = 0
+
+    # Minutes between Dune syncs. Free tier ≈ 500 executions/month total.
+    dune_sync_interval_min: int = 240
+
     @property
     def database_url(self) -> str:
         return (
