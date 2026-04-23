@@ -2,7 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { fetchHealth, type Timeframe } from "./api";
+import ExchangeFlowsPanel from "./components/ExchangeFlowsPanel";
+import OnchainVolumePanel from "./components/OnchainVolumePanel";
 import PriceChart from "./components/PriceChart";
+import StablecoinSupplyPanel from "./components/StablecoinSupplyPanel";
 import TimeframeSelector from "./components/TimeframeSelector";
 
 export default function App() {
@@ -25,7 +28,16 @@ export default function App() {
       <div className="flex items-center gap-4">
         <TimeframeSelector value={timeframe} onChange={setTimeframe} />
       </div>
-      <PriceChart timeframe={timeframe} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <PriceChart timeframe={timeframe} />
+        </div>
+        <div className="space-y-6">
+          <ExchangeFlowsPanel />
+          <StablecoinSupplyPanel />
+        </div>
+      </div>
+      <OnchainVolumePanel />
     </main>
   );
 }
