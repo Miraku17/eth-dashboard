@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     whale_eth_threshold: float = 500.0
     whale_stable_threshold_usd: float = 1_000_000.0
 
+    # Alerts (M4). Evaluator runs on a cron; Telegram delivery is optional.
+    telegram_bot_token: str = ""
+    telegram_chat_id: str = ""
+    webhook_signing_secret: str = ""
+    alert_default_cooldown_min: int = 15
+
     @property
     def alchemy_ws_url(self) -> str:
         if not self.alchemy_api_key:

@@ -114,3 +114,73 @@ export async function fetchWhaleTransfers(
   if (!r.ok) throw new Error(`whale transfers ${r.status}`);
   return (await r.json()).transfers;
 }
+
+export type AlertEvent = {
+  id: number;
+  rule_id: number;
+  rule_name: string | null;
+  fired_at: string;
+  payload: Record<string, unknown>;
+  delivered: Record<string, { ok: boolean; error?: string; status?: number }>;
+};
+
+export async function fetchAlertEvents(
+  hours = 24,
+  limit = 100,
+): Promise<AlertEvent[]> {
+  const r = await fetch(`/api/alerts/events?hours=${hours}&limit=${limit}`);
+  if (!r.ok) throw new Error(`alert events ${r.status}`);
+  return (await r.json()).events;
+}
+
+export type AlertRule = {
+  id: number;
+  name: string;
+  rule_type: string;
+  params: Record<string, unknown>;
+  channels: { type: "telegram" | "webhook"; url?: string | null }[];
+  cooldown_min: number | null;
+  enabled: boolean;
+};
+
+export async function fetchAlertRules(): Promise<AlertRule[]> {
+  const r = await fetch("/api/alerts/rules");
+  if (!r.ok) throw new Error(`alert rules ${r.status}`);
+  return (await r.json()).rules;
+}
+
+export type AlertRuleInput = {
+  name: string;
+  params: Record<string, unknown> & { rule_type: string };
+  channels: { type: "telegram" | "webhook"; url?: string | null }[];
+  cooldown_min?: number | null;
+  enabled?: boolean;
+};
+
+export async function createAlertRule(body: AlertRuleInput): Promise<AlertRule> {
+  const r = await fetch("/api/alerts/rules", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`create rule ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+
+export async function patchAlertRule(
+  id: number,
+  patch: Partial<AlertRuleInput>,
+): Promise<AlertRule> {
+  const r = await fetch(`/api/alerts/rules/${id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!r.ok) throw new Error(`patch rule ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+
+export async function deleteAlertRule(id: number): Promise<void> {
+  const r = await fetch(`/api/alerts/rules/${id}`, { method: "DELETE" });
+  if (!r.ok && r.status !== 204) throw new Error(`delete rule ${r.status}`);
+}

@@ -4,6 +4,7 @@ from arq.cron import cron
 
 from app.clients.binance import BINANCE_BASE_URL
 from app.core.config import get_settings
+from app.workers.alert_jobs import evaluate_alerts
 from app.workers.flow_jobs import sync_dune_flows
 from app.workers.price_jobs import backfill_price_history, sync_price_latest
 
@@ -30,10 +31,11 @@ def _dune_cron_kwargs() -> dict:
 
 
 class WorkerSettings:
-    functions = [backfill_price_history, sync_price_latest, sync_dune_flows]
+    functions = [backfill_price_history, sync_price_latest, sync_dune_flows, evaluate_alerts]
     cron_jobs = [
         cron(sync_price_latest, minute=set(range(0, 60)), run_at_startup=False),
         cron(sync_dune_flows, **_dune_cron_kwargs(), run_at_startup=False),
+        cron(evaluate_alerts, minute=set(range(0, 60)), run_at_startup=False),
     ]
     on_startup = startup
     on_shutdown = shutdown
