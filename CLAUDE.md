@@ -58,7 +58,9 @@ The design doc's v1 scope is fixed. Do **not** implement v2/v3 features (DEX lea
 - M2 ✅ on-chain flows (3 Dune queries → `/api/flows/{exchange,stablecoins,onchain-volume}` → panels). Requires Dune query IDs in `.env` (see `docs/dune-setup.md`); panels show "no data yet" gracefully when unset.
 - M3 ✅ whale tracking — Alchemy WS listener persists ETH + USDT/USDC/DAI transfers above threshold to `transfers`; `/api/whales/transfers` exposes them with CEX labels; live-refreshing panel. Needs `ALCHEMY_API_KEY`; thresholds via `WHALE_ETH_THRESHOLD` / `WHALE_STABLE_THRESHOLD_USD`.
 - M4 ✅ alerts engine — arq cron `evaluate_alerts` every minute; 6 rule types (price above/below/change%, whale transfer, whale→exchange, exchange netflow); Telegram + HMAC-signed webhook delivery; `/api/alerts/{rules,events}` CRUD; tabbed dashboard panel (Events / Rules) with form-based create/edit + toast on fire. See `docs/telegram-setup.md`.
-- M5 pending — network activity + polish
+- M5 ✅ network activity + polish — realtime listener writes per-block gas/base-fee/tx-count to `network_activity`; `/api/network/{summary,series}` endpoints; dashboard panel with gas + tx-count charts; `/api/health` reports per-source freshness; Topbar dropdown shows data lag per source; ErrorBoundary wraps every panel.
+
+**v1 complete.** Roadmap above is fully ✅. Next natural steps are deployment (Hetzner) and v2 scoping (smart-money tracking, clustering, mempool — each larger than all of v1 combined, plan with client first).
 
 ## Environment note
 

@@ -178,3 +178,42 @@ class AlertRulesResponse(BaseModel):
 
 class AlertEventsResponse(BaseModel):
     events: list[AlertEventOut]
+
+
+# ---------- Network activity (M5) ----------
+
+
+class NetworkPointOut(BaseModel):
+    ts: datetime
+    tx_count: int
+    gas_price_gwei: float
+    base_fee_gwei: float
+
+
+class NetworkSummary(BaseModel):
+    latest_ts: datetime | None
+    gas_price_gwei: float | None
+    base_fee_gwei: float | None
+    tx_count: int | None
+    avg_block_seconds: float | None
+    avg_tx_per_block: float | None
+
+
+class NetworkSeriesResponse(BaseModel):
+    points: list[NetworkPointOut]
+
+
+# ---------- Health (M5 extension) ----------
+
+
+class DataSourceStatus(BaseModel):
+    name: str
+    last_update: datetime | None
+    lag_seconds: float | None
+    stale: bool
+
+
+class HealthResponse(BaseModel):
+    status: str
+    version: str
+    sources: list[DataSourceStatus] = []

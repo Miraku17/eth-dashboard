@@ -1,7 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchHealth } from "../api";
+import { useState } from "react";
+import { fetchHealth, type DataSourceStatus } from "../api";
 
 const NAV = ["Overview", "Flows", "Whales", "Alerts"] as const;
+
+const SOURCE_LABELS: Record<string, string> = {
+  binance_1m: "Binance",
+  dune_flows: "Dune",
+  alchemy_blocks: "Alchemy",
+  whale_transfers: "Whales",
+};
 
 function EthMark() {
   return (
@@ -20,13 +28,38 @@ function EthMark() {
   );
 }
 
+function formatLag(seconds: number | null): string {
+  if (seconds === null) return "no data";
+  if (seconds < 60) return `${Math.floor(seconds)}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+  return `${Math.floor(seconds / 86400)}d`;
+}
+
+function SourceRow({ s }: { s: DataSourceStatus }) {
+  return (
+    <div className="flex items-center justify-between gap-6 py-1.5 text-xs">
+      <div className="flex items-center gap-2">
+        <span
+          className={
+            "w-1.5 h-1.5 rounded-full inline-block " + (s.stale ? "bg-down" : "bg-up")
+          }
+        />
+        <span className="text-slate-200">{SOURCE_LABELS[s.name] ?? s.name}</span>
+      </div>
+      <span className="font-mono text-slate-500">{formatLag(s.lag_seconds)}</span>
+    </div>
+  );
+}
+
 export default function Topbar() {
+  const [open, setOpen] = useState(false);
   const { data: health } = useQuery({
     queryKey: ["health"],
     queryFn: fetchHealth,
     refetchInterval: 30_000,
   });
-  const isUp = health?.status === "ok";
+  const isOk = health?.status === "ok";
 
   return (
     <header className="sticky top-0 z-20 border-b border-surface-border bg-surface-base/85 backdrop-blur supports-[backdrop-filter]:bg-surface-base/70">
@@ -55,18 +88,52 @@ export default function Topbar() {
             ))}
           </nav>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
+        <div className="relative flex items-center gap-4">
+          <button
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            className="hidden sm:flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200 px-2 py-1 rounded-md border border-transparent hover:border-surface-border"
+          >
             <span
               className={
-                "w-1.5 h-1.5 rounded-full " + (isUp ? "bg-up pulse" : "bg-down")
+                "w-1.5 h-1.5 rounded-full " + (isOk ? "bg-up pulse" : "bg-down")
               }
             />
-            {isUp ? "API online" : "API offline"}
+            {isOk ? "Systems nominal" : "Degraded"}
             {health && (
               <span className="text-slate-600 font-mono">v{health.version}</span>
             )}
-          </div>
+            <span
+              className={"text-slate-500 transition " + (open ? "rotate-180" : "")}
+              aria-hidden="true"
+            >
+              ▾
+            </span>
+          </button>
+          {open && (
+            <>
+              <button
+                aria-hidden="true"
+                tabIndex={-1}
+                onClick={() => setOpen(false)}
+                className="fixed inset-0 z-40 cursor-default"
+              />
+              <div className="absolute top-full right-0 mt-2 w-64 rounded-lg border border-surface-border bg-surface-card shadow-card p-3 z-50">
+                <h4 className="text-[10px] font-semibold tracking-widest text-slate-500 uppercase mb-2">
+                  Data freshness
+                </h4>
+                {health ? (
+                  <div className="divide-y divide-surface-divider">
+                    {health.sources.map((s) => (
+                      <SourceRow key={s.name} s={s} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500">loading…</p>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </header>

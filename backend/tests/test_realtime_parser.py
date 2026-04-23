@@ -1,6 +1,11 @@
 from datetime import UTC, datetime
 
-from app.realtime.parser import block_timestamp, parse_erc20_log, parse_native_tx
+from app.realtime.parser import (
+    block_timestamp,
+    extract_network_activity,
+    parse_erc20_log,
+    parse_native_tx,
+)
 
 BLOCK_TS = datetime(2026, 4, 23, 12, 0, tzinfo=UTC)
 
@@ -92,3 +97,23 @@ def test_parse_erc20_log_below_threshold_ignored():
 def test_block_timestamp():
     block = {"timestamp": hex(1_700_000_000)}
     assert block_timestamp(block) == datetime.fromtimestamp(1_700_000_000, tz=UTC)
+
+
+def test_extract_network_activity():
+    block = {
+        "timestamp": hex(1_700_000_000),
+        "baseFeePerGas": hex(25 * 10**9),  # 25 gwei
+        "transactions": [{}] * 217,
+    }
+    p = extract_network_activity(block)
+    assert p.tx_count == 217
+    assert p.base_fee_gwei == 25.0
+    assert p.gas_price_gwei == 26.0  # base + 1 gwei priority approximation
+    assert p.ts == datetime.fromtimestamp(1_700_000_000, tz=UTC)
+
+
+def test_extract_network_activity_empty_block():
+    block = {"timestamp": hex(1_700_000_000), "baseFeePerGas": "0x0"}
+    p = extract_network_activity(block)
+    assert p.tx_count == 0
+    assert p.base_fee_gwei == 0.0

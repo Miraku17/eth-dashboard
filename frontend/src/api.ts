@@ -24,7 +24,18 @@ export async function fetchCandles(
   return r.json();
 }
 
-export type Health = { status: string; version: string };
+export type DataSourceStatus = {
+  name: string;
+  last_update: string | null;
+  lag_seconds: number | null;
+  stale: boolean;
+};
+
+export type Health = {
+  status: "ok" | "degraded" | string;
+  version: string;
+  sources: DataSourceStatus[];
+};
 
 export async function fetchHealth(): Promise<Health> {
   const r = await fetch("/api/health");
@@ -183,4 +194,32 @@ export async function patchAlertRule(
 export async function deleteAlertRule(id: number): Promise<void> {
   const r = await fetch(`/api/alerts/rules/${id}`, { method: "DELETE" });
   if (!r.ok && r.status !== 204) throw new Error(`delete rule ${r.status}`);
+}
+
+export type NetworkSummary = {
+  latest_ts: string | null;
+  gas_price_gwei: number | null;
+  base_fee_gwei: number | null;
+  tx_count: number | null;
+  avg_block_seconds: number | null;
+  avg_tx_per_block: number | null;
+};
+
+export async function fetchNetworkSummary(): Promise<NetworkSummary> {
+  const r = await fetch("/api/network/summary");
+  if (!r.ok) throw new Error(`network summary ${r.status}`);
+  return r.json();
+}
+
+export type NetworkPoint = {
+  ts: string;
+  tx_count: number;
+  gas_price_gwei: number;
+  base_fee_gwei: number;
+};
+
+export async function fetchNetworkSeries(hours = 24): Promise<NetworkPoint[]> {
+  const r = await fetch(`/api/network/series?hours=${hours}`);
+  if (!r.ok) throw new Error(`network series ${r.status}`);
+  return (await r.json()).points;
 }
