@@ -2,7 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { fetchHealth, type DataSourceStatus } from "../api";
 
-const NAV = ["Overview", "Flows", "Whales", "Alerts"] as const;
+const NAV: readonly { label: string; id: string }[] = [
+  { label: "Overview", id: "overview" },
+  { label: "Flows", id: "flows" },
+  { label: "Whales", id: "whales" },
+  { label: "Alerts", id: "alerts" },
+];
 
 const SOURCE_LABELS: Record<string, string> = {
   binance_1m: "Binance",
@@ -73,18 +78,14 @@ export default function Topbar() {
             </span>
           </div>
           <nav className="hidden md:flex items-center gap-1">
-            {NAV.map((n, i) => (
-              <button
-                key={n}
-                className={
-                  "px-3 py-1.5 text-sm rounded-md transition " +
-                  (i === 0
-                    ? "text-white bg-surface-raised"
-                    : "text-slate-400 hover:text-slate-200")
-                }
+            {NAV.map((n) => (
+              <a
+                key={n.id}
+                href={`#${n.id}`}
+                className="px-3 py-1.5 text-sm rounded-md transition text-slate-400 hover:text-slate-200 hover:bg-surface-raised/60"
               >
-                {n}
-              </button>
+                {n.label}
+              </a>
             ))}
           </nav>
         </div>

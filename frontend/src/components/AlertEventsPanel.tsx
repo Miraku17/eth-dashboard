@@ -9,6 +9,7 @@ import {
   type AlertRule,
   type AlertRuleInput,
 } from "../api";
+import { NEW_RULE_EVENT } from "../hooks/useGlobalShortcuts";
 import { formatUsdCompact, relativeTime } from "../lib/format";
 import Button from "./ui/Button";
 import Card from "./ui/Card";
@@ -109,6 +110,17 @@ export default function AlertEventsPanel() {
     queryFn: fetchAlertRules,
     refetchInterval: 60_000,
   });
+
+  // Global keyboard shortcut: `n` opens the new-rule modal.
+  useEffect(() => {
+    const open = () => {
+      setEditing(null);
+      setTab("rules");
+      setModalOpen(true);
+    };
+    window.addEventListener(NEW_RULE_EVENT, open);
+    return () => window.removeEventListener(NEW_RULE_EVENT, open);
+  }, []);
 
   // Toast on new alert fires.
   const seenIds = useRef<Set<number> | null>(null);
