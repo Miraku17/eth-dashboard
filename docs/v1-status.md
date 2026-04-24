@@ -116,13 +116,13 @@ larger than any v1 milestone or need infra we don't have yet.
    `network_activity`, but Transfer rows would cause write contention). If
    you ever want HA, add a leader election or put it behind a single-writer
    queue.
-5. **No CORS config on the API.** The dev Vite proxy hides the problem. On
-   Railway, the frontend and API are different origins — add
-   `CORSMiddleware` to `app/main.py` and restrict it to your frontend's
-   domain before public deploy.
-6. **No authentication.** Anyone who hits the API can read data and write
-   alert rules. Do **not** share the public URL before adding auth. See
-   Improvements.
+5. **CORS is permissive by default.** `CORS_ORIGINS=*` is fine for local;
+   set it to the exact frontend URL in production to tighten.
+6. **Bearer-token auth is single-user.** `API_AUTH_TOKEN` gates all routes
+   except `/api/health`. Fine for a personal deploy or small team that
+   shares a secret out-of-band. For multi-user / per-user ACLs, a real
+   auth system (OIDC, per-user API keys) is still future work — see
+   Improvements → Non-trivial.
 
 ---
 
@@ -130,23 +130,23 @@ larger than any v1 milestone or need infra we don't have yet.
 
 ### Cheap wins (hours each)
 
-- **CORS middleware.** Ship before Railway deploy. ~20 lines in
-  `app/main.py`; restrict origins to the frontend domain.
-- **API token auth.** A single long-lived bearer token read from
-  `API_AUTH_TOKEN` env, required on every non-public route. ~30 lines. Good
-  enough for a personal tool.
-- **Skeleton loaders** on the PriceHero, instead of `—` placeholders.
-  Perceived load time ↓.
+- ✅ **CORS middleware.** Enabled via `CORS_ORIGINS` env. `*` for local,
+  exact frontend URL in prod.
+- ✅ **API token auth.** Bearer-token auth gated by `API_AUTH_TOKEN`.
+  Health stays public; everything else 401s when the token is set and not
+  provided. Frontend reads `VITE_API_TOKEN` at build time.
+- ✅ **Skeleton loaders on PriceHero.** Shimmer placeholders match the
+  real layout so the page doesn't jump on data load.
 - **Mobile scroll affordance** on the whale + alerts tables (left/right
   shadow hint when horizontally scrollable).
-- **Keyboard shortcut `n`** opens the "New rule" modal.
-- **Wire the Topbar nav** (`Overview / Flows / Whales / Alerts`) to
-  scroll-anchor each panel. Currently decorative only.
+- ✅ **Keyboard shortcut `n`** opens the "New rule" modal (also switches
+  to the Rules tab). Skips input/textarea contexts.
+- ✅ **Topbar nav wired** — `Overview / Flows / Whales / Alerts` scroll
+  to their anchors with a sticky-aware offset.
 - **Address label refresh** — cron job that pulls the Etherscan / Dune CEX
   label list nightly and merges with the hardcoded set.
-- **Lower default whale thresholds** — current 500 ETH / $1M filters out
-  ~95% of interesting activity. `100 ETH / $250k` gives a much richer feed
-  without drowning the user.
+- ✅ **Default whale thresholds lowered** to 100 ETH / $250k. Override via
+  `.env` when you want a stricter feed.
 
 ### Medium (a day each)
 

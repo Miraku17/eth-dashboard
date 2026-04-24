@@ -46,7 +46,7 @@ function StripCell({
 }
 
 export default function PriceHero() {
-  const { data, isLoading, error } = useMarketSummary();
+  const { data, error } = useMarketSummary();
 
   const up = (data?.change24hPct ?? 0) >= 0;
   const color = up ? "text-up" : "text-down";
@@ -77,17 +77,30 @@ export default function PriceHero() {
                 <span className="text-[11px] text-slate-500">· Mainnet</span>
               </div>
               <div className="mt-3 flex items-baseline gap-3 flex-wrap">
-                <div className="font-mono text-4xl lg:text-5xl font-semibold tabular-nums tracking-tight">
-                  {isLoading || error || !data ? "—" : formatUsdFull(data.price)}
-                </div>
-                {data && (
-                  <div className={"font-mono text-base font-semibold " + color}>
-                    {arrow} {formatPct(data.change24hPct)}
-                    <span className="text-slate-500 font-normal ml-2">
-                      ({up ? "+" : ""}
-                      {formatUsdFull(data.change24hAbs)})
-                    </span>
+                {data ? (
+                  <>
+                    <div className="font-mono text-4xl lg:text-5xl font-semibold tabular-nums tracking-tight">
+                      {formatUsdFull(data.price)}
+                    </div>
+                    <div className={"font-mono text-base font-semibold " + color}>
+                      {arrow} {formatPct(data.change24hPct)}
+                      <span className="text-slate-500 font-normal ml-2">
+                        ({up ? "+" : ""}
+                        {formatUsdFull(data.change24hAbs)})
+                      </span>
+                    </div>
+                  </>
+                ) : error ? (
+                  <div className="font-mono text-4xl lg:text-5xl font-semibold text-slate-700 tracking-tight">
+                    —
                   </div>
+                ) : (
+                  // Loading skeleton — matches the shape of the real headline
+                  // so the layout doesn't jump when data arrives.
+                  <>
+                    <div className="skeleton h-10 lg:h-12 w-48" />
+                    <div className="skeleton h-5 w-32" />
+                  </>
                 )}
               </div>
               {data && (
@@ -120,7 +133,7 @@ export default function PriceHero() {
 
         <div className="lg:w-[40%] p-6 flex items-center">
           <div className="w-full h-28">
-            {data && (
+            {data ? (
               <ResponsiveContainer>
                 <LineChart data={data.sparkline}>
                   <Line
@@ -133,24 +146,37 @@ export default function PriceHero() {
                   />
                 </LineChart>
               </ResponsiveContainer>
+            ) : (
+              <div className="skeleton h-full w-full" />
             )}
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-surface-divider border-t border-surface-divider">
-        <StripCell label="24h High" value={data ? formatUsdFull(data.high24h) : "—"} />
-        <StripCell label="24h Low" value={data ? formatUsdFull(data.low24h) : "—"} />
-        <StripCell
-          label="24h Volume"
-          value={data ? formatUsdCompact(data.volumeUsd24h) : "—"}
-          hint={data ? `${formatNumberCompact(data.volumeEth24h)} ETH` : undefined}
-        />
-        <StripCell
-          label="24h Change"
-          value={data ? formatPct(data.change24hPct) : "—"}
-          tone={up ? "up" : "down"}
-        />
+        {data ? (
+          <>
+            <StripCell label="24h High" value={formatUsdFull(data.high24h)} />
+            <StripCell label="24h Low" value={formatUsdFull(data.low24h)} />
+            <StripCell
+              label="24h Volume"
+              value={formatUsdCompact(data.volumeUsd24h)}
+              hint={`${formatNumberCompact(data.volumeEth24h)} ETH`}
+            />
+            <StripCell
+              label="24h Change"
+              value={formatPct(data.change24hPct)}
+              tone={up ? "up" : "down"}
+            />
+          </>
+        ) : (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="px-5 py-4">
+              <div className="skeleton h-3 w-20 mb-2" />
+              <div className="skeleton h-5 w-28" />
+            </div>
+          ))
+        )}
       </div>
     </section>
   );

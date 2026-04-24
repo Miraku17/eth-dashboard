@@ -28,14 +28,25 @@ class Settings(BaseSettings):
 
     # Whale-tracking thresholds (M3). ETH compared against native value;
     # stablecoins against USD notional (1:1 peg assumed).
-    whale_eth_threshold: float = 500.0
-    whale_stable_threshold_usd: float = 1_000_000.0
+    # Defaults tuned to surface ~several hits/hour during active markets — the
+    # old 500 ETH / $1M values are correct for "real whales" but left the
+    # panel empty on most days. Override in .env for stricter filtering.
+    whale_eth_threshold: float = 100.0
+    whale_stable_threshold_usd: float = 250_000.0
 
     # Alerts (M4). Evaluator runs on a cron; Telegram delivery is optional.
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
     webhook_signing_secret: str = ""
     alert_default_cooldown_min: int = 15
+
+    # API access control (v1 polish). When unset, the API is open — fine for
+    # a single-user local setup. Set it before exposing the deploy publicly.
+    api_auth_token: str = ""
+    # Comma-separated allowed origins for CORS. "*" = permissive (dev).
+    # In prod set to your frontend domain, e.g.
+    # "https://etherscope-frontend-production.up.railway.app".
+    cors_origins: str = "*"
 
     @property
     def alchemy_ws_url(self) -> str:

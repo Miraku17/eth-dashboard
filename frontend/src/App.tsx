@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 
 import type { Timeframe } from "./api";
+import { useGlobalShortcuts } from "./hooks/useGlobalShortcuts";
 import AlertEventsPanel from "./components/AlertEventsPanel";
 import ExchangeFlowsPanel from "./components/ExchangeFlowsPanel";
 import NetworkActivityPanel from "./components/NetworkActivityPanel";
@@ -12,18 +13,33 @@ import Topbar from "./components/Topbar";
 import WhaleTransfersPanel from "./components/WhaleTransfersPanel";
 import ErrorBoundary from "./components/ui/ErrorBoundary";
 
-function Guarded({ label, children }: { label: string; children: ReactNode }) {
-  return <ErrorBoundary label={label}>{children}</ErrorBoundary>;
+function Guarded({
+  label,
+  children,
+  id,
+}: {
+  label: string;
+  children: ReactNode;
+  id?: string;
+}) {
+  return (
+    // `scroll-mt-20` offsets the sticky topbar so anchor jumps don't hide
+    // the top edge of the panel behind it.
+    <section id={id} className="scroll-mt-20">
+      <ErrorBoundary label={label}>{children}</ErrorBoundary>
+    </section>
+  );
 }
 
 export default function App() {
   const [timeframe, setTimeframe] = useState<Timeframe>("1h");
+  useGlobalShortcuts();
 
   return (
     <div className="min-h-screen">
       <Topbar />
       <main className="mx-auto max-w-[1600px] px-4 sm:px-6 py-6 space-y-6">
-        <Guarded label="Price">
+        <Guarded label="Price" id="overview">
           <PriceHero />
         </Guarded>
 
@@ -34,7 +50,7 @@ export default function App() {
             </Guarded>
           </div>
           <div className="space-y-6">
-            <Guarded label="Exchange flows">
+            <Guarded label="Exchange flows" id="flows">
               <ExchangeFlowsPanel />
             </Guarded>
             <Guarded label="Stablecoin supply">
@@ -49,10 +65,10 @@ export default function App() {
         <Guarded label="On-chain volume">
           <OnchainVolumePanel />
         </Guarded>
-        <Guarded label="Whale transfers">
+        <Guarded label="Whale transfers" id="whales">
           <WhaleTransfersPanel />
         </Guarded>
-        <Guarded label="Alerts">
+        <Guarded label="Alerts" id="alerts">
           <AlertEventsPanel />
         </Guarded>
 

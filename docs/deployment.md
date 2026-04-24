@@ -116,8 +116,17 @@ TELEGRAM_CHAT_ID         = …        # optional
 WEBHOOK_SIGNING_SECRET   = …        # 64 hex chars from step 2.5
 ALERT_DEFAULT_COOLDOWN_MIN = 15
 
+# API access control (required before sharing the URL)
+API_AUTH_TOKEN           = …        # long random string
+CORS_ORIGINS             = https://your-frontend.up.railway.app
+
 APP_ENV   = prod
 LOG_LEVEL = INFO
+```
+
+Generate a strong `API_AUTH_TOKEN`:
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
 The full template lives at `.env.production.example` in the repo root.
@@ -129,10 +138,12 @@ The full template lives at `.env.production.example` in the repo root.
 3. **Settings → Build → Dockerfile Path**: `Dockerfile.prod`
 4. **Settings → Variables**:
    ```
-   VITE_API_URL = <your api service's public URL>
+   VITE_API_URL   = <your api service's public URL>
+   VITE_API_TOKEN = <same value as API_AUTH_TOKEN on the backend>
    ```
-   (the one you copied at the end of step 5)
 5. **Settings → Networking → Generate Domain**. This is the URL you share.
+6. Go back to the **api** service → **Variables** and set `CORS_ORIGINS` to the
+   frontend's URL you just got. Redeploy the api.
 
 Because `VITE_API_URL` is baked into the bundle at build time, changing it
 requires a redeploy. Railway re-builds automatically when the variable

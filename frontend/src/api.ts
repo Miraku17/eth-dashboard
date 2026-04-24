@@ -4,9 +4,27 @@
 // `/api` prefix is kept so existing routes don't change.
 const RAW_BASE = import.meta.env.VITE_API_URL ?? "";
 const API_BASE = RAW_BASE.replace(/\/+$/, "");
+const API_TOKEN = import.meta.env.VITE_API_TOKEN ?? "";
 
 function url(path: string): string {
   return `${API_BASE}${path}`;
+}
+
+function authHeaders(extra?: HeadersInit): HeadersInit {
+  const h: Record<string, string> = {};
+  if (API_TOKEN) h["Authorization"] = `Bearer ${API_TOKEN}`;
+  if (extra) {
+    if (extra instanceof Headers) {
+      extra.forEach((v, k) => {
+        h[k] = v;
+      });
+    } else if (Array.isArray(extra)) {
+      for (const [k, v] of extra) h[k] = v;
+    } else {
+      Object.assign(h, extra);
+    }
+  }
+  return h;
 }
 
 export type Timeframe = "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
@@ -30,7 +48,9 @@ export async function fetchCandles(
   timeframe: Timeframe,
   limit = 500,
 ): Promise<CandlesResponse> {
-  const r = await fetch(url(`/api/price/candles?timeframe=${timeframe}&limit=${limit}`));
+  const r = await fetch(url(`/api/price/candles?timeframe=${timeframe}&limit=${limit}`), {
+    headers: authHeaders(),
+  });
   if (!r.ok) throw new Error(`candles fetch failed: ${r.status}`);
   return r.json();
 }
@@ -72,7 +92,9 @@ export async function fetchExchangeFlows(
   hours: number,
   limit = 5000,
 ): Promise<ExchangeFlowPoint[]> {
-  const r = await fetch(url(`/api/flows/exchange?hours=${hours}&limit=${limit}`));
+  const r = await fetch(url(`/api/flows/exchange?hours=${hours}&limit=${limit}`), {
+    headers: authHeaders(),
+  });
   if (!r.ok) throw new Error(`exchange flows ${r.status}`);
   return (await r.json()).points;
 }
@@ -88,7 +110,9 @@ export async function fetchStablecoinFlows(
   hours: number,
   limit = 5000,
 ): Promise<StablecoinFlowPoint[]> {
-  const r = await fetch(url(`/api/flows/stablecoins?hours=${hours}&limit=${limit}`));
+  const r = await fetch(url(`/api/flows/stablecoins?hours=${hours}&limit=${limit}`), {
+    headers: authHeaders(),
+  });
   if (!r.ok) throw new Error(`stablecoin flows ${r.status}`);
   return (await r.json()).points;
 }
@@ -104,7 +128,9 @@ export async function fetchOnchainVolume(
   hours: number,
   limit = 5000,
 ): Promise<OnchainVolumePoint[]> {
-  const r = await fetch(url(`/api/flows/onchain-volume?hours=${hours}&limit=${limit}`));
+  const r = await fetch(url(`/api/flows/onchain-volume?hours=${hours}&limit=${limit}`), {
+    headers: authHeaders(),
+  });
   if (!r.ok) throw new Error(`onchain volume ${r.status}`);
   return (await r.json()).points;
 }
@@ -132,7 +158,9 @@ export async function fetchWhaleTransfers(
 ): Promise<WhaleTransfer[]> {
   const params = new URLSearchParams({ hours: String(hours), limit: String(limit) });
   if (asset) params.set("asset", asset);
-  const r = await fetch(url(`/api/whales/transfers?${params}`));
+  const r = await fetch(url(`/api/whales/transfers?${params}`), {
+    headers: authHeaders(),
+  });
   if (!r.ok) throw new Error(`whale transfers ${r.status}`);
   return (await r.json()).transfers;
 }
@@ -150,7 +178,9 @@ export async function fetchAlertEvents(
   hours = 24,
   limit = 100,
 ): Promise<AlertEvent[]> {
-  const r = await fetch(url(`/api/alerts/events?hours=${hours}&limit=${limit}`));
+  const r = await fetch(url(`/api/alerts/events?hours=${hours}&limit=${limit}`), {
+    headers: authHeaders(),
+  });
   if (!r.ok) throw new Error(`alert events ${r.status}`);
   return (await r.json()).events;
 }
@@ -166,7 +196,9 @@ export type AlertRule = {
 };
 
 export async function fetchAlertRules(): Promise<AlertRule[]> {
-  const r = await fetch(url("/api/alerts/rules"));
+  const r = await fetch(url("/api/alerts/rules"), {
+    headers: authHeaders(),
+  });
   if (!r.ok) throw new Error(`alert rules ${r.status}`);
   return (await r.json()).rules;
 }
@@ -182,7 +214,7 @@ export type AlertRuleInput = {
 export async function createAlertRule(body: AlertRuleInput): Promise<AlertRule> {
   const r = await fetch(url("/api/alerts/rules"), {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: authHeaders({ "content-type": "application/json" }),
     body: JSON.stringify(body),
   });
   if (!r.ok) throw new Error(`create rule ${r.status}: ${await r.text()}`);
@@ -195,7 +227,7 @@ export async function patchAlertRule(
 ): Promise<AlertRule> {
   const r = await fetch(url(`/api/alerts/rules/${id}`), {
     method: "PATCH",
-    headers: { "content-type": "application/json" },
+    headers: authHeaders({ "content-type": "application/json" }),
     body: JSON.stringify(patch),
   });
   if (!r.ok) throw new Error(`patch rule ${r.status}: ${await r.text()}`);
@@ -203,7 +235,10 @@ export async function patchAlertRule(
 }
 
 export async function deleteAlertRule(id: number): Promise<void> {
-  const r = await fetch(url(`/api/alerts/rules/${id}`), { method: "DELETE" });
+  const r = await fetch(url(`/api/alerts/rules/${id}`), {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
   if (!r.ok && r.status !== 204) throw new Error(`delete rule ${r.status}`);
 }
 
@@ -217,7 +252,9 @@ export type NetworkSummary = {
 };
 
 export async function fetchNetworkSummary(): Promise<NetworkSummary> {
-  const r = await fetch(url("/api/network/summary"));
+  const r = await fetch(url("/api/network/summary"), {
+    headers: authHeaders(),
+  });
   if (!r.ok) throw new Error(`network summary ${r.status}`);
   return r.json();
 }
@@ -230,7 +267,9 @@ export type NetworkPoint = {
 };
 
 export async function fetchNetworkSeries(hours = 24): Promise<NetworkPoint[]> {
-  const r = await fetch(url(`/api/network/series?hours=${hours}`));
+  const r = await fetch(url(`/api/network/series?hours=${hours}`), {
+    headers: authHeaders(),
+  });
   if (!r.ok) throw new Error(`network series ${r.status}`);
   return (await r.json()).points;
 }
