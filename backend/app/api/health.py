@@ -22,6 +22,7 @@ STALE_S: dict[str, int] = {
     "dune_flows": 6 * 3600,      # 4h cadence default → stale after 6 h
     "alchemy_blocks": 180,       # ~12 s per block → stale after 3 min
     "whale_transfers": 6 * 3600, # whales can be quiet — stale after 6 h
+    "smart_money": 36 * 3600,  # daily refresh, stale after 36h
 }
 
 
@@ -50,12 +51,14 @@ def health(session: Annotated[Session, Depends(get_session)]) -> HealthResponse:
     # data bucket — Dune aggregates hourly/daily, so the newest bucket is
     # legitimately several hours old even during healthy operation.
     dune_last_sync = last_sync_at("dune_flows")
+    smart_money_last_sync = last_sync_at("smart_money")
 
     sources = [
         _status("binance_1m", last_candle),
         _status("dune_flows", dune_last_sync),
         _status("alchemy_blocks", last_block),
         _status("whale_transfers", last_whale),
+        _status("smart_money", smart_money_last_sync),
     ]
 
     # Degraded if a critical source is stale — non-critical sources may

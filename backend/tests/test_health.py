@@ -111,3 +111,10 @@ def test_dune_never_synced_reports_stale(migrated_engine, fake_redis):
     dune = next(s for s in body["sources"] if s["name"] == "dune_flows")
     assert dune["last_update"] is None
     assert dune["stale"] is True
+
+
+def test_health_reports_smart_money_source(migrated_engine, fake_redis):
+    resp = TestClient(app).get("/api/health")
+    assert resp.status_code == 200
+    names = {s["name"] for s in resp.json()["sources"]}
+    assert "smart_money" in names
