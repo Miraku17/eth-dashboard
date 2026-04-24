@@ -7,6 +7,7 @@ from app.core.config import get_settings
 from app.workers.alert_jobs import evaluate_alerts
 from app.workers.derivatives_jobs import sync_derivatives
 from app.workers.flow_jobs import sync_dune_flows, sync_order_flow
+from app.workers.leaderboard_jobs import sync_smart_money_leaderboard
 from app.workers.price_jobs import backfill_price_history, sync_price_latest
 
 
@@ -16,6 +17,7 @@ async def startup(ctx: dict) -> None:
     await ctx["redis"].enqueue_job("sync_dune_flows")
     await ctx["redis"].enqueue_job("sync_derivatives")
     await ctx["redis"].enqueue_job("sync_order_flow")
+    await ctx["redis"].enqueue_job("sync_smart_money_leaderboard")
 
 
 async def shutdown(ctx: dict) -> None:
@@ -51,6 +53,7 @@ class WorkerSettings:
         evaluate_alerts,
         sync_derivatives,
         sync_order_flow,
+        sync_smart_money_leaderboard,
     ]
     cron_jobs = [
         cron(sync_price_latest, minute=set(range(0, 60)), run_at_startup=False),
@@ -62,6 +65,10 @@ class WorkerSettings:
         # Order flow: 8h cadence by default (every 3rd Dune slot) to keep
         # the free-tier credit budget healthy.
         cron(sync_order_flow, **_order_flow_cron_kwargs(), run_at_startup=False),
+        # Smart-money leaderboard: once a day at 03:00 UTC. The query is
+        # meaningfully heavier than order-flow (30d vs 7d window), so a
+        # single refresh per day keeps us inside the Dune free-tier budget.
+        cron(sync_smart_money_leaderboard, hour={3}, minute={0}, run_at_startup=False),
     ]
     on_startup = startup
     on_shutdown = shutdown

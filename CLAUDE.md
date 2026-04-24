@@ -65,8 +65,9 @@ The design doc's v1 scope is fixed. Do **not** implement v2/v3 features (DEX lea
 ## v2 status
 
 - v2-derivatives ✅ OI + funding rates for ETH perp across Binance/Bybit/OKX/Deribit.
-- v2-order-flow 🚧 Dune `dex.trades` aggregates WETH buy vs sell pressure across major DEXes, persists hourly to `order_flow`; `/api/flows/order-flow` endpoint; dashboard panel with buy/sell/net tiles + signed-stacked bar + net line. Runs on 8h cadence to stay within Dune free-tier credit budget. Requires `DUNE_QUERY_ID_ORDER_FLOW` in `.env` (SQL at `backend/dune/order_flow.sql`).
-- v2 pending — smart-money leaderboard, wallet clustering, mempool (needs node)
+- v2-order-flow ✅ Dune `dex.trades` aggregates WETH buy vs sell pressure across major DEXes, persists hourly to `order_flow`; `/api/flows/order-flow` endpoint; dashboard panel with buy/sell/net tiles + signed-stacked bar + net line. Runs on 8h cadence to stay within Dune free-tier credit budget. Requires `DUNE_QUERY_ID_ORDER_FLOW` in `.env` (SQL at `backend/dune/order_flow.sql`).
+- v2-smart-money-leaderboard ✅ Daily Dune refresh of top 50 ETH DEX traders by 30d realized PnL on WETH; FIFO engine runs in Python over `dex.trades` candidate rows; persists snapshot per run to `smart_money_leaderboard`; `/api/leaderboard/smart-money` endpoint; dashboard panel. Requires `DUNE_QUERY_ID_SMART_MONEY_LEADERBOARD` in `.env` (SQL at `backend/dune/smart_money_leaderboard.sql`).
+- v2 pending — wallet clustering, mempool (needs node), large-vs-small tx volume structure
 
 ## Environment note
 

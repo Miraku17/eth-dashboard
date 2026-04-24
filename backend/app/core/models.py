@@ -1,3 +1,4 @@
+import uuid as _uuid
 from datetime import datetime
 
 from sqlalchemy import (
@@ -10,7 +11,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -121,3 +122,22 @@ class OrderFlow(Base):
     side: Mapped[str] = mapped_column(String(8), primary_key=True)  # "buy" | "sell"
     usd_value: Mapped[float] = mapped_column(Numeric(32, 2))
     trade_count: Mapped[int] = mapped_column(BigInteger)
+
+
+class SmartMoneyLeaderboard(Base):
+    """Per-wallet realized-PnL ranking snapshot. One `run_id` per daily refresh. (v2)"""
+    __tablename__ = "smart_money_leaderboard"
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    run_id: Mapped[_uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    snapshot_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    window_days: Mapped[int] = mapped_column(Integer, nullable=False)
+    rank: Mapped[int] = mapped_column(Integer, nullable=False)
+    wallet_address: Mapped[str] = mapped_column(String(42), nullable=False)
+    label: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    realized_pnl_usd: Mapped[float] = mapped_column(Numeric(20, 2), nullable=False)
+    unrealized_pnl_usd: Mapped[float | None] = mapped_column(Numeric(20, 2), nullable=True)
+    win_rate: Mapped[float | None] = mapped_column(Numeric(5, 4), nullable=True)
+    trade_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    volume_usd: Mapped[float] = mapped_column(Numeric(24, 2), nullable=False)
+    weth_bought: Mapped[float] = mapped_column(Numeric(36, 18), nullable=False)
+    weth_sold: Mapped[float] = mapped_column(Numeric(36, 18), nullable=False)

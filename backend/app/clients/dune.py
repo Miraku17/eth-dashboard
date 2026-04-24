@@ -19,9 +19,15 @@ class DuneClient:
         self._http = http
         self._headers = {"X-DUNE-API-KEY": api_key}
 
-    async def execute(self, query_id: int) -> str:
+    async def execute(self, query_id: int, *, performance: str | None = None) -> str:
+        # Pass `performance` as a JSON body when specified. Free-tier accounts
+        # need `performance="free"` for large datasets like `dex.trades`;
+        # paid tiers default to "medium" when omitted.
+        kwargs: dict = {"headers": self._headers}
+        if performance is not None:
+            kwargs["json"] = {"performance": performance}
         r = await self._http.post(
-            f"/api/v1/query/{query_id}/execute", headers=self._headers
+            f"/api/v1/query/{query_id}/execute", **kwargs
         )
         r.raise_for_status()
         return r.json()["execution_id"]
@@ -46,9 +52,10 @@ class DuneClient:
         *,
         poll_interval_s: float = 3.0,
         max_wait_s: float = 300.0,
+        performance: str | None = None,
     ) -> list[dict]:
         """Trigger a fresh execution, wait for completion, return rows."""
-        execution_id = await self.execute(query_id)
+        execution_id = await self.execute(query_id, performance=performance)
         waited = 0.0
         while waited < max_wait_s:
             state = await self.status(execution_id)

@@ -1,0 +1,5 @@
+[
+  {"trader": "0xaaa", "weth_bought": "10", "weth_sold": "10", "usd_spent": "30000", "usd_received": "35000", "trade_count": 2, "label": null},
+  {"trader": "0xbbb", "weth_bought": "5",  "weth_sold": "5",  "usd_spent": "15000", "usd_received": "14000", "trade_count": 2, "label": "Jump Trading"},
+  {"trader": "0xccc", "weth_bought": "3",  "weth_sold": "3",  "usd_spent": "9000",  "usd_received": "10500", "trade_count": 2, "label": null}
+]

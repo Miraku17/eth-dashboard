@@ -28,3 +28,18 @@ def test_settings_dune_query_defaults(monkeypatch):
 
     assert s.dune_query_id_exchange_flows == 0
     assert s.dune_sync_interval_min == 240
+
+
+def test_smart_money_query_id_defaults_to_zero(monkeypatch):
+    """Ensure the new v2 query ID defaults to 0 (meaning 'skip the job')."""
+    monkeypatch.setenv("POSTGRES_USER", "u")
+    monkeypatch.setenv("POSTGRES_PASSWORD", "p")
+    monkeypatch.setenv("POSTGRES_DB", "d")
+    monkeypatch.setenv("POSTGRES_HOST", "h")
+    monkeypatch.setenv("POSTGRES_PORT", "5432")
+    monkeypatch.setenv("REDIS_URL", "redis://r:6379/0")
+    monkeypatch.delenv("DUNE_QUERY_ID_SMART_MONEY_LEADERBOARD", raising=False)
+
+    s = Settings(_env_file=None)
+
+    assert s.dune_query_id_smart_money_leaderboard == 0
