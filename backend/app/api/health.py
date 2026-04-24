@@ -8,11 +8,11 @@ from sqlalchemy.orm import Session
 from app.api.schemas import DataSourceStatus, HealthResponse
 from app.core.db import get_session
 from app.core.models import (
-    ExchangeFlow,
     NetworkActivity,
     PriceCandle,
     Transfer,
 )
+from app.core.sync_status import last_sync_at
 
 router = APIRouter()
 
@@ -44,13 +44,16 @@ def health(session: Annotated[Session, Depends(get_session)]) -> HealthResponse:
     last_candle = session.execute(
         select(func.max(PriceCandle.ts)).where(PriceCandle.timeframe == "1m")
     ).scalar_one()
-    last_flow = session.execute(select(func.max(ExchangeFlow.ts_bucket))).scalar_one()
     last_block = session.execute(select(func.max(NetworkActivity.ts))).scalar_one()
     last_whale = session.execute(select(func.max(Transfer.ts))).scalar_one()
+    # For Dune we track when the worker last completed a sync, not the newest
+    # data bucket — Dune aggregates hourly/daily, so the newest bucket is
+    # legitimately several hours old even during healthy operation.
+    dune_last_sync = last_sync_at("dune_flows")
 
     sources = [
         _status("binance_1m", last_candle),
-        _status("dune_flows", last_flow),
+        _status("dune_flows", dune_last_sync),
         _status("alchemy_blocks", last_block),
         _status("whale_transfers", last_whale),
     ]

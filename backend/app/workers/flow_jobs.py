@@ -6,6 +6,7 @@ import httpx
 from app.clients.dune import DUNE_BASE_URL, DuneClient, DuneExecutionError
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
+from app.core.sync_status import record_sync_ok
 from app.services.flow_sync import (
     upsert_exchange_flows,
     upsert_onchain_volume,
@@ -53,5 +54,10 @@ async def sync_dune_flows(ctx: dict) -> dict:
                 n = upsert_fn(session, rows)
             log.info("synced %s: %d rows", name, n)
             results[name] = n
+
+    # Record sync completion only if at least one query succeeded. A run where
+    # every query errored shouldn't flip the health indicator green.
+    if any(isinstance(v, int) for v in results.values()):
+        record_sync_ok("dune_flows")
 
     return results
