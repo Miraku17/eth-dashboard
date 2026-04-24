@@ -101,3 +101,14 @@ class AlertEvent(Base):
     fired_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     payload: Mapped[dict] = mapped_column(JSONB)
     delivered: Mapped[dict] = mapped_column(JSONB)
+
+
+class DerivativesSnapshot(Base):
+    """Hourly OI + funding rate per exchange for ETH-PERP (v2)."""
+    __tablename__ = "derivatives_snapshots"
+    exchange: Mapped[str] = mapped_column(String(16), primary_key=True)
+    symbol: Mapped[str] = mapped_column(String(32), primary_key=True)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    oi_usd: Mapped[float | None] = mapped_column(Numeric(32, 2), nullable=True)
+    funding_rate: Mapped[float | None] = mapped_column(Numeric(18, 10), nullable=True)
+    mark_price: Mapped[float | None] = mapped_column(Numeric(24, 8), nullable=True)

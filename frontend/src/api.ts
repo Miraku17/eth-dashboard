@@ -273,3 +273,44 @@ export async function fetchNetworkSeries(hours = 24): Promise<NetworkPoint[]> {
   if (!r.ok) throw new Error(`network series ${r.status}`);
   return (await r.json()).points;
 }
+
+export type DerivativesLatest = {
+  exchange: string;
+  symbol: string;
+  ts: string;
+  oi_usd: number | null;
+  funding_rate: number | null;
+  mark_price: number | null;
+};
+
+export type DerivativesSummary = {
+  latest: DerivativesLatest[];
+  total_oi_usd: number | null;
+  avg_funding_rate: number | null;
+};
+
+export async function fetchDerivativesSummary(): Promise<DerivativesSummary> {
+  const r = await fetch(url("/api/derivatives/summary"), { headers: authHeaders() });
+  if (!r.ok) throw new Error(`derivatives summary ${r.status}`);
+  return r.json();
+}
+
+export type DerivativesPoint = {
+  ts: string;
+  exchange: string;
+  symbol: string;
+  oi_usd: number | null;
+  funding_rate: number | null;
+  mark_price: number | null;
+};
+
+export async function fetchDerivativesSeries(
+  hours = 72,
+  exchange?: string,
+): Promise<DerivativesPoint[]> {
+  const p = new URLSearchParams({ hours: String(hours) });
+  if (exchange) p.set("exchange", exchange);
+  const r = await fetch(url(`/api/derivatives/series?${p}`), { headers: authHeaders() });
+  if (!r.ok) throw new Error(`derivatives series ${r.status}`);
+  return (await r.json()).points;
+}
