@@ -17,3 +17,17 @@ def test_all_v1_tables_exist(migrated_engine):
     }
     missing = expected - names
     assert not missing, f"missing tables: {missing}"
+
+
+def test_smart_money_leaderboard_table_exists(migrated_engine):
+    from sqlalchemy import inspect
+    insp = inspect(migrated_engine)
+    cols = {c["name"] for c in insp.get_columns("smart_money_leaderboard")}
+    assert cols == {
+        "id", "run_id", "snapshot_at", "window_days", "rank",
+        "wallet_address", "label",
+        "realized_pnl_usd", "unrealized_pnl_usd", "win_rate",
+        "trade_count", "volume_usd", "weth_bought", "weth_sold",
+    }
+    idx = {i["name"] for i in insp.get_indexes("smart_money_leaderboard")}
+    assert "ix_leaderboard_latest" in idx
