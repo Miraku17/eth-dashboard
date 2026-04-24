@@ -329,3 +329,32 @@ export async function fetchOrderFlow(hours = 24 * 7): Promise<OrderFlowPoint[]> 
   if (!r.ok) throw new Error(`order flow ${r.status}`);
   return (await r.json()).points;
 }
+
+export type SmartMoneyEntry = {
+  rank: number;
+  wallet: string;
+  label: string | null;
+  realized_pnl_usd: number;
+  unrealized_pnl_usd: number | null;
+  win_rate: number | null;
+  trade_count: number;
+  volume_usd: number;
+  weth_bought: number;
+  weth_sold: number;
+};
+
+export type SmartMoneyLeaderboard = {
+  snapshot_at: string | null;
+  window_days: number;
+  entries: SmartMoneyEntry[];
+};
+
+export async function fetchSmartMoneyLeaderboard(
+  limit = 50,
+): Promise<SmartMoneyLeaderboard> {
+  const r = await fetch(url(`/api/leaderboard/smart-money?limit=${limit}`), {
+    headers: authHeaders(),
+  });
+  if (!r.ok) throw new Error(`smart-money leaderboard ${r.status}`);
+  return r.json();
+}
