@@ -10,11 +10,13 @@ from app.api.schemas import (
     ExchangeFlowsResponse,
     OnchainVolumePoint,
     OnchainVolumeResponse,
+    OrderFlowPoint,
+    OrderFlowResponse,
     StablecoinFlowPoint,
     StablecoinFlowsResponse,
 )
 from app.core.db import get_session
-from app.core.models import ExchangeFlow, OnchainVolume, StablecoinFlow
+from app.core.models import ExchangeFlow, OnchainVolume, OrderFlow, StablecoinFlow
 
 router = APIRouter(prefix="/flows", tags=["flows"])
 
@@ -95,3 +97,28 @@ def onchain_volume(
         for r in reversed(rows)
     ]
     return OnchainVolumeResponse(points=points)
+
+
+@router.get("/order-flow", response_model=OrderFlowResponse)
+def order_flow(
+    session: Annotated[Session, Depends(get_session)],
+    hours: HoursParam = 24 * 7,
+    limit: int = Query(5000, ge=1, le=20000),
+) -> OrderFlowResponse:
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
+    rows = session.execute(
+        select(OrderFlow)
+        .where(OrderFlow.ts_bucket >= cutoff)
+        .order_by(OrderFlow.ts_bucket.desc())
+        .limit(limit)
+    ).scalars().all()
+    points = [
+        OrderFlowPoint(
+            ts_bucket=r.ts_bucket,
+            side=r.side,  # type: ignore[arg-type]
+            usd_value=float(r.usd_value),
+            trade_count=r.trade_count,
+        )
+        for r in reversed(rows)
+    ]
+    return OrderFlowResponse(points=points)

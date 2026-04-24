@@ -10,6 +10,7 @@ from app.core.sync_status import record_sync_ok
 from app.services.flow_sync import (
     upsert_exchange_flows,
     upsert_onchain_volume,
+    upsert_order_flow,
     upsert_stablecoin_flows,
 )
 
@@ -61,3 +62,30 @@ async def sync_dune_flows(ctx: dict) -> dict:
         record_sync_ok("dune_flows")
 
     return results
+
+
+async def sync_order_flow(ctx: dict) -> dict:
+    """Standalone cron for order-flow at a lower cadence than the main flow
+    sync, so we don't blow the Dune free-tier credit budget."""
+    settings = get_settings()
+    if not settings.dune_api_key:
+        log.warning("DUNE_API_KEY not set — skipping order-flow sync")
+        return {"skipped": "no api key"}
+    if settings.dune_query_id_order_flow == 0:
+        log.info("order-flow query ID not configured — skipping")
+        return {"skipped": "not configured"}
+
+    SessionLocal = get_sessionmaker()
+    async with httpx.AsyncClient(base_url=DUNE_BASE_URL, timeout=300.0) as http:
+        client = DuneClient(http, api_key=settings.dune_api_key)
+        try:
+            rows = await client.execute_and_fetch(settings.dune_query_id_order_flow)
+        except (DuneExecutionError, httpx.HTTPError) as e:
+            log.error("order-flow dune query failed: %s", e)
+            return {"error": str(e)}
+
+    with SessionLocal() as session:
+        n = upsert_order_flow(session, rows)
+    record_sync_ok("order_flow")
+    log.info("synced order_flow: %d rows", n)
+    return {"order_flow": n}

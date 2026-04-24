@@ -248,3 +248,17 @@ class DerivativesSummary(BaseModel):
 
 class DerivativesSeriesResponse(BaseModel):
     points: list[DerivativesPoint]
+
+
+# ---------- Order flow (v2) ----------
+
+
+class OrderFlowPoint(BaseModel):
+    ts_bucket: datetime
+    side: Literal["buy", "sell"]
+    usd_value: float
+    trade_count: int
+
+
+class OrderFlowResponse(BaseModel):
+    points: list[OrderFlowPoint]

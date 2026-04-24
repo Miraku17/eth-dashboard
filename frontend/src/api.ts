@@ -314,3 +314,18 @@ export async function fetchDerivativesSeries(
   if (!r.ok) throw new Error(`derivatives series ${r.status}`);
   return (await r.json()).points;
 }
+
+export type OrderFlowPoint = {
+  ts_bucket: string;
+  side: "buy" | "sell";
+  usd_value: number;
+  trade_count: number;
+};
+
+export async function fetchOrderFlow(hours = 24 * 7): Promise<OrderFlowPoint[]> {
+  const r = await fetch(url(`/api/flows/order-flow?hours=${hours}`), {
+    headers: authHeaders(),
+  });
+  if (!r.ok) throw new Error(`order flow ${r.status}`);
+  return (await r.json()).points;
+}

@@ -4,7 +4,7 @@ from typing import Any
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
-from app.core.models import ExchangeFlow, OnchainVolume, StablecoinFlow
+from app.core.models import ExchangeFlow, OnchainVolume, OrderFlow, StablecoinFlow
 
 # Postgres caps each statement at 65,535 bound parameters. Each row above has
 # 4–5 columns, so 1,000 rows per batch keeps us well under that limit even as
@@ -102,4 +102,24 @@ def upsert_onchain_volume(session: Session, rows: list[dict]) -> int:
         values,
         index_elements=["asset", "ts_bucket"],
         update_cols=["tx_count", "usd_value"],
+    )
+
+
+def upsert_order_flow(session: Session, rows: list[dict]) -> int:
+    values = [
+        {
+            "ts_bucket": _parse_ts(r["ts_bucket"]),
+            "side": r["side"],
+            "usd_value": r["usd_value"],
+            "trade_count": r["trade_count"],
+        }
+        for r in rows
+        if r.get("side") in ("buy", "sell")
+    ]
+    return _upsert_chunked(
+        session,
+        OrderFlow,
+        values,
+        index_elements=["ts_bucket", "side"],
+        update_cols=["usd_value", "trade_count"],
     )

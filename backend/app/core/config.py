@@ -22,9 +22,13 @@ class Settings(BaseSettings):
     dune_query_id_exchange_flows: int = 0
     dune_query_id_stablecoin_supply: int = 0
     dune_query_id_onchain_volume: int = 0
+    dune_query_id_order_flow: int = 0
 
     # Minutes between Dune syncs. Free tier ≈ 500 executions/month total.
     dune_sync_interval_min: int = 240
+    # Order-flow syncs less often than the others to stay under the free
+    # credit budget (8h cadence = ~90 executions/month).
+    dune_order_flow_interval_min: int = 480
 
     # Whale-tracking thresholds (M3). ETH compared against native value;
     # stablecoins against USD notional (1:1 peg assumed).
