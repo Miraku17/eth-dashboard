@@ -1,3 +1,14 @@
+// In dev, `VITE_API_URL` is unset → calls go to `/api/...` and Vite's proxy
+// forwards them to the api container (see vite.config.ts). In production,
+// set e.g. `VITE_API_URL=https://api.etherscope.app` at build time; the
+// `/api` prefix is kept so existing routes don't change.
+const RAW_BASE = import.meta.env.VITE_API_URL ?? "";
+const API_BASE = RAW_BASE.replace(/\/+$/, "");
+
+function url(path: string): string {
+  return `${API_BASE}${path}`;
+}
+
 export type Timeframe = "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
 
 export type Candle = {
@@ -19,7 +30,7 @@ export async function fetchCandles(
   timeframe: Timeframe,
   limit = 500,
 ): Promise<CandlesResponse> {
-  const r = await fetch(`/api/price/candles?timeframe=${timeframe}&limit=${limit}`);
+  const r = await fetch(url(`/api/price/candles?timeframe=${timeframe}&limit=${limit}`));
   if (!r.ok) throw new Error(`candles fetch failed: ${r.status}`);
   return r.json();
 }
@@ -38,7 +49,7 @@ export type Health = {
 };
 
 export async function fetchHealth(): Promise<Health> {
-  const r = await fetch("/api/health");
+  const r = await fetch(url("/api/health"));
   if (!r.ok) throw new Error("health check failed");
   return r.json();
 }
@@ -61,7 +72,7 @@ export async function fetchExchangeFlows(
   hours: number,
   limit = 5000,
 ): Promise<ExchangeFlowPoint[]> {
-  const r = await fetch(`/api/flows/exchange?hours=${hours}&limit=${limit}`);
+  const r = await fetch(url(`/api/flows/exchange?hours=${hours}&limit=${limit}`));
   if (!r.ok) throw new Error(`exchange flows ${r.status}`);
   return (await r.json()).points;
 }
@@ -77,7 +88,7 @@ export async function fetchStablecoinFlows(
   hours: number,
   limit = 5000,
 ): Promise<StablecoinFlowPoint[]> {
-  const r = await fetch(`/api/flows/stablecoins?hours=${hours}&limit=${limit}`);
+  const r = await fetch(url(`/api/flows/stablecoins?hours=${hours}&limit=${limit}`));
   if (!r.ok) throw new Error(`stablecoin flows ${r.status}`);
   return (await r.json()).points;
 }
@@ -93,7 +104,7 @@ export async function fetchOnchainVolume(
   hours: number,
   limit = 5000,
 ): Promise<OnchainVolumePoint[]> {
-  const r = await fetch(`/api/flows/onchain-volume?hours=${hours}&limit=${limit}`);
+  const r = await fetch(url(`/api/flows/onchain-volume?hours=${hours}&limit=${limit}`));
   if (!r.ok) throw new Error(`onchain volume ${r.status}`);
   return (await r.json()).points;
 }
@@ -121,7 +132,7 @@ export async function fetchWhaleTransfers(
 ): Promise<WhaleTransfer[]> {
   const params = new URLSearchParams({ hours: String(hours), limit: String(limit) });
   if (asset) params.set("asset", asset);
-  const r = await fetch(`/api/whales/transfers?${params}`);
+  const r = await fetch(url(`/api/whales/transfers?${params}`));
   if (!r.ok) throw new Error(`whale transfers ${r.status}`);
   return (await r.json()).transfers;
 }
@@ -139,7 +150,7 @@ export async function fetchAlertEvents(
   hours = 24,
   limit = 100,
 ): Promise<AlertEvent[]> {
-  const r = await fetch(`/api/alerts/events?hours=${hours}&limit=${limit}`);
+  const r = await fetch(url(`/api/alerts/events?hours=${hours}&limit=${limit}`));
   if (!r.ok) throw new Error(`alert events ${r.status}`);
   return (await r.json()).events;
 }
@@ -155,7 +166,7 @@ export type AlertRule = {
 };
 
 export async function fetchAlertRules(): Promise<AlertRule[]> {
-  const r = await fetch("/api/alerts/rules");
+  const r = await fetch(url("/api/alerts/rules"));
   if (!r.ok) throw new Error(`alert rules ${r.status}`);
   return (await r.json()).rules;
 }
@@ -169,7 +180,7 @@ export type AlertRuleInput = {
 };
 
 export async function createAlertRule(body: AlertRuleInput): Promise<AlertRule> {
-  const r = await fetch("/api/alerts/rules", {
+  const r = await fetch(url("/api/alerts/rules"), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
@@ -182,7 +193,7 @@ export async function patchAlertRule(
   id: number,
   patch: Partial<AlertRuleInput>,
 ): Promise<AlertRule> {
-  const r = await fetch(`/api/alerts/rules/${id}`, {
+  const r = await fetch(url(`/api/alerts/rules/${id}`), {
     method: "PATCH",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(patch),
@@ -192,7 +203,7 @@ export async function patchAlertRule(
 }
 
 export async function deleteAlertRule(id: number): Promise<void> {
-  const r = await fetch(`/api/alerts/rules/${id}`, { method: "DELETE" });
+  const r = await fetch(url(`/api/alerts/rules/${id}`), { method: "DELETE" });
   if (!r.ok && r.status !== 204) throw new Error(`delete rule ${r.status}`);
 }
 
@@ -206,7 +217,7 @@ export type NetworkSummary = {
 };
 
 export async function fetchNetworkSummary(): Promise<NetworkSummary> {
-  const r = await fetch("/api/network/summary");
+  const r = await fetch(url("/api/network/summary"));
   if (!r.ok) throw new Error(`network summary ${r.status}`);
   return r.json();
 }
@@ -219,7 +230,7 @@ export type NetworkPoint = {
 };
 
 export async function fetchNetworkSeries(hours = 24): Promise<NetworkPoint[]> {
-  const r = await fetch(`/api/network/series?hours=${hours}`);
+  const r = await fetch(url(`/api/network/series?hours=${hours}`));
   if (!r.ok) throw new Error(`network series ${r.status}`);
   return (await r.json()).points;
 }
