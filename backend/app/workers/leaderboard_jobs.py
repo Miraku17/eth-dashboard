@@ -54,6 +54,7 @@ async def sync_smart_money_leaderboard(ctx: dict) -> dict:
             rows = await client.execute_and_fetch(
                 settings.dune_query_id_smart_money_leaderboard,
                 max_wait_s=600.0,
+                performance="free",
             )
         except (DuneExecutionError, httpx.HTTPError) as e:
             log.error("smart-money leaderboard dune query failed: %s", e)

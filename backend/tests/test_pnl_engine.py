@@ -181,3 +181,80 @@ def test_wallet_address_normalized_to_lowercase():
     by_wallet = {r.wallet: r for r in result}
     assert by_wallet["0xdef"].realized_pnl_usd == Decimal("200.00")
     assert by_wallet["0xdef"].trade_count == 2
+
+
+# ---------- compute_aggregate_pnl ----------
+
+
+def _agg(trader, *, weth_bought="0", weth_sold="0", usd_spent="0", usd_received="0",
+         trade_count=0, label=None):
+    return {
+        "trader": trader,
+        "weth_bought": weth_bought,
+        "weth_sold": weth_sold,
+        "usd_spent": usd_spent,
+        "usd_received": usd_received,
+        "trade_count": trade_count,
+        "label": label,
+    }
+
+
+def test_aggregate_fully_closed_round_trip():
+    from app.services.pnl_engine import compute_aggregate_pnl
+
+    rows = [_agg("0xaaa", weth_bought="10", weth_sold="10",
+                 usd_spent="30000", usd_received="35000", trade_count=42)]
+    result = compute_aggregate_pnl(rows, window_end_eth_price=Decimal("3500"))
+    r = result[0]
+    # avg_buy = 3000, avg_sell = 3500, closed = 10 → realized = 5000.
+    assert r.realized_pnl_usd == Decimal("5000.00")
+    assert r.unrealized_pnl_usd is None  # fully closed
+    assert r.win_rate is None
+    assert r.trade_count == 42
+    assert r.volume_usd == Decimal("65000.00")
+
+
+def test_aggregate_partial_close_with_open_position():
+    from app.services.pnl_engine import compute_aggregate_pnl
+
+    rows = [_agg("0xccc", weth_bought="10", weth_sold="4",
+                 usd_spent="30000", usd_received="14000", trade_count=5)]
+    result = compute_aggregate_pnl(rows, window_end_eth_price=Decimal("3600"))
+    r = result[0]
+    # avg_buy = 3000, avg_sell = 3500, closed = 4 → realized = 4 * 500 = 2000.
+    # Open = 10 - 4 = 6 WETH at avg cost 3000, mark 3600 → 6 * 600 = 3600.
+    assert r.realized_pnl_usd == Decimal("2000.00")
+    assert r.unrealized_pnl_usd == Decimal("3600.00")
+
+
+def test_aggregate_sell_only_has_no_realizable_pnl():
+    from app.services.pnl_engine import compute_aggregate_pnl
+
+    rows = [_agg("0xdead", weth_bought="0", weth_sold="5",
+                 usd_spent="0", usd_received="17500", trade_count=2)]
+    result = compute_aggregate_pnl(rows, window_end_eth_price=Decimal("3500"))
+    r = result[0]
+    # No in-window buys → no cost basis → realized pins at 0.
+    assert r.realized_pnl_usd == Decimal("0.00")
+    assert r.unrealized_pnl_usd is None  # net short after window
+
+
+def test_aggregate_buy_only_unrealized_only():
+    from app.services.pnl_engine import compute_aggregate_pnl
+
+    rows = [_agg("0xbull", weth_bought="5", weth_sold="0",
+                 usd_spent="15200", usd_received="0", trade_count=3)]
+    result = compute_aggregate_pnl(rows, window_end_eth_price=Decimal("3200"))
+    r = result[0]
+    # No sells → realized 0. avg_buy = 3040. Open 5 WETH × (3200 - 3040) = 800.
+    assert r.realized_pnl_usd == Decimal("0.00")
+    assert r.unrealized_pnl_usd == Decimal("800.00")
+
+
+def test_aggregate_normalizes_wallet_lowercase():
+    from app.services.pnl_engine import compute_aggregate_pnl
+
+    rows = [_agg("0xABCdef", weth_bought="1", weth_sold="1",
+                 usd_spent="3000", usd_received="3100", trade_count=2)]
+    result = compute_aggregate_pnl(rows, window_end_eth_price=None)
+    assert result[0].wallet == "0xabcdef"

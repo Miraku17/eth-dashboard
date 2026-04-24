@@ -25,7 +25,68 @@ class WalletPnL:
 
 def _d(x) -> Decimal:
     """Safe conversion from Dune output (str/float/int) to Decimal."""
+    if x is None or x == "":
+        return Decimal("0")
     return Decimal(str(x))
+
+
+def compute_aggregate_pnl(
+    rows: list[dict],
+    window_end_eth_price: Decimal | None,
+) -> list[WalletPnL]:
+    """Compute per-wallet approximate realized PnL from aggregate Dune rows.
+
+    Each input row must have: trader, weth_bought, weth_sold, usd_spent,
+    usd_received, trade_count, label.
+
+    Formula: realized = min(weth_bought, weth_sold) * (avg_sell - avg_buy),
+    where avg_buy = usd_spent / weth_bought and avg_sell = usd_received /
+    weth_sold. Exact for wallets that fully closed their position in the
+    window; directionally correct for partial closes. Win-rate is not
+    computable from aggregates — always returned as None.
+
+    Used when the Dune free-tier `/results` datapoint budget makes the
+    per-trade FIFO path (see `compute_realized_pnl`) economically infeasible.
+    """
+    out: list[WalletPnL] = []
+    for r in rows:
+        trader = str(r["trader"]).lower()
+        weth_bought = _d(r.get("weth_bought"))
+        weth_sold = _d(r.get("weth_sold"))
+        usd_spent = _d(r.get("usd_spent"))
+        usd_received = _d(r.get("usd_received"))
+        trade_count = int(r.get("trade_count") or 0)
+        label = r.get("label")
+        volume_usd = usd_spent + usd_received
+
+        avg_buy = (usd_spent / weth_bought) if weth_bought > 0 else None
+        avg_sell = (usd_received / weth_sold) if weth_sold > 0 else None
+
+        if weth_bought > 0 and weth_sold > 0 and avg_buy is not None and avg_sell is not None:
+            closed_weth = min(weth_bought, weth_sold)
+            realized = closed_weth * (avg_sell - avg_buy)
+        else:
+            # Pre-window inventory (sell-only) or open position (buy-only):
+            # no in-window round-trip to realize.
+            realized = Decimal("0")
+
+        unrealized: Decimal | None = None
+        if weth_bought > weth_sold and avg_buy is not None and window_end_eth_price is not None:
+            open_weth = weth_bought - weth_sold
+            unrealized = open_weth * (window_end_eth_price - avg_buy)
+
+        out.append(WalletPnL(
+            wallet=trader,
+            label=label,
+            realized_pnl_usd=realized.quantize(Decimal("0.01")),
+            unrealized_pnl_usd=unrealized.quantize(Decimal("0.01")) if unrealized is not None else None,
+            win_rate=None,  # not derivable from aggregates
+            trade_count=trade_count,
+            volume_usd=volume_usd.quantize(Decimal("0.01")),
+            weth_bought=weth_bought,
+            weth_sold=weth_sold,
+        ))
+    return out
 
 
 def _process_wallet(

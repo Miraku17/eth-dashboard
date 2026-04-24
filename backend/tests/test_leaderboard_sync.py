@@ -1,4 +1,4 @@
-"""Integration tests for leaderboard_sync: Dune rows → FIFO engine → Postgres."""
+"""Integration tests for leaderboard_sync: Dune aggregate rows → PnL engine → Postgres."""
 import json
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -56,22 +56,20 @@ def test_persist_snapshot_ranks_by_realized_pnl(session):
 
 def test_persist_snapshot_truncates_to_top_50(session):
     # Build 75 synthetic wallets with decreasing PnL.
-    rows = []
-    for i in range(75):
-        w = f"0x{i:040x}"
-        rows.append({
-            "trader": w, "block_time": "2026-04-01T00:00:00Z",
-            "side": "buy", "weth_amount": "1",
-            "amount_usd": str(3000),
+    # Wallet i: bought 1 WETH for $3000, sold 1 WETH for $(3000 + (74 - i)).
+    # Wallet 0 realizes +$74, wallet 74 realizes $0.
+    rows = [
+        {
+            "trader": f"0x{i:040x}",
+            "weth_bought": "1",
+            "weth_sold": "1",
+            "usd_spent": "3000",
+            "usd_received": str(3000 + (74 - i)),
+            "trade_count": 2,
             "label": None,
-        })
-        rows.append({
-            "trader": w, "block_time": "2026-04-02T00:00:00Z",
-            "side": "sell", "weth_amount": "1",
-            # Decreasing profit as i increases: wallet 0 makes +74, wallet 74 makes +0.
-            "amount_usd": str(3000 + (74 - i)),
-            "label": None,
-        })
+        }
+        for i in range(75)
+    ]
     persist_snapshot(
         session, rows=rows, window_days=30,
         window_end_eth_price=Decimal("3000"),

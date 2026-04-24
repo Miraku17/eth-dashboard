@@ -1,8 +1,5 @@
 [
-  {"trader": "0xaaa", "block_time": "2026-04-01T00:00:00Z", "side": "buy",  "weth_amount": "10", "amount_usd": "30000", "label": null},
-  {"trader": "0xaaa", "block_time": "2026-04-02T00:00:00Z", "side": "sell", "weth_amount": "10", "amount_usd": "35000", "label": null},
-  {"trader": "0xbbb", "block_time": "2026-04-01T00:00:00Z", "side": "buy",  "weth_amount": "5",  "amount_usd": "15000", "label": "Jump Trading"},
-  {"trader": "0xbbb", "block_time": "2026-04-02T00:00:00Z", "side": "sell", "weth_amount": "5",  "amount_usd": "14000", "label": "Jump Trading"},
-  {"trader": "0xccc", "block_time": "2026-04-01T00:00:00Z", "side": "buy",  "weth_amount": "3",  "amount_usd": "9000",  "label": null},
-  {"trader": "0xccc", "block_time": "2026-04-02T00:00:00Z", "side": "sell", "weth_amount": "3",  "amount_usd": "10500", "label": null}
+  {"trader": "0xaaa", "weth_bought": "10", "weth_sold": "10", "usd_spent": "30000", "usd_received": "35000", "trade_count": 2, "label": null},
+  {"trader": "0xbbb", "weth_bought": "5",  "weth_sold": "5",  "usd_spent": "15000", "usd_received": "14000", "trade_count": 2, "label": "Jump Trading"},
+  {"trader": "0xccc", "weth_bought": "3",  "weth_sold": "3",  "usd_spent": "9000",  "usd_received": "10500", "trade_count": 2, "label": null}
 ]
