@@ -262,3 +262,25 @@ class OrderFlowPoint(BaseModel):
 
 class OrderFlowResponse(BaseModel):
     points: list[OrderFlowPoint]
+
+
+# ---------- Smart-money leaderboard (v2) ----------
+
+
+class SmartMoneyEntry(BaseModel):
+    rank: int
+    wallet: str
+    label: str | None = None
+    realized_pnl_usd: float
+    unrealized_pnl_usd: float | None = None
+    win_rate: float | None = None
+    trade_count: int
+    volume_usd: float
+    weth_bought: float
+    weth_sold: float
+
+
+class SmartMoneyLeaderboardResponse(BaseModel):
+    snapshot_at: datetime | None
+    window_days: int
+    entries: list[SmartMoneyEntry]
