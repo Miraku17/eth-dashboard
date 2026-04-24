@@ -112,3 +112,12 @@ class DerivativesSnapshot(Base):
     oi_usd: Mapped[float | None] = mapped_column(Numeric(32, 2), nullable=True)
     funding_rate: Mapped[float | None] = mapped_column(Numeric(18, 10), nullable=True)
     mark_price: Mapped[float | None] = mapped_column(Numeric(24, 8), nullable=True)
+
+
+class OrderFlow(Base):
+    """Hourly DEX buy/sell pressure for ETH (WETH), from Dune dex.trades (v2)."""
+    __tablename__ = "order_flow"
+    ts_bucket: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    side: Mapped[str] = mapped_column(String(8), primary_key=True)  # "buy" | "sell"
+    usd_value: Mapped[float] = mapped_column(Numeric(32, 2))
+    trade_count: Mapped[int] = mapped_column(BigInteger)

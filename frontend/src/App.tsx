@@ -7,6 +7,7 @@ import DerivativesPanel from "./components/DerivativesPanel";
 import ExchangeFlowsPanel from "./components/ExchangeFlowsPanel";
 import NetworkActivityPanel from "./components/NetworkActivityPanel";
 import OnchainVolumePanel from "./components/OnchainVolumePanel";
+import OrderFlowPanel from "./components/OrderFlowPanel";
 import PriceChart from "./components/PriceChart";
 import PriceHero from "./components/PriceHero";
 import StablecoinSupplyPanel from "./components/StablecoinSupplyPanel";
@@ -62,6 +63,9 @@ export default function App() {
 
         <Guarded label="Derivatives" id="derivatives">
           <DerivativesPanel />
+        </Guarded>
+        <Guarded label="Order flow" id="order-flow">
+          <OrderFlowPanel />
         </Guarded>
         <Guarded label="Network activity">
           <NetworkActivityPanel />

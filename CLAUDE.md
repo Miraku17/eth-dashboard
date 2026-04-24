@@ -64,8 +64,9 @@ The design doc's v1 scope is fixed. Do **not** implement v2/v3 features (DEX lea
 
 ## v2 status
 
-- v2-derivatives 🚧 OI + funding rates for ETH perp across Binance/Bybit/OKX/Deribit; hourly cron (`sync_derivatives`) persists to `derivatives_snapshots`; `/api/derivatives/{summary,series}` endpoints; dashboard panel with per-exchange funding tiles + OI/funding chart (24h/72h/7d/30d range, Funding/OI mode toggle). No paid data sources needed.
-- v2 pending — smart-money leaderboard, wallet clustering, on-chain order flow, mempool (needs node)
+- v2-derivatives ✅ OI + funding rates for ETH perp across Binance/Bybit/OKX/Deribit.
+- v2-order-flow 🚧 Dune `dex.trades` aggregates WETH buy vs sell pressure across major DEXes, persists hourly to `order_flow`; `/api/flows/order-flow` endpoint; dashboard panel with buy/sell/net tiles + signed-stacked bar + net line. Runs on 8h cadence to stay within Dune free-tier credit budget. Requires `DUNE_QUERY_ID_ORDER_FLOW` in `.env` (SQL at `backend/dune/order_flow.sql`).
+- v2 pending — smart-money leaderboard, wallet clustering, mempool (needs node)
 
 ## Environment note
 
