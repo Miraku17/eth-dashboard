@@ -71,7 +71,7 @@ def test_health_reports_sources(seeded_network):
     body = r.json()
     assert body["version"] == "0.1.0"
     names = {s["name"] for s in body["sources"]}
-    assert names == {"binance_1m", "dune_flows", "alchemy_blocks", "whale_transfers"}
+    assert names == {"binance_1m", "dune_flows", "alchemy_blocks", "whale_transfers", "smart_money"}
     blocks = next(s for s in body["sources"] if s["name"] == "alchemy_blocks")
     assert blocks["stale"] is False
     assert blocks["lag_seconds"] < 600
