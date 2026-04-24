@@ -60,7 +60,12 @@ The design doc's v1 scope is fixed. Do **not** implement v2/v3 features (DEX lea
 - M4 ✅ alerts engine — arq cron `evaluate_alerts` every minute; 6 rule types (price above/below/change%, whale transfer, whale→exchange, exchange netflow); Telegram + HMAC-signed webhook delivery; `/api/alerts/{rules,events}` CRUD; tabbed dashboard panel (Events / Rules) with form-based create/edit + toast on fire. See `docs/telegram-setup.md`.
 - M5 ✅ network activity + polish — realtime listener writes per-block gas/base-fee/tx-count to `network_activity`; `/api/network/{summary,series}` endpoints; dashboard panel with gas + tx-count charts; `/api/health` reports per-source freshness; Topbar dropdown shows data lag per source; ErrorBoundary wraps every panel.
 
-**v1 complete.** Roadmap above is fully ✅. Next natural steps are deployment (Hetzner) and v2 scoping (smart-money tracking, clustering, mempool — each larger than all of v1 combined, plan with client first).
+**v1 complete.**
+
+## v2 status
+
+- v2-derivatives 🚧 OI + funding rates for ETH perp across Binance/Bybit/OKX/Deribit; hourly cron (`sync_derivatives`) persists to `derivatives_snapshots`; `/api/derivatives/{summary,series}` endpoints; dashboard panel with per-exchange funding tiles + OI/funding chart (24h/72h/7d/30d range, Funding/OI mode toggle). No paid data sources needed.
+- v2 pending — smart-money leaderboard, wallet clustering, on-chain order flow, mempool (needs node)
 
 ## Environment note
 

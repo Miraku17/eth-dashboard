@@ -217,3 +217,34 @@ class HealthResponse(BaseModel):
     status: str
     version: str
     sources: list[DataSourceStatus] = []
+
+
+# ---------- Derivatives (v2) ----------
+
+
+class DerivativesPoint(BaseModel):
+    ts: datetime
+    exchange: str
+    symbol: str
+    oi_usd: float | None
+    funding_rate: float | None
+    mark_price: float | None
+
+
+class DerivativesLatest(BaseModel):
+    exchange: str
+    symbol: str
+    ts: datetime
+    oi_usd: float | None
+    funding_rate: float | None
+    mark_price: float | None
+
+
+class DerivativesSummary(BaseModel):
+    latest: list[DerivativesLatest]
+    total_oi_usd: float | None
+    avg_funding_rate: float | None
+
+
+class DerivativesSeriesResponse(BaseModel):
+    points: list[DerivativesPoint]

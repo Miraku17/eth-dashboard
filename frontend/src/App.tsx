@@ -3,6 +3,7 @@ import { useState, type ReactNode } from "react";
 import type { Timeframe } from "./api";
 import { useGlobalShortcuts } from "./hooks/useGlobalShortcuts";
 import AlertEventsPanel from "./components/AlertEventsPanel";
+import DerivativesPanel from "./components/DerivativesPanel";
 import ExchangeFlowsPanel from "./components/ExchangeFlowsPanel";
 import NetworkActivityPanel from "./components/NetworkActivityPanel";
 import OnchainVolumePanel from "./components/OnchainVolumePanel";
@@ -59,6 +60,9 @@ export default function App() {
           </div>
         </div>
 
+        <Guarded label="Derivatives" id="derivatives">
+          <DerivativesPanel />
+        </Guarded>
         <Guarded label="Network activity">
           <NetworkActivityPanel />
         </Guarded>
