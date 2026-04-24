@@ -34,6 +34,20 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 log = logging.getLogger("realtime")
 
 RECONNECT_DELAY_S = 5.0
+# If we don't receive a `newHeads` event in this many seconds, assume the WS
+# is silently dead (Alchemy occasionally leaves the socket open but stops
+# delivering messages) and tear it down so the outer reconnect loop fires.
+# Mainnet blocks every ~12s, so 60s allows several missed blocks of slack
+# before we flag the stream as stalled.
+HEAD_STALL_TIMEOUT_S = 60.0
+
+
+async def next_head(queue: asyncio.Queue, timeout: float) -> dict | None:
+    """Wait for the next `newHeads` payload, returning None on stall."""
+    try:
+        return await asyncio.wait_for(queue.get(), timeout=timeout)
+    except asyncio.TimeoutError:
+        return None
 
 
 def _latest_eth_usd(session: Session) -> float | None:
@@ -198,7 +212,12 @@ async def run_once(ws_url: str, sessionmaker, thresholds: tuple[float, float]) -
             heads = await client.subscribe(["newHeads"])
             log.info("subscribed to newHeads")
             while True:
-                head = await heads.get()
+                head = await next_head(heads, HEAD_STALL_TIMEOUT_S)
+                if head is None:
+                    log.warning(
+                        "no new head in %.0fs — reconnecting", HEAD_STALL_TIMEOUT_S
+                    )
+                    return  # outer main() loop recreates the WS
                 bn = int(head["number"], 16)
                 try:
                     await _process_block(client, bn, sessionmaker, thresholds)

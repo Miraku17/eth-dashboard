@@ -1,9 +1,16 @@
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.core.models import ExchangeFlow, OnchainVolume, StablecoinFlow
+
+# Postgres caps each statement at 65,535 bound parameters. Each row above has
+# 4–5 columns, so 1,000 rows per batch keeps us well under that limit even as
+# the schema grows. We still commit once at the end so the whole sync is
+# atomic from the caller's POV.
+CHUNK_SIZE = 1000
 
 
 def _parse_ts(value: str | datetime) -> datetime:
@@ -17,9 +24,30 @@ def _parse_ts(value: str | datetime) -> datetime:
     return datetime.fromisoformat(s)
 
 
-def upsert_exchange_flows(session: Session, rows: list[dict]) -> int:
-    if not rows:
+def _upsert_chunked(
+    session: Session,
+    table: Any,
+    values: list[dict],
+    *,
+    index_elements: list[str],
+    update_cols: list[str],
+) -> int:
+    """Batch an upsert so we don't trip Postgres's 65,535 param limit."""
+    if not values:
         return 0
+    for i in range(0, len(values), CHUNK_SIZE):
+        chunk = values[i : i + CHUNK_SIZE]
+        stmt = pg_insert(table).values(chunk)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=index_elements,
+            set_={col: stmt.excluded[col] for col in update_cols},
+        )
+        session.execute(stmt)
+    session.commit()
+    return len(values)
+
+
+def upsert_exchange_flows(session: Session, rows: list[dict]) -> int:
     values = [
         {
             "exchange": r["exchange"],
@@ -30,19 +58,16 @@ def upsert_exchange_flows(session: Session, rows: list[dict]) -> int:
         }
         for r in rows
     ]
-    stmt = pg_insert(ExchangeFlow).values(values)
-    stmt = stmt.on_conflict_do_update(
+    return _upsert_chunked(
+        session,
+        ExchangeFlow,
+        values,
         index_elements=["exchange", "direction", "asset", "ts_bucket"],
-        set_={"usd_value": stmt.excluded.usd_value},
+        update_cols=["usd_value"],
     )
-    session.execute(stmt)
-    session.commit()
-    return len(values)
 
 
 def upsert_stablecoin_flows(session: Session, rows: list[dict]) -> int:
-    if not rows:
-        return 0
     values = [
         {
             "asset": r["asset"],
@@ -52,19 +77,16 @@ def upsert_stablecoin_flows(session: Session, rows: list[dict]) -> int:
         }
         for r in rows
     ]
-    stmt = pg_insert(StablecoinFlow).values(values)
-    stmt = stmt.on_conflict_do_update(
+    return _upsert_chunked(
+        session,
+        StablecoinFlow,
+        values,
         index_elements=["asset", "direction", "ts_bucket"],
-        set_={"usd_value": stmt.excluded.usd_value},
+        update_cols=["usd_value"],
     )
-    session.execute(stmt)
-    session.commit()
-    return len(values)
 
 
 def upsert_onchain_volume(session: Session, rows: list[dict]) -> int:
-    if not rows:
-        return 0
     values = [
         {
             "asset": r["asset"],
@@ -74,11 +96,10 @@ def upsert_onchain_volume(session: Session, rows: list[dict]) -> int:
         }
         for r in rows
     ]
-    stmt = pg_insert(OnchainVolume).values(values)
-    stmt = stmt.on_conflict_do_update(
+    return _upsert_chunked(
+        session,
+        OnchainVolume,
+        values,
         index_elements=["asset", "ts_bucket"],
-        set_={"tx_count": stmt.excluded.tx_count, "usd_value": stmt.excluded.usd_value},
+        update_cols=["tx_count", "usd_value"],
     )
-    session.execute(stmt)
-    session.commit()
-    return len(values)
