@@ -9,6 +9,7 @@ import NetworkActivityPanel from "./components/NetworkActivityPanel";
 import OnchainVolumePanel from "./components/OnchainVolumePanel";
 import OrderFlowPanel from "./components/OrderFlowPanel";
 import PriceChart from "./components/PriceChart";
+import SmartMoneyLeaderboard from "./components/SmartMoneyLeaderboard";
 import PriceHero from "./components/PriceHero";
 import StablecoinSupplyPanel from "./components/StablecoinSupplyPanel";
 import Topbar from "./components/Topbar";
@@ -63,6 +64,9 @@ export default function App() {
 
         <Guarded label="Derivatives" id="derivatives">
           <DerivativesPanel />
+        </Guarded>
+        <Guarded label="Smart money" id="smart-money">
+          <SmartMoneyLeaderboard />
         </Guarded>
         <Guarded label="Order flow" id="order-flow">
           <OrderFlowPanel />
