@@ -154,17 +154,8 @@ from collections import deque
 from typing import Iterable
 
 @dataclass(frozen=True)
-class Trade:
-    wallet: bytes           # 20-byte address
-    block_time: datetime
-    side: str               # 'buy' or 'sell'
-    weth_amount: Decimal
-    amount_usd: Decimal
-    label: str | None
-
-@dataclass(frozen=True)
 class WalletPnL:
-    wallet: bytes
+    wallet: str              # lowercase 0x-hex
     label: str | None
     realized_pnl_usd: Decimal
     unrealized_pnl_usd: Decimal | None   # None if no open position at window end
@@ -175,7 +166,7 @@ class WalletPnL:
     weth_sold: Decimal
 
 def compute_realized_pnl(
-    trades: Iterable[Trade],             # sorted by (wallet, block_time)
+    rows: list[dict],                    # raw Dune rows, sorted by (trader, block_time)
     window_end_eth_price: Decimal,       # for unrealized mark
 ) -> list[WalletPnL]:
     ...
@@ -207,7 +198,7 @@ def compute_realized_pnl(
 
 ### Precision
 
-Everything in `Decimal`. Inputs arrive as floats from pandas/Dune; convert at the boundary (one `Decimal(str(x))` call per field on row ingest). Never do `Decimal + float`.
+Everything in `Decimal`. Inputs arrive as strings or floats from Dune; convert at the boundary with `Decimal(str(x))` per field on row ingest. Never do `Decimal + float`.
 
 ### Ranking
 
@@ -228,7 +219,7 @@ CREATE TABLE smart_money_leaderboard (
   snapshot_at        TIMESTAMPTZ NOT NULL,
   window_days        SMALLINT NOT NULL,
   rank               SMALLINT NOT NULL,
-  wallet_address     BYTEA NOT NULL,
+  wallet_address     VARCHAR(42) NOT NULL,
   label              TEXT,
   realized_pnl_usd   NUMERIC(20, 2) NOT NULL,
   unrealized_pnl_usd NUMERIC(20, 2),
@@ -245,7 +236,7 @@ CREATE INDEX ix_leaderboard_latest
 
 ### Notes
 
-- `wallet_address BYTEA` matches the existing `transfers` table convention. API serializes to `0x…` hex on the way out.
+- `wallet_address VARCHAR(42)` stores the lowercase hex `0x…` form, matching the existing `transfers` table convention.
 - `run_id` groups one refresh atomically. The read endpoint joins on the latest `run_id` so partial writes during a refresh can never be observed.
 - `NUMERIC` everywhere — no `DOUBLE PRECISION`. PnL to cents, WETH amounts to 18 decimals.
 - `unrealized_pnl_usd` nullable: `NULL` means "no open position at window end" (meaningfully different from `0`).
