@@ -94,6 +94,47 @@ def test_parse_erc20_log_below_threshold_ignored():
     assert parse_erc20_log(log, block_ts=BLOCK_TS, threshold_usd=1_000_000.0) is None
 
 
+def test_parse_erc20_log_volatile_wbtc_above_threshold():
+    # WBTC has 8 decimals. Threshold is 3.5 WBTC. 5 WBTC transfer.
+    log = {
+        "address": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+        "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "0x000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        ],
+        "data": hex(5 * 10**8),  # 5 WBTC (8 decimals)
+        "blockNumber": "0x20",
+        "transactionHash": "0xfeed",
+        "logIndex": "0x3",
+    }
+    # threshold_usd is irrelevant for volatiles — the native threshold from the
+    # token config is what gates persistence.
+    row = parse_erc20_log(log, block_ts=BLOCK_TS, threshold_usd=1_000_000.0)
+    assert row is not None
+    assert row.asset == "WBTC"
+    assert row.amount == 5.0
+    # WBTC price_usd_approx is 70000 → 5 × 70000 = 350000
+    assert row.usd_value == 350_000.0
+
+
+def test_parse_erc20_log_volatile_below_native_threshold_ignored():
+    # 2 WBTC is below the 3.5 WBTC whale threshold, regardless of USD value.
+    log = {
+        "address": "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+        "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x" + "0" * 64,
+            "0x" + "0" * 64,
+        ],
+        "data": hex(2 * 10**8),
+        "blockNumber": "0x1",
+        "transactionHash": "0x1",
+        "logIndex": "0x0",
+    }
+    assert parse_erc20_log(log, block_ts=BLOCK_TS, threshold_usd=1_000_000.0) is None
+
+
 def test_block_timestamp():
     block = {"timestamp": hex(1_700_000_000)}
     assert block_timestamp(block) == datetime.fromtimestamp(1_700_000_000, tz=UTC)

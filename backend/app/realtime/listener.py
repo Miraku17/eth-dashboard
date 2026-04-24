@@ -28,7 +28,7 @@ from app.realtime.parser import (
     parse_erc20_log,
     parse_native_tx,
 )
-from app.realtime.tokens import STABLES, TRANSFER_TOPIC
+from app.realtime.tokens import ALL_TRACKED_ADDRESSES, TRANSFER_TOPIC
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("realtime")
@@ -163,13 +163,12 @@ async def _process_block(
     except Exception:
         log.exception("failed to persist network activity for block %d", block_number)
 
-    token_addrs = [t.address for t in STABLES]
     logs_res = await client.call(
         "eth_getLogs",
         [{
             "fromBlock": hex_bn,
             "toBlock": hex_bn,
-            "address": token_addrs,
+            "address": ALL_TRACKED_ADDRESSES,
             "topics": [TRANSFER_TOPIC],
         }],
     )

@@ -5,7 +5,7 @@ Kept decoupled from DB + network so it is unit-testable.
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from app.realtime.tokens import STABLES_BY_ADDRESS
+from app.realtime.tokens import STABLES_BY_ADDRESS, VOLATILE_BY_ADDRESS
 
 WEI = 10**18
 
@@ -73,14 +73,18 @@ def parse_erc20_log(
     block_ts: datetime,
     threshold_usd: float,
 ) -> WhaleTransfer | None:
-    """Decode a Transfer log for a configured stablecoin, filtered by threshold.
+    """Decode a Transfer log for a tracked token, filtered by threshold.
+
+    Two paths:
+    - Stablecoins: `threshold_usd` is the cut-off, and because price ≈ $1,
+      `amount == usd_notional`.
+    - Volatile tokens: each has a hardcoded native-unit threshold and
+      approximate USD price in the token config. usd_value is computed as
+      amount × price_usd_approx — a display approximation, not spot price.
 
     Alchemy log payload: address, topics[0..2], data, blockNumber, transactionHash, logIndex.
     """
     addr = (log.get("address") or "").lower()
-    token = STABLES_BY_ADDRESS.get(addr)
-    if not token:
-        return None
     topics = log.get("topics") or []
     if len(topics) < 3:
         return None
@@ -89,20 +93,42 @@ def parse_erc20_log(
     to_addr = "0x" + topics[2][-40:].lower()
     data = log.get("data") or "0x0"
     raw = int(data, 16) if data != "0x" else 0
-    amount = raw / (10**token.decimals)
-    if amount < threshold_usd:  # stables ≈ $1 so amount == usd notional
-        return None
-    return WhaleTransfer(
-        tx_hash=log["transactionHash"],
-        log_index=_parse_hex(log.get("logIndex")),
-        block_number=_parse_hex(log.get("blockNumber")),
-        ts=block_ts,
-        from_addr=from_addr,
-        to_addr=to_addr,
-        asset=token.symbol,
-        amount=amount,
-        usd_value=amount,
-    )
+
+    stable = STABLES_BY_ADDRESS.get(addr)
+    if stable is not None:
+        amount = raw / (10**stable.decimals)
+        if amount < threshold_usd:
+            return None
+        return WhaleTransfer(
+            tx_hash=log["transactionHash"],
+            log_index=_parse_hex(log.get("logIndex")),
+            block_number=_parse_hex(log.get("blockNumber")),
+            ts=block_ts,
+            from_addr=from_addr,
+            to_addr=to_addr,
+            asset=stable.symbol,
+            amount=amount,
+            usd_value=amount,
+        )
+
+    volatile = VOLATILE_BY_ADDRESS.get(addr)
+    if volatile is not None:
+        amount = raw / (10**volatile.decimals)
+        if amount < volatile.threshold_native:
+            return None
+        return WhaleTransfer(
+            tx_hash=log["transactionHash"],
+            log_index=_parse_hex(log.get("logIndex")),
+            block_number=_parse_hex(log.get("blockNumber")),
+            ts=block_ts,
+            from_addr=from_addr,
+            to_addr=to_addr,
+            asset=volatile.symbol,
+            amount=amount,
+            usd_value=amount * volatile.price_usd_approx,
+        )
+
+    return None
 
 
 def block_timestamp(block: dict) -> datetime:
