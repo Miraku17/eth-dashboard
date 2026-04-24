@@ -51,8 +51,8 @@ def smart_money_leaderboard(
             win_rate=float(r.win_rate) if r.win_rate is not None else None,
             trade_count=r.trade_count,
             volume_usd=float(r.volume_usd),
-            weth_bought=float(r.weth_bought),
-            weth_sold=float(r.weth_sold),
+            weth_bought=str(r.weth_bought),
+            weth_sold=str(r.weth_sold),
         )
         for r in rows
     ]

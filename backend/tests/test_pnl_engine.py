@@ -164,3 +164,20 @@ def test_multi_wallet_produces_one_record_per_wallet():
     assert set(by_wallet) == {"0xaaa", "0xbbb"}
     assert by_wallet["0xaaa"].realized_pnl_usd == Decimal("100.00")
     assert by_wallet["0xbbb"].realized_pnl_usd == Decimal("-200.00")
+
+
+def test_wallet_address_normalized_to_lowercase():
+    """Wallet addresses from Dune may arrive in mixed case; engine stores lowercase."""
+    rows = [
+        _row("0xABC", "buy",  Decimal("1"), Decimal("3000"), t="2026-04-01T00:00:00Z"),
+        _row("0xABC", "sell", Decimal("1"), Decimal("3100"), t="2026-04-02T00:00:00Z"),
+        _row("0xDeF", "buy",  Decimal("2"), Decimal("6000"), t="2026-04-01T00:00:00Z"),
+        _row("0xdEf", "sell", Decimal("2"), Decimal("6200"), t="2026-04-02T00:00:00Z"),
+    ]
+    result = compute_realized_pnl(rows, window_end_eth_price=Decimal("3100"))
+    wallets = {r.wallet for r in result}
+    assert wallets == {"0xabc", "0xdef"}
+    # Mixed-case duplicate 0xDeF / 0xdEf should be grouped as one wallet.
+    by_wallet = {r.wallet: r for r in result}
+    assert by_wallet["0xdef"].realized_pnl_usd == Decimal("200.00")
+    assert by_wallet["0xdef"].trade_count == 2

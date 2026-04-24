@@ -117,13 +117,14 @@ def compute_realized_pnl(
     if not rows:
         return out
 
-    current_trader = rows[0]["trader"]
+    current_trader = rows[0]["trader"].lower()
     current_label = rows[0].get("label")
     buf: list[dict] = []
     for r in rows:
-        if r["trader"] != current_trader:
+        trader = r["trader"].lower()
+        if trader != current_trader:
             out.append(_process_wallet(current_trader, current_label, buf, window_end_eth_price))
-            current_trader = r["trader"]
+            current_trader = trader
             current_label = r.get("label")
             buf = []
         buf.append(r)

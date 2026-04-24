@@ -276,8 +276,8 @@ class SmartMoneyEntry(BaseModel):
     win_rate: float | None = None
     trade_count: int
     volume_usd: float
-    weth_bought: float
-    weth_sold: float
+    weth_bought: str
+    weth_sold: str
 
 
 class SmartMoneyLeaderboardResponse(BaseModel):

@@ -339,8 +339,8 @@ export type SmartMoneyEntry = {
   win_rate: number | null;
   trade_count: number;
   volume_usd: number;
-  weth_bought: number;
-  weth_sold: number;
+  weth_bought: string;
+  weth_sold: string;
 };
 
 export type SmartMoneyLeaderboard = {
