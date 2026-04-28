@@ -83,6 +83,19 @@ class Transfer(Base):
     usd_value: Mapped[float | None] = mapped_column(Numeric(32, 2), nullable=True)
 
 
+class PendingTransfer(Base):
+    __tablename__ = "pending_transfers"
+    tx_hash: Mapped[str] = mapped_column(String(66), primary_key=True)
+    from_addr: Mapped[str] = mapped_column(String(42), index=True)
+    to_addr: Mapped[str] = mapped_column(String(42))
+    asset: Mapped[str] = mapped_column(String(16))
+    amount: Mapped[float] = mapped_column(Numeric(38, 18))
+    usd_value: Mapped[float | None] = mapped_column(Numeric(32, 2), nullable=True)
+    seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    nonce: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    gas_price_gwei: Mapped[float | None] = mapped_column(Numeric(20, 9), nullable=True)
+
+
 class AlertRule(Base):
     __tablename__ = "alert_rules"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
