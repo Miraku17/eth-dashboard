@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Seed Phrase Recovery</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --panel: #181d2a;
+    --border: #2a3142;
+    --text: #e8ebf0;
+    --muted: #8a92a6;
+    --accent: #4a9eff;
+    --good: #2dd4a4;
+    --warn: #f5a623;
+    --bad: #ef4444;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    padding: 32px 16px 80px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 24px; margin: 0 0 6px; font-weight: 600; }
+  h2 { font-size: 14px; margin: 28px 0 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+  p { margin: 0 0 12px; }
+  .sub { color: var(--muted); margin-bottom: 24px; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px;
+    margin-bottom: 16px;
+  }
+
+  .alert {
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    border: 1px solid;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .alert-warn { background: rgba(245, 166, 35, 0.08); border-color: var(--warn); color: #fce0a8; }
+  .alert-bad  { background: rgba(239, 68, 68, 0.10);  border-color: var(--bad);  color: #ffb4b4; }
+  .alert-good { background: rgba(45, 212, 164, 0.08); border-color: var(--good); color: #aaf3da; }
+  .alert .icon { flex-shrink: 0; font-weight: 700; line-height: 1.2; }
+  .alert > div:last-child { flex: 1; }
+  .alert strong { display: block; margin-bottom: 4px; }
+
+  ol, ul { margin: 8px 0 12px; padding-left: 22px; }
+  li { margin-bottom: 6px; }
+
+  .download-btn {
+    display: inline-block;
+    background: var(--accent);
+    color: white;
+    text-decoration: none;
+    padding: 14px 28px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 16px;
+    border: none;
+    cursor: pointer;
+    margin: 8px 0;
+  }
+  .download-btn:hover { filter: brightness(1.1); }
+
+  .hash-block {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    word-break: break-all;
+    margin: 8px 0;
+    color: var(--text);
+  }
+  .hash-label {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+
+  code { font-family: var(--mono); background: var(--bg); padding: 1px 6px; border-radius: 3px; font-size: 13px; }
+  kbd { font-family: var(--mono); background: var(--panel); border: 1px solid var(--border); padding: 1px 6px; border-radius: 3px; font-size: 12px; }
+
+  .footnote { color: var(--muted); font-size: 13px; margin-top: 8px; }
+
+  /* SHA spinner */
+  .computing { color: var(--muted); font-style: italic; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Seed Phrase Recovery</h1>
+<p class="sub">An offline tool you run on your own computer to recover a partial BIP39 seed phrase.</p>
+
+<div id="http-warn" class="alert alert-bad" hidden>
+  <span class="icon">!</span>
+  <div>
+    <strong>Insecure connection (plain HTTP)</strong>
+    Anyone on the network path between you and this server can swap the file for a malicious one.
+    <strong style="margin-top:8px">You MUST verify the SHA256 below against the value I sent you over Signal/email before opening the downloaded file.</strong>
+  </div>
+</div>
+
+<div class="alert alert-warn">
+  <span class="icon">!</span>
+  <div>
+    <strong>Read all instructions before downloading</strong>
+    Your seed phrase controls your wallet. Treat it like a key to a vault.
+    Never type it into anything you didn't open from a file you trust.
+  </div>
+</div>
+
+<div class="panel">
+  <h2>What this is</h2>
+  <p>
+    A single self-contained HTML file (~514 KB). When you open it on your computer
+    it runs entirely in your browser &mdash; no server, no internet, no installation.
+    You give it the words you remember and your wallet's public address (<code>0x…</code>);
+    it iterates BIP39 candidates locally and tells you the full phrase when it finds a match.
+  </p>
+  <p class="footnote">
+    Your seed phrase NEVER leaves your computer. Not to me, not to any server, not over the network.
+    The page even has a network-block policy header that prevents the browser from making any external requests.
+  </p>
+</div>
+
+<div class="panel">
+  <h2>Before you download</h2>
+  <ol>
+    <li><strong>Verify the URL</strong> in your browser bar. It should be the address I sent you. If it doesn't match exactly, close this tab.</li>
+    <li><strong>Have your wallet's public receive address ready</strong> (the <code>0x…</code> string, 42 characters). Without it the tool cannot verify any candidate phrase.</li>
+    <li><strong>Have the words you remember written down</strong> on paper next to you, with their position numbers (1&ndash;12 or 1&ndash;24).</li>
+    <li><strong>Close other browser tabs and apps</strong> &mdash; the search will use your CPU heavily.</li>
+  </ol>
+</div>
+
+<div class="panel">
+  <h2>1. Download the tool</h2>
+  <p>
+    <a id="dl" class="download-btn" href="/recover.html" download="recover.html">
+      Download recover.html (514 KB)
+    </a>
+  </p>
+  <div class="hash-label">SHA256 of the downloaded file</div>
+  <div id="sha" class="hash-block computing">computing…</div>
+  <p class="footnote">
+    I sent you this same SHA256 separately (Signal/email).
+    They MUST match. If they don't, do not open the file &mdash; message me.
+    Open a terminal and verify yourself with:
+    <br>
+    <code>shasum -a 256 ~/Downloads/recover.html</code>  (macOS / Linux)
+    <br>
+    <code>Get-FileHash ~/Downloads/recover.html -Algorithm SHA256</code>  (Windows PowerShell)
+  </p>
+</div>
+
+<div class="panel">
+  <h2>2. Disconnect from the internet</h2>
+  <p>
+    Turn off Wi-Fi. Unplug ethernet. Switch to airplane mode if on a laptop.
+  </p>
+  <p class="footnote">
+    The tool doesn't need internet, and disconnecting protects you in case anything tries to phone home.
+    The page itself blocks all network requests via Content-Security-Policy, but disconnecting is the belt-and-suspenders move.
+  </p>
+</div>
+
+<div class="panel">
+  <h2>3. Open the downloaded file</h2>
+  <p>
+    Find <code>recover.html</code> in your Downloads folder. Double-click it.
+    It opens in your default browser at a <code>file://</code> URL (no server involved).
+  </p>
+  <p>
+    You should see a banner at the top:
+  </p>
+  <ul>
+    <li>If it's <strong style="color:var(--bad)">RED</strong> &mdash; you're still online. Disconnect first, then refresh the page.</li>
+    <li>If it's <strong style="color:var(--good)">GREEN</strong> &mdash; you're offline. Safe to continue.</li>
+  </ul>
+</div>
+
+<div class="panel">
+  <h2>4. Fill in the form</h2>
+  <ul>
+    <li><strong>Phrase length:</strong> 12 or 24 (whichever your wallet uses).</li>
+    <li><strong>Target ETH address:</strong> paste your wallet's public <code>0x…</code> address.</li>
+    <li><strong>Path template:</strong> leave the default <code>m/44'/60'/0'/0/{i}</code> unless your wallet is Ledger Live, in which case use <code>m/44'/60'/{i}'/0/0</code>.</li>
+    <li><strong>Word grid:</strong> for each position, type either:
+      <ul>
+        <li>a single BIP39 word you remember &mdash; that position is fixed</li>
+        <li><code>?</code> or leave blank &mdash; any BIP39 word</li>
+        <li>a semicolon-separated pool, e.g. <code>cat;dog;bird</code> &mdash; restricted candidates</li>
+      </ul>
+    </li>
+  </ul>
+  <p>Click <strong>Start search</strong>. A progress bar shows how it's going.</p>
+</div>
+
+<div class="panel">
+  <h2>5. When a match is found</h2>
+  <ol>
+    <li><strong>Write the phrase on paper IMMEDIATELY.</strong> Do not screenshot. Do not paste into any app. Do not message it to me.</li>
+    <li>Close the browser tab.</li>
+    <li>Delete the <code>recover.html</code> file.</li>
+    <li>Empty your trash / recycle bin.</li>
+    <li>Reconnect to the internet only after the file is gone.</li>
+    <li><strong>Immediately move all funds from this wallet to a brand-new wallet with a brand-new seed phrase.</strong> The recovered phrase has been on multiple devices and should be considered compromised.</li>
+  </ol>
+</div>
+
+<div class="alert alert-good">
+  <span class="icon">i</span>
+  <div>
+    <strong>I will never ask you for your seed phrase.</strong>
+    Not now, not after recovery succeeds, not in any context. If anyone (including someone claiming to be me)
+    asks for the words, it is a scam. The only thing I need is your wallet's public address.
+  </div>
+</div>
+
+<p class="footnote" style="margin-top:24px; text-align:center">
+  If anything is unclear, message me before opening the file.
+</p>
+
+</div>
+
+<script>
+(async () => {
+  // HTTP warning
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+    document.getElementById('http-warn').hidden = false;
+  }
+
+  // Compute SHA256 of /recover.html
+  const out = document.getElementById('sha');
+  try {
+    const resp = await fetch('/recover.html', { cache: 'no-store' });
+    if (!resp.ok) throw new Error('fetch failed: ' + resp.status);
+    const buf = await resp.arrayBuffer();
+    const hash = await crypto.subtle.digest('SHA-256', buf);
+    const hex = [...new Uint8Array(hash)].map(b => b.toString(16).padStart(2, '0')).join('');
+    out.classList.remove('computing');
+    out.textContent = hex;
+  } catch (e) {
+    out.classList.remove('computing');
+    out.textContent = 'error computing hash: ' + (e.message || String(e));
+    out.style.color = 'var(--bad)';
+  }
+})();
+</script>
+
+</body>
+</html>
