@@ -165,6 +165,26 @@ export async function fetchWhaleTransfers(
   return (await r.json()).transfers;
 }
 
+export type PendingWhale = {
+  tx_hash: string;
+  from_addr: string;
+  to_addr: string;
+  from_label: string | null;
+  to_label: string | null;
+  asset: string;
+  amount: number;
+  usd_value: number | null;
+  seen_at: string;
+};
+
+export async function fetchPendingWhales(): Promise<PendingWhale[]> {
+  const r = await fetch(url(`/api/whales/pending`), {
+    headers: authHeaders(),
+  });
+  if (!r.ok) throw new Error(`pending whales ${r.status}`);
+  return (await r.json()).pending;
+}
+
 export type AlertEvent = {
   id: number;
   rule_id: number;
