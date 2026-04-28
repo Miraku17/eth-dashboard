@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchWhaleTransfers, type WhaleAsset, type WhaleTransfer } from "../api";
+import {
+  fetchPendingWhales,
+  fetchWhaleTransfers,
+  type PendingWhale,
+  type WhaleAsset,
+  type WhaleTransfer,
+} from "../api";
 import { formatUsdCompact, relativeTime, shortAddr } from "../lib/format";
 import Card from "./ui/Card";
 import Pill from "./ui/Pill";
@@ -78,6 +84,12 @@ export default function WhaleTransfersPanel() {
     refetchInterval: 15_000,
   });
 
+  const { data: pending = [] } = useQuery<PendingWhale[]>({
+    queryKey: ["pendingWhales"],
+    queryFn: fetchPendingWhales,
+    refetchInterval: 5_000,
+  });
+
   const total = (data ?? []).reduce((s, t) => s + (t.usd_value ?? 0), 0);
 
   return (
@@ -97,6 +109,57 @@ export default function WhaleTransfersPanel() {
       }
       bodyClassName="p-0"
     >
+      {pending.length > 0 && (
+        <div className="px-5 pt-4 pb-3 border-b border-surface-divider">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-300">
+              Pending ({pending.length})
+            </span>
+          </div>
+          <ul className="space-y-1">
+            {pending.slice(0, 5).map((p) => {
+              const secs = Math.max(
+                0,
+                Math.floor((Date.now() - new Date(p.seen_at).getTime()) / 1000),
+              );
+              return (
+                <li
+                  key={p.tx_hash}
+                  className="flex items-center justify-between gap-3 border-l-2 border-amber-400/40 pl-2 py-1 text-sm"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <AssetBadge asset={p.asset} />
+                    <span className="font-mono tabular-nums text-slate-100 whitespace-nowrap">
+                      {p.amount >= 1000 ? p.amount.toFixed(0) : p.amount.toFixed(2)}{" "}
+                      <span className="text-slate-500">{p.asset}</span>
+                    </span>
+                    <span className="text-slate-500">·</span>
+                    <Party addr={p.from_addr} label={p.from_label} />
+                    <span className="text-slate-500">→</span>
+                    <Party addr={p.to_addr} label={p.to_label} />
+                  </div>
+                  <div className="flex items-center gap-3 whitespace-nowrap">
+                    <span className="font-mono tabular-nums text-amber-300/80 text-xs">
+                      {formatUsdCompact(p.usd_value)}
+                    </span>
+                    <span className="text-[11px] text-slate-500">{secs}s ago</span>
+                    <a
+                      href={`https://etherscan.io/tx/${p.tx_hash}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-mono text-xs text-slate-500 hover:text-brand-soft transition"
+                    >
+                      {p.tx_hash.slice(0, 8)}…
+                    </a>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
       {isLoading && <p className="p-5 text-sm text-slate-500">loading…</p>}
       {error && <p className="p-5 text-sm text-down">unavailable</p>}
       {!isLoading && !error && data && data.length === 0 && (
