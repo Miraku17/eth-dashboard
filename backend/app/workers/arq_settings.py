@@ -8,6 +8,7 @@ from app.workers.alert_jobs import evaluate_alerts
 from app.workers.derivatives_jobs import sync_derivatives
 from app.workers.flow_jobs import sync_dune_flows, sync_order_flow
 from app.workers.leaderboard_jobs import sync_smart_money_leaderboard
+from app.workers.pending_cleanup import cleanup_pending_transfers
 from app.workers.price_jobs import backfill_price_history, sync_price_latest
 
 
@@ -54,6 +55,7 @@ class WorkerSettings:
         sync_derivatives,
         sync_order_flow,
         sync_smart_money_leaderboard,
+        cleanup_pending_transfers,
     ]
     cron_jobs = [
         cron(sync_price_latest, minute=set(range(0, 60)), run_at_startup=False),
@@ -69,6 +71,8 @@ class WorkerSettings:
         # meaningfully heavier than order-flow (30d vs 7d window), so a
         # single refresh per day keeps us inside the Dune free-tier budget.
         cron(sync_smart_money_leaderboard, hour={3}, minute={0}, run_at_startup=False),
+        # Pending whale cleanup: every minute, drops rows >30 min old or now-confirmed.
+        cron(cleanup_pending_transfers, minute=set(range(0, 60)), run_at_startup=False),
     ]
     on_startup = startup
     on_shutdown = shutdown
