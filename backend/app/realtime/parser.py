@@ -5,6 +5,7 @@ Kept decoupled from DB + network so it is unit-testable.
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from app.realtime.erc20_decode import decode_erc20_transfer
 from app.realtime.tokens import STABLES_BY_ADDRESS, VOLATILE_BY_ADDRESS
 
 WEI = 10**18
@@ -163,9 +164,6 @@ def extract_network_activity(block: dict) -> NetworkPoint:
         base_fee_gwei=base_fee_gwei,
         gas_price_gwei=gas_price_gwei,
     )
-
-
-from app.realtime.erc20_decode import decode_erc20_transfer
 
 
 @dataclass(frozen=True)
