@@ -163,3 +163,101 @@ def extract_network_activity(block: dict) -> NetworkPoint:
         base_fee_gwei=base_fee_gwei,
         gas_price_gwei=gas_price_gwei,
     )
+
+
+from app.realtime.erc20_decode import decode_erc20_transfer
+
+
+@dataclass(frozen=True)
+class PendingWhale:
+    tx_hash: str
+    from_addr: str
+    to_addr: str
+    asset: str
+    amount: float
+    usd_value: float | None
+    nonce: int | None
+    gas_price_gwei: float | None
+
+
+def decode_pending_tx(
+    tx: dict,
+    *,
+    eth_usd: float | None,
+    threshold_eth: float,
+    threshold_usd: float,
+) -> PendingWhale | None:
+    """Identify whale-sized native-ETH or ERC-20-transfer pending txs.
+
+    Pending txs lack event logs, so for ERC-20 we decode the input-data
+    `transfer(address,uint256)` selector directly. The thresholds match
+    the confirmed-tx parser.
+    """
+    to_addr = tx.get("to")
+    from_addr = tx.get("from")
+    if not from_addr:
+        return None
+
+    nonce = _parse_hex(tx.get("nonce"))
+    gas_price_wei = _parse_hex(tx.get("gasPrice"))
+    gas_price_gwei = gas_price_wei / GWEI if gas_price_wei else None
+
+    # Native ETH transfer
+    if to_addr:
+        value_wei = _parse_hex(tx.get("value"))
+        if value_wei > 0:
+            amount = value_wei / WEI
+            if amount >= threshold_eth:
+                usd = amount * eth_usd if eth_usd else None
+                return PendingWhale(
+                    tx_hash=tx["hash"],
+                    from_addr=from_addr.lower(),
+                    to_addr=to_addr.lower(),
+                    asset="ETH",
+                    amount=amount,
+                    usd_value=usd,
+                    nonce=nonce,
+                    gas_price_gwei=gas_price_gwei,
+                )
+
+    # ERC-20 transfer call to a tracked token
+    if to_addr:
+        token_addr = to_addr.lower()
+        decoded = decode_erc20_transfer(tx.get("input"))
+        if decoded is None:
+            return None
+        decoded_to, raw_amount = decoded
+
+        stable = STABLES_BY_ADDRESS.get(token_addr)
+        if stable is not None:
+            amount = raw_amount / (10**stable.decimals)
+            if amount < threshold_usd:
+                return None
+            return PendingWhale(
+                tx_hash=tx["hash"],
+                from_addr=from_addr.lower(),
+                to_addr=decoded_to.lower(),
+                asset=stable.symbol,
+                amount=amount,
+                usd_value=amount,
+                nonce=nonce,
+                gas_price_gwei=gas_price_gwei,
+            )
+
+        volatile = VOLATILE_BY_ADDRESS.get(token_addr)
+        if volatile is not None:
+            amount = raw_amount / (10**volatile.decimals)
+            if amount < volatile.threshold_native:
+                return None
+            return PendingWhale(
+                tx_hash=tx["hash"],
+                from_addr=from_addr.lower(),
+                to_addr=decoded_to.lower(),
+                asset=volatile.symbol,
+                amount=amount,
+                usd_value=amount * volatile.price_usd_approx,
+                nonce=nonce,
+                gas_price_gwei=gas_price_gwei,
+            )
+
+    return None
