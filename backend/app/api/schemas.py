@@ -1,5 +1,4 @@
 from datetime import datetime
-from decimal import Decimal
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
@@ -292,8 +291,8 @@ class PendingTransferOut(BaseModel):
     from_addr: str
     to_addr: str
     asset: str
-    amount: Decimal
-    usd_value: Decimal | None
+    amount: float
+    usd_value: float | None = None
     seen_at: datetime
     from_label: str | None
     to_label: str | None
