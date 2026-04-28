@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
 from app.core.models import NetworkActivity, PriceCandle, Transfer
+from app.realtime.mempool import run_mempool_loop
 from app.realtime.parser import (
     NetworkPoint,
     WhaleTransfer,
@@ -207,21 +208,34 @@ async def run_once(ws_url: str, sessionmaker, thresholds: tuple[float, float]) -
     async with websockets.connect(ws_url, ping_interval=20, ping_timeout=20) as ws:
         client = AlchemyClient(ws)
         pump_task = asyncio.create_task(client.pump())
+
+        def eth_usd_provider() -> float | None:
+            with sessionmaker() as session:
+                return _latest_eth_usd(session)
+
         try:
             heads = await client.subscribe(["newHeads"])
             log.info("subscribed to newHeads")
-            while True:
-                head = await next_head(heads, HEAD_STALL_TIMEOUT_S)
-                if head is None:
-                    log.warning(
-                        "no new head in %.0fs — reconnecting", HEAD_STALL_TIMEOUT_S
-                    )
-                    return  # outer main() loop recreates the WS
-                bn = int(head["number"], 16)
-                try:
-                    await _process_block(client, bn, sessionmaker, thresholds)
-                except Exception:
-                    log.exception("block %d processing failed", bn)
+            mempool_task = asyncio.create_task(
+                run_mempool_loop(client, sessionmaker, eth_usd_provider, thresholds)
+            )
+            try:
+                while True:
+                    head = await next_head(heads, HEAD_STALL_TIMEOUT_S)
+                    if head is None:
+                        log.warning(
+                            "no new head in %.0fs — reconnecting", HEAD_STALL_TIMEOUT_S
+                        )
+                        return  # outer main() loop recreates the WS
+                    bn = int(head["number"], 16)
+                    try:
+                        await _process_block(client, bn, sessionmaker, thresholds)
+                    except Exception:
+                        log.exception("block %d processing failed", bn)
+            finally:
+                mempool_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await mempool_task
         finally:
             pump_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
