@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; font-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'none';">
+<title>Seed Recovery (Offline)</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --panel: #181d2a;
+    --border: #2a3142;
+    --text: #e8ebf0;
+    --muted: #8a92a6;
+    --accent: #4a9eff;
+    --good: #2dd4a4;
+    --warn: #f5a623;
+    --bad: #ef4444;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    padding: 24px 16px 80px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; font-weight: 600; }
+  h2 { font-size: 14px; margin: 0 0 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .net-banner {
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .net-online { background: rgba(239, 68, 68, 0.12); border: 1px solid var(--bad); color: #ffb4b4; }
+  .net-offline { background: rgba(45, 212, 164, 0.1); border: 1px solid var(--good); color: #aaf3da; }
+  .net-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: currentColor;
+  }
+
+  label { display: block; margin-bottom: 14px; }
+  label > .lbl {
+    display: block; color: var(--muted); font-size: 11px;
+    margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;
+  }
+  input, select {
+    width: 100%;
+    padding: 9px 11px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font: inherit;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+  input.invalid { border-color: var(--bad); background: rgba(239, 68, 68, 0.08); }
+  input.unknown { border-color: var(--warn); background: rgba(245, 166, 35, 0.06); }
+
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  button:hover { filter: brightness(1.1); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  button.danger { background: var(--bad); }
+
+  .row { display: flex; gap: 12px; }
+  .row > * { flex: 1; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  @media (max-width: 600px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  .cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .cell .num {
+    color: var(--muted); font-size: 11px; font-family: var(--mono);
+    width: 24px; text-align: right; flex-shrink: 0;
+  }
+  .cell input { padding: 7px 9px; }
+
+  .stats { color: var(--muted); font-size: 13px; }
+  progress {
+    width: 100%; height: 8px;
+    appearance: none;
+    -webkit-appearance: none;
+    border: none;
+    border-radius: 4px;
+    background: var(--bg);
+    overflow: hidden;
+  }
+  progress::-webkit-progress-bar { background: var(--bg); border-radius: 4px; }
+  progress::-webkit-progress-value { background: var(--accent); border-radius: 4px; }
+  progress::-moz-progress-bar { background: var(--accent); }
+
+  .result-found {
+    padding: 18px;
+    background: rgba(45, 212, 164, 0.08);
+    border: 1px solid var(--good);
+    border-radius: 8px;
+  }
+  .result-none {
+    padding: 18px;
+    background: rgba(245, 166, 35, 0.08);
+    border: 1px solid var(--warn);
+    border-radius: 8px;
+  }
+  .result-found strong, .result-none strong { display: block; font-size: 16px; margin-bottom: 8px; }
+  .phrase {
+    font-family: var(--mono);
+    background: var(--bg);
+    padding: 14px;
+    border-radius: 6px;
+    margin: 12px 0;
+    word-break: break-word;
+    line-height: 1.7;
+    font-size: 14px;
+    border: 1px solid var(--border);
+  }
+  code { font-family: var(--mono); background: var(--bg); padding: 1px 6px; border-radius: 3px; font-size: 12px; }
+
+  .fatal {
+    padding: 16px; background: rgba(239, 68, 68, 0.1); border: 1px solid var(--bad);
+    border-radius: 8px; color: #ffb4b4;
+  }
+
+  .footnote { color: var(--muted); font-size: 12px; margin-top: 8px; }
+  ul { margin: 8px 0 0; padding-left: 20px; }
+  ul li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>BIP39 Seed Recovery</h1>
+<p class="sub">Offline tool. Everything happens in this browser tab. Nothing leaves your machine.</p>
+
+<div id="net-banner" class="net-banner net-online">
+  <span class="net-dot"></span>
+  <span id="net-text">Checking network...</span>
+</div>
+
+<div id="fatal" class="fatal" hidden></div>
+
+<div class="panel" id="setup-panel">
+  <h2>Step 1 — Setup</h2>
+  <div class="row">
+    <label>
+      <span class="lbl">Phrase length</span>
+      <select id="length">
+        <option value="12">12 words</option>
+        <option value="24">24 words</option>
+      </select>
+    </label>
+    <label>
+      <span class="lbl">Account index range</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="acct-min" type="number" value="0" min="0" style="flex:1">
+        <span style="color:var(--muted)">to</span>
+        <input id="acct-max" type="number" value="4" min="0" style="flex:1">
+      </div>
+    </label>
+  </div>
+
+  <label>
+    <span class="lbl">Target ETH address (the wallet you're recovering)</span>
+    <input id="target" placeholder="0x..." spellcheck="false" autocomplete="off">
+  </label>
+
+  <label>
+    <span class="lbl">Derivation path template &mdash; <code>{i}</code> = account index</span>
+    <input id="path" value="m/44'/60'/0'/0/{i}" spellcheck="false" autocomplete="off">
+  </label>
+  <p class="footnote">
+    Common paths: <code>m/44'/60'/0'/0/{i}</code> (MetaMask, Trust, most software wallets) &middot;
+    <code>m/44'/60'/{i}'/0/0</code> (Ledger Live)
+  </p>
+
+  <button id="render-grid-btn">Continue &rarr;</button>
+</div>
+
+<div class="panel" id="grid-panel" hidden>
+  <h2>Step 2 — Enter words</h2>
+  <p class="sub">
+    For each position, type one of:<br>
+    &nbsp;&nbsp;• a single BIP39 word — that position is fixed (anchored)<br>
+    &nbsp;&nbsp;• <code>?</code> or blank — any BIP39 word (full unknown)<br>
+    &nbsp;&nbsp;• semicolon-separated pool — restricted candidates, e.g. <code>cat;dog;bird</code>
+  </p>
+  <div id="grid" class="grid"></div>
+  <datalist id="bip39-list"></datalist>
+
+  <label style="margin-top:18px;display:block">
+    <span class="lbl">Required-set (optional)</span>
+    <input id="required" placeholder="e.g. cat,dog,bird (comma-separated). Phrase must contain at least one." spellcheck="false" autocomplete="off">
+  </label>
+
+  <div id="estimate" class="stats" style="margin-top:18px"></div>
+
+  <div style="margin-top:16px;display:flex;gap:8px">
+    <button id="start-btn">Start search</button>
+    <button id="stop-btn" class="secondary danger" hidden>Stop</button>
+  </div>
+</div>
+
+<div class="panel" id="progress-panel" hidden>
+  <h2>Searching</h2>
+  <progress id="bar" max="1" value="0"></progress>
+  <div id="stats" class="stats" style="margin-top:8px"></div>
+</div>
+
+<div class="panel" id="result-panel" hidden>
+  <h2>Result</h2>
+  <div id="result"></div>
+</div>
+
+</div>
+
+<script>
+/* __ETHERS_BUNDLE__ */
+</script>
+
+<script>
+(() => {
+  "use strict";
+
+  const $ = (id) => document.getElementById(id);
+
+  function showFatal(msg) {
+    const el = $("fatal");
+    el.textContent = "Fatal: " + msg;
+    el.hidden = false;
+  }
+
+  // --- Verify ethers loaded ---
+  if (typeof ethers === "undefined" || !ethers.Mnemonic || !ethers.HDNodeWallet || !ethers.isAddress) {
+    showFatal("ethers.js failed to load. The HTML file may be corrupt.");
+    return;
+  }
+
+  // --- Pull BIP39 English wordlist out of ethers ---
+  let LangEn;
+  try {
+    if (ethers.LangEn && typeof ethers.LangEn.wordlist === "function") {
+      LangEn = ethers.LangEn.wordlist();
+    } else if (ethers.wordlists && ethers.wordlists.LangEn) {
+      LangEn = ethers.wordlists.LangEn;
+    } else if (ethers.wordlists && ethers.wordlists.langEn) {
+      LangEn = ethers.wordlists.langEn;
+    } else {
+      throw new Error("LangEn wordlist not found in ethers");
+    }
+  } catch (e) {
+    showFatal("Could not load BIP39 wordlist: " + e.message);
+    return;
+  }
+
+  const WORDLIST = [];
+  try {
+    for (let i = 0; i < 2048; i++) WORDLIST.push(LangEn.getWord(i));
+  } catch (e) {
+    showFatal("Could not enumerate BIP39 wordlist: " + e.message);
+    return;
+  }
+  if (WORDLIST.length !== 2048 || !WORDLIST[0] || !WORDLIST[2047]) {
+    showFatal("BIP39 wordlist has wrong length: " + WORDLIST.length);
+    return;
+  }
+  const WORDSET = new Set(WORDLIST);
+
+  // --- Self-test: derive the canonical zero-vector to confirm the crypto path works ---
+  try {
+    const TEST = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    const mn = ethers.Mnemonic.fromPhrase(TEST);
+    const w = ethers.HDNodeWallet.fromMnemonic(mn, "m/44'/60'/0'/0/0");
+    if (!w || !w.address || !w.address.startsWith("0x") || w.address.length !== 42) {
+      throw new Error("derived address has wrong shape: " + w.address);
+    }
+  } catch (e) {
+    showFatal("Crypto self-test failed: " + e.message);
+    return;
+  }
+
+  // --- Network banner ---
+  const banner = $("net-banner");
+  const netText = $("net-text");
+  function updateNet() {
+    if (navigator.onLine) {
+      banner.className = "net-banner net-online";
+      netText.textContent = "You are online. Disconnect from the internet now before entering any words.";
+    } else {
+      banner.className = "net-banner net-offline";
+      netText.textContent = "Offline — safe to enter your seed phrase.";
+    }
+  }
+  window.addEventListener("online", updateNet);
+  window.addEventListener("offline", updateNet);
+  updateNet();
+
+  // --- Populate datalist for autocomplete ---
+  const datalist = $("bip39-list");
+  const frag = document.createDocumentFragment();
+  for (const w of WORDLIST) {
+    const opt = document.createElement("option");
+    opt.value = w;
+    frag.appendChild(opt);
+  }
+  datalist.appendChild(frag);
+
+  // --- Build grid ---
+  $("render-grid-btn").addEventListener("click", () => {
+    const len = parseInt($("length").value, 10);
+    const grid = $("grid");
+    grid.innerHTML = "";
+    for (let i = 0; i < len; i++) {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      const num = document.createElement("span");
+      num.className = "num";
+      num.textContent = (i + 1) + ".";
+      const inp = document.createElement("input");
+      inp.dataset.pos = String(i);
+      inp.setAttribute("list", "bip39-list");
+      inp.autocomplete = "off";
+      inp.spellcheck = false;
+      inp.placeholder = "?";
+      cell.appendChild(num);
+      cell.appendChild(inp);
+      grid.appendChild(cell);
+    }
+    grid.querySelectorAll("input").forEach((inp) => {
+      inp.addEventListener("input", () => {
+        const r = parseWordSpec(inp.value);
+        inp.classList.remove("invalid", "unknown");
+        if (r.kind === "invalid") inp.classList.add("invalid");
+        else if (r.kind === "unknown" || r.kind === "pool") inp.classList.add("unknown");
+        updateEstimate();
+      });
+    });
+    $("required").addEventListener("input", updateEstimate);
+    $("grid-panel").hidden = false;
+    updateEstimate();
+  });
+
+  // Parse one position's input. Returns { kind, candidates }:
+  //   kind = "anchor"  candidates = [word]
+  //   kind = "unknown" candidates = WORDLIST  (full 2048)
+  //   kind = "pool"    candidates = [w1, w2, ...]  (deduped subset)
+  //   kind = "invalid" candidates = []  (typed something not in BIP39)
+  function parseWordSpec(raw) {
+    const v = (raw || "").trim().toLowerCase();
+    if (v === "" || v === "?") return { kind: "unknown", candidates: WORDLIST };
+    if (v.includes(";")) {
+      const pool = v.split(";").map((s) => s.trim()).filter((s) => s);
+      if (pool.length === 0) return { kind: "invalid", candidates: [] };
+      const bad = pool.filter((w) => !WORDSET.has(w));
+      if (bad.length) return { kind: "invalid", candidates: [], bad };
+      const seen = new Set();
+      const deduped = pool.filter((w) => !seen.has(w) && seen.add(w));
+      return { kind: "pool", candidates: deduped };
+    }
+    if (WORDSET.has(v)) return { kind: "anchor", candidates: [v] };
+    return { kind: "invalid", candidates: [] };
+  }
+
+  function readPhrase() {
+    const inputs = document.querySelectorAll("#grid input");
+    const candidatesPerPos = [];
+    const kinds = [];
+    let anyInvalid = false;
+    inputs.forEach((inp) => {
+      const r = parseWordSpec(inp.value);
+      if (r.kind === "invalid") {
+        anyInvalid = true;
+        candidatesPerPos.push(WORDLIST);  // fall back to full unknown for estimation
+        kinds.push("unknown");
+      } else {
+        candidatesPerPos.push(r.candidates);
+        kinds.push(r.kind);
+      }
+    });
+    // Required-set
+    const reqRaw = ($("required").value || "").trim().toLowerCase();
+    const requiredSet = new Set();
+    let requiredBad = [];
+    if (reqRaw) {
+      for (const w of reqRaw.split(/[,\s]+/).filter((s) => s)) {
+        if (WORDSET.has(w)) requiredSet.add(w);
+        else requiredBad.push(w);
+      }
+    }
+    return { candidatesPerPos, kinds, anyInvalid, requiredSet, requiredBad };
+  }
+
+  function updateEstimate() {
+    const { candidatesPerPos, kinds, anyInvalid, requiredSet, requiredBad } = readPhrase();
+    const est = $("estimate");
+    let raw = 1;
+    for (const c of candidatesPerPos) raw *= c.length;
+    const lastSize = candidatesPerPos[candidatesPerPos.length - 1].length;
+    const len = candidatesPerPos.length;
+    const csDiv = lastSize > 1 ? (len === 12 ? 16 : 256) : 1;
+    const filtered = Math.max(raw / csDiv, 1);
+    const nAnchor = kinds.filter((k) => k === "anchor").length;
+    const nPool = kinds.filter((k) => k === "pool").length;
+    const nUnknown = kinds.filter((k) => k === "unknown").length;
+    let warn = "";
+    if (filtered > 1e10) warn = ' &middot; <span style="color:var(--bad)">Too large for browser. Use the Python CLI / btcrecover GPU job.</span>';
+    else if (filtered > 1e8) warn = ' &middot; <span style="color:var(--warn)">Will take many hours.</span>';
+    else if (filtered > 1e6) warn = ' &middot; <span style="color:var(--warn)">May take several minutes.</span>';
+    const inv = anyInvalid ? ' &middot; <span style="color:var(--bad)">Some positions are invalid (red border) — treated as full unknown.</span>' : "";
+    const reqInv = requiredBad.length ? ` &middot; <span style="color:var(--bad)">Required-set has non-BIP39 words: ${requiredBad.join(", ")}.</span>` : "";
+    const reqOk = requiredSet.size ? ` &middot; required: <strong>${[...requiredSet].sort().join(", ")}</strong> (≥1 must appear)` : "";
+    est.innerHTML = `${nAnchor} anchored, ${nPool} pool, ${nUnknown} full-unknown &middot; ` +
+      `Candidates after checksum filter: <strong>~${filtered.toLocaleString()}</strong>${reqOk}${warn}${inv}${reqInv}`;
+  }
+
+  // --- Search ---
+  let running = false;
+
+  $("stop-btn").addEventListener("click", () => { running = false; });
+
+  $("start-btn").addEventListener("click", async () => {
+    const targetRaw = $("target").value.trim();
+    if (!ethers.isAddress(targetRaw)) {
+      alert("Invalid ETH address.");
+      return;
+    }
+    const targetLc = targetRaw.toLowerCase();
+    const len = parseInt($("length").value, 10);
+    const pathTpl = $("path").value.trim();
+    if (!pathTpl.startsWith("m/")) {
+      alert("Derivation path must start with 'm/'.");
+      return;
+    }
+    const acctMin = parseInt($("acct-min").value, 10);
+    const acctMax = parseInt($("acct-max").value, 10);
+    if (!Number.isFinite(acctMin) || !Number.isFinite(acctMax) || acctMax < acctMin || acctMin < 0) {
+      alert("Invalid account range.");
+      return;
+    }
+    if (acctMax - acctMin > 100) {
+      if (!confirm(`Account range is ${acctMax - acctMin + 1} addresses per phrase candidate. This will be slow. Continue?`)) return;
+    }
+    const { candidatesPerPos, anyInvalid, requiredSet, requiredBad } = readPhrase();
+    if (candidatesPerPos.length !== len) {
+      alert("Internal error: position count mismatch.");
+      return;
+    }
+    if (anyInvalid) {
+      if (!confirm("Some positions have invalid input (red border). They'll be treated as full unknown. Continue?")) return;
+    }
+    if (requiredBad.length) {
+      alert("Required-set contains non-BIP39 words: " + requiredBad.join(", "));
+      return;
+    }
+
+    $("start-btn").hidden = true;
+    $("stop-btn").hidden = false;
+    $("progress-panel").hidden = false;
+    $("result-panel").hidden = true;
+    running = true;
+
+    let result;
+    try {
+      result = await search({ candidatesPerPos, requiredSet, len, pathTpl, acctMin, acctMax, targetLc });
+    } catch (e) {
+      result = { error: e.message || String(e) };
+    }
+
+    $("start-btn").hidden = false;
+    $("stop-btn").hidden = true;
+    running = false;
+
+    showResult(result);
+  });
+
+  function showResult(result) {
+    const rp = $("result-panel");
+    const rd = $("result");
+    rp.hidden = false;
+    if (result && result.error) {
+      rd.innerHTML = `<div class="result-none"><strong>Error</strong>${escapeHtml(result.error)}</div>`;
+    } else if (result === "cancelled") {
+      rd.innerHTML = `<div class="result-none"><strong>Cancelled</strong>Search stopped before completion.</div>`;
+    } else if (result && result.phrase) {
+      rd.innerHTML = `
+        <div class="result-found">
+          <strong>Match found</strong>
+          <div class="phrase">${escapeHtml(result.phrase)}</div>
+          <div>Address: <code>${escapeHtml(result.address)}</code></div>
+          <div style="margin-top:4px">Path: <code>${escapeHtml(result.path)}</code></div>
+          <p class="footnote" style="margin-top:14px">
+            Write this phrase on paper now. Then close this tab and delete the HTML file.
+            Do not screenshot. Do not paste into any app, password manager, or messaging tool.
+          </p>
+        </div>`;
+    } else {
+      rd.innerHTML = `
+        <div class="result-none">
+          <strong>No match found</strong>
+          <p>All candidates exhausted. Possible reasons:</p>
+          <ul>
+            <li>One of the words you marked as known is actually different.</li>
+            <li>Wrong derivation path. Try <code>m/44'/60'/{i}'/0/0</code> (Ledger Live) or <code>m/44'/60'/0'/0</code> (some legacy wallets).</li>
+            <li>Wrong account index range &mdash; expand it.</li>
+            <li>Phrase is 24 words, not 12 (or vice versa).</li>
+            <li>Wrong target address.</li>
+          </ul>
+        </div>`;
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[c]));
+  }
+
+  async function search({ candidatesPerPos, requiredSet, len, pathTpl, acctMin, acctMax, targetLc }) {
+    const length = candidatesPerPos.length;
+    const sizes = candidatesPerPos.map((c) => c.length);
+    const phrase = new Array(length);
+
+    let totalRaw = 1;
+    for (const s of sizes) totalRaw *= s;
+    const lastSize = sizes[length - 1];
+    const checksumDiv = lastSize > 1 ? (len === 12 ? 16 : 256) : 1;
+    const totalEst = Math.max(totalRaw / checksumDiv, 1);
+
+    const accountIndices = [];
+    for (let a = acctMin; a <= acctMax; a++) accountIndices.push(a);
+
+    const reqArr = requiredSet ? [...requiredSet] : [];
+    const useRequired = reqArr.length > 0;
+
+    const bar = $("bar");
+    const stats = $("stats");
+    bar.max = totalEst;
+    bar.value = 0;
+
+    let validated = 0;
+    let scanned = 0;
+    let lastTickAt = performance.now();
+    let lastTickValidated = 0;
+    let rate = 0;
+
+    function tick() {
+      const now = performance.now();
+      const dt = now - lastTickAt;
+      if (dt > 250) {
+        rate = (validated - lastTickValidated) * 1000 / dt;
+        lastTickValidated = validated;
+        lastTickAt = now;
+      }
+      bar.value = Math.min(validated, totalEst);
+      const eta = rate > 0 ? Math.round((totalEst - validated) / rate) : 0;
+      stats.textContent = `Scanned ${scanned.toLocaleString()} / ${totalRaw.toLocaleString()} · ` +
+        `${validated.toLocaleString()} validated (post-checksum) · ${Math.round(rate).toLocaleString()}/sec · ETA ${formatTime(eta)}`;
+    }
+
+    let lastYieldAt = 0;
+
+    for (let linear = 0; linear < totalRaw; linear++) {
+      if (!running) return "cancelled";
+
+      // Mixed-base decode of linear index → per-position word
+      let l = linear;
+      for (let i = 0; i < length; i++) {
+        phrase[i] = candidatesPerPos[i][l % sizes[i]];
+        l = Math.floor(l / sizes[i]);
+      }
+      scanned++;
+
+      // Required-set filter (cheap: linear scan of small required list)
+      if (useRequired) {
+        let hit = false;
+        for (let r = 0; r < reqArr.length; r++) {
+          if (phrase.indexOf(reqArr[r]) !== -1) { hit = true; break; }
+        }
+        if (!hit) continue;
+      }
+
+      // Build phrase + checksum filter via ethers
+      const phraseStr = phrase.join(" ");
+      let mn;
+      try {
+        mn = ethers.Mnemonic.fromPhrase(phraseStr);
+      } catch (e) {
+        // bad checksum
+        if (scanned - lastYieldAt > 4000 || performance.now() - lastTickAt > 200) {
+          tick();
+          await new Promise((rr) => setTimeout(rr, 0));
+          lastYieldAt = scanned;
+          if (!running) return "cancelled";
+        }
+        continue;
+      }
+      validated++;
+
+      // Address derivation per account index
+      for (const a of accountIndices) {
+        const path = pathTpl.replaceAll("{i}", String(a));
+        try {
+          const wallet = ethers.HDNodeWallet.fromMnemonic(mn, path);
+          if (wallet.address.toLowerCase() === targetLc) {
+            return { phrase: phraseStr, address: wallet.address, path };
+          }
+        } catch (e) { /* bad path; skip */ }
+      }
+
+      // Periodic UI yield
+      if (validated - lastYieldAt > 1000 || performance.now() - lastTickAt > 200) {
+        tick();
+        await new Promise((rr) => setTimeout(rr, 0));
+        lastYieldAt = validated;
+        if (!running) return "cancelled";
+      }
+    }
+
+    bar.value = bar.max;
+    tick();
+    return null;
+  }
+
+  function formatTime(s) {
+    if (!s || !isFinite(s) || s < 0) return "—";
+    if (s < 60) return `${s}s`;
+    if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+    return `${Math.floor(s / 86400)}d ${Math.floor((s % 86400) / 3600)}h`;
+  }
+})();
+</script>
+</body>
+</html>
