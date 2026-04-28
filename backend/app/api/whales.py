@@ -5,9 +5,14 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.schemas import WhaleTransfer, WhaleTransfersResponse
+from app.api.schemas import (
+    PendingTransferOut,
+    PendingTransfersResponse,
+    WhaleTransfer,
+    WhaleTransfersResponse,
+)
 from app.core.db import get_session
-from app.core.models import Transfer
+from app.core.models import PendingTransfer, Transfer
 from app.realtime.labels import label_for
 
 router = APIRouter(prefix="/whales", tags=["whales"])
@@ -39,6 +44,36 @@ def whale_transfers(
                 asset=r.asset,
                 amount=float(r.amount),
                 usd_value=float(r.usd_value) if r.usd_value is not None else None,
+            )
+            for r in rows
+        ]
+    )
+
+
+@router.get("/pending", response_model=PendingTransfersResponse)
+def pending_whales(
+    session: Annotated[Session, Depends(get_session)],
+    limit: int = Query(20, ge=1, le=100),
+) -> PendingTransfersResponse:
+    rows = (
+        session.execute(
+            select(PendingTransfer).order_by(PendingTransfer.seen_at.desc()).limit(limit)
+        )
+        .scalars()
+        .all()
+    )
+    return PendingTransfersResponse(
+        pending=[
+            PendingTransferOut(
+                tx_hash=r.tx_hash,
+                from_addr=r.from_addr,
+                to_addr=r.to_addr,
+                from_label=label_for(r.from_addr),
+                to_label=label_for(r.to_addr),
+                asset=r.asset,
+                amount=r.amount,
+                usd_value=r.usd_value,
+                seen_at=r.seen_at,
             )
             for r in rows
         ]

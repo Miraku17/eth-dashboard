@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
@@ -284,3 +285,19 @@ class SmartMoneyLeaderboardResponse(BaseModel):
     snapshot_at: datetime | None
     window_days: int
     entries: list[SmartMoneyEntry]
+
+
+class PendingTransferOut(BaseModel):
+    tx_hash: str
+    from_addr: str
+    to_addr: str
+    asset: str
+    amount: Decimal
+    usd_value: Decimal | None
+    seen_at: datetime
+    from_label: str | None
+    to_label: str | None
+
+
+class PendingTransfersResponse(BaseModel):
+    pending: list[PendingTransferOut]
