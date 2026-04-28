@@ -82,10 +82,16 @@ def _persist(session: Session, rows: list[WhaleTransfer]) -> int:
         }
         for r in rows
     ])
-    stmt = stmt.on_conflict_do_nothing(index_elements=["tx_hash", "log_index"])
+    # RETURNING gives us a real count of rows that were actually inserted
+    # (vs skipped by ON CONFLICT). Plain rowcount on ON CONFLICT DO NOTHING
+    # comes back as -1 in psycopg, which made the log say "persisted=-1".
+    stmt = stmt.on_conflict_do_nothing(
+        index_elements=["tx_hash", "log_index"],
+    ).returning(Transfer.tx_hash)
     result = session.execute(stmt)
+    inserted = len(result.all())
     session.commit()
-    return result.rowcount or 0
+    return inserted
 
 
 def _persist_network(session: Session, np: NetworkPoint) -> None:
