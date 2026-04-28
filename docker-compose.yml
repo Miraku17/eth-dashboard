@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -17,6 +18,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
@@ -31,6 +33,7 @@ services:
     build: ./backend
     dns: [1.1.1.1, 8.8.8.8]
     env_file: .env
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -48,6 +51,7 @@ services:
     build: ./backend
     dns: [1.1.1.1, 8.8.8.8]
     env_file: .env
+    restart: unless-stopped
     depends_on:
       redis:
         condition: service_healthy
@@ -61,6 +65,7 @@ services:
     build: ./backend
     dns: [1.1.1.1, 8.8.8.8]
     env_file: .env
+    restart: unless-stopped
     depends_on:
       redis:
         condition: service_healthy
@@ -70,6 +75,7 @@ services:
 
   frontend:
     build: ./frontend
+    restart: unless-stopped
     depends_on:
       - api
     ports:

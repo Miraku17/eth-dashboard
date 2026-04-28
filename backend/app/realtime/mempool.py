@@ -97,6 +97,11 @@ async def run_mempool_loop(
     sem = asyncio.Semaphore(LOOKUP_CONCURRENCY)
     while True:
         tx_hash = await queue.get()
+        # AlchemyClient.pump puts `None` on subscription queues when the WS
+        # dies; bail so the outer reconnect loop can rebuild the connection.
+        if tx_hash is None:
+            log.info("pending-tx stream ended — exiting mempool loop")
+            return
         # Each hash is processed independently; we don't await it so the loop
         # keeps draining the queue.
         asyncio.create_task(

@@ -41,6 +41,10 @@ RECONNECT_DELAY_S = 5.0
 # Mainnet blocks every ~12s, so 60s allows several missed blocks of slack
 # before we flag the stream as stalled.
 HEAD_STALL_TIMEOUT_S = 60.0
+# Bound every JSON-RPC call so a silently-dead WS can't park us on a future
+# that will never resolve. Without this, a mid-block hang skips the outer
+# head-stall watchdog because we never get back to awaiting the head queue.
+RPC_CALL_TIMEOUT_S = 30.0
 
 
 async def next_head(queue: asyncio.Queue, timeout: float) -> dict | None:
@@ -115,13 +119,16 @@ class AlchemyClient:
         self._id += 1
         return self._id
 
-    async def call(self, method: str, params: list) -> dict:
+    async def call(self, method: str, params: list, timeout: float = RPC_CALL_TIMEOUT_S) -> dict:
         rid = self._next_id()
         fut: asyncio.Future = asyncio.get_event_loop().create_future()
         self._pending[rid] = fut
         payload = {"jsonrpc": "2.0", "id": rid, "method": method, "params": params}
-        await self._ws.send(json.dumps(payload))
-        return await fut
+        try:
+            await self._ws.send(json.dumps(payload))
+            return await asyncio.wait_for(fut, timeout=timeout)
+        finally:
+            self._pending.pop(rid, None)
 
     async def subscribe(self, params: list) -> asyncio.Queue:
         res = await self.call("eth_subscribe", params)
@@ -130,16 +137,33 @@ class AlchemyClient:
         self._subs[sub_id] = q
         return q
 
+    def _abort(self, exc: BaseException) -> None:
+        """Wake every awaiting caller and subscription consumer so a dead
+        WS doesn't leave coroutines parked on futures or empty queues."""
+        for fut in self._pending.values():
+            if not fut.done():
+                fut.set_exception(exc)
+        self._pending.clear()
+        for q in self._subs.values():
+            try:
+                q.put_nowait(None)  # consumers treat None as "stream ended"
+            except asyncio.QueueFull:
+                pass
+        self._subs.clear()
+
     async def pump(self) -> None:
-        async for raw in self._ws:
-            msg = json.loads(raw)
-            if "id" in msg and msg["id"] in self._pending:
-                self._pending.pop(msg["id"]).set_result(msg)
-            elif msg.get("method") == "eth_subscription":
-                sub_id = msg["params"]["subscription"]
-                q = self._subs.get(sub_id)
-                if q is not None:
-                    await q.put(msg["params"]["result"])
+        try:
+            async for raw in self._ws:
+                msg = json.loads(raw)
+                if "id" in msg and msg["id"] in self._pending:
+                    self._pending.pop(msg["id"]).set_result(msg)
+                elif msg.get("method") == "eth_subscription":
+                    sub_id = msg["params"]["subscription"]
+                    q = self._subs.get(sub_id)
+                    if q is not None:
+                        await q.put(msg["params"]["result"])
+        finally:
+            self._abort(ConnectionError("ws pump exited"))
 
 
 async def _process_block(
@@ -224,21 +248,28 @@ async def run_once(ws_url: str, sessionmaker, thresholds: tuple[float, float]) -
                     head = await next_head(heads, HEAD_STALL_TIMEOUT_S)
                     if head is None:
                         log.warning(
-                            "no new head in %.0fs — reconnecting", HEAD_STALL_TIMEOUT_S
+                            "head stream stalled or ended — reconnecting (timeout=%.0fs)",
+                            HEAD_STALL_TIMEOUT_S,
                         )
                         return  # outer main() loop recreates the WS
                     bn = int(head["number"], 16)
                     try:
                         await _process_block(client, bn, sessionmaker, thresholds)
+                    except (asyncio.TimeoutError, ConnectionError):
+                        # WS went silent or died mid-block; bail out so the
+                        # outer loop reconnects rather than spinning on a
+                        # dead client.
+                        log.warning("block %d processing aborted (ws unreachable)", bn)
+                        return
                     except Exception:
                         log.exception("block %d processing failed", bn)
             finally:
                 mempool_task.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
+                with contextlib.suppress(asyncio.CancelledError, Exception):
                     await mempool_task
         finally:
             pump_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
+            with contextlib.suppress(asyncio.CancelledError, Exception):
                 await pump_task
 
 
