@@ -59,13 +59,17 @@
   .stat .v.warn { color: var(--warn); }
   .stat .v.bad { color: var(--bad); }
   pre.cmd { background: #0a0d12; border: 1px solid var(--border); border-radius: 8px; padding: 14px; overflow-x: auto; color: #d4d8de; font-family: var(--mono); font-size: 12px; line-height: 1.55; margin: 0; white-space: pre; max-height: 360px; overflow-y: auto; }
-  .cmd-block { position: relative; margin-bottom: 14px; }
-  .cmd-block .copy { position: absolute; top: 8px; right: 8px; }
-  .cmd-block .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin: 0 0 6px; }
-  .step { border-left: 3px solid var(--accent); padding-left: 14px; margin-bottom: 24px; }
-  .step h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
-  .step p { margin: 0 0 8px; color: var(--muted); font-size: 13px; }
-  .step.done { border-left-color: var(--good); }
+  pre.cmd.empty { color: var(--muted); font-style: italic; text-align: center; padding: 28px 14px; }
+  .cmd-block { margin-bottom: 14px; }
+  .cmd-head { display: flex; justify-content: space-between; align-items: center; margin: 0 0 6px; gap: 12px; }
+  .cmd-head .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin: 0; }
+  .step { padding-left: 0; margin-bottom: 28px; }
+  .step .step-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .step .badge { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 13px; font-weight: 600; flex-shrink: 0; }
+  .step.done .badge { background: var(--good); color: #0a1a14; }
+  .step h3 { margin: 0; font-size: 15px; font-weight: 600; }
+  .step .step-body { margin-left: 36px; }
+  .step .step-body p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
   details { margin-top: 8px; }
   summary { color: var(--muted); font-size: 12px; cursor: pointer; padding: 4px 0; }
   summary:hover { color: var(--text); }
@@ -151,35 +155,56 @@
     <p class="sub">Two copy-paste steps. That's it.</p>
 
     <div class="step">
-      <h3>① SSH into your server</h3>
-      <p>Open a terminal on your laptop and paste:</p>
-      <div class="cmd-block">
-        <p class="label">copy &amp; paste — laptop terminal</p>
-        <pre class="cmd" id="cmd-ssh">— fill Step 1 above —</pre>
-        <button class="copy secondary" data-copy="cmd-ssh">Copy</button>
+      <div class="step-head">
+        <span class="badge">1</span>
+        <h3>SSH into your server</h3>
+      </div>
+      <div class="step-body">
+        <p>Open a terminal on your laptop and paste:</p>
+        <div class="cmd-block">
+          <div class="cmd-head">
+            <p class="label">laptop terminal</p>
+            <button class="copy secondary" data-copy="cmd-ssh">Copy</button>
+          </div>
+          <pre class="cmd empty" id="cmd-ssh">fill Step 1 above</pre>
+        </div>
       </div>
     </div>
 
     <div class="step">
-      <h3>② Paste this on the server</h3>
-      <p>Once you're SSH'd in, paste this <em>entire block</em> as one paste. It locks down the box, drops <code>recover.py</code> into a RAM-only directory, verifies its SHA-256, and runs the recovery.</p>
-      <div class="cmd-block">
-        <p class="label">copy &amp; paste — on server (after ssh)</p>
-        <pre class="cmd" id="cmd-run">— fill the form above —</pre>
-        <button class="copy secondary" data-copy="cmd-run">Copy</button>
+      <div class="step-head">
+        <span class="badge">2</span>
+        <h3>Paste this on the server</h3>
       </div>
-      <p class="footnote">When the seed phrase appears on screen: <strong>write it on paper immediately</strong>, then run the cleanup block below. Don't screenshot, don't paste it into chat, don't email.</p>
+      <div class="step-body">
+        <p>Once you're SSH'd in, paste this <em>entire block</em> as one paste. It locks down the box, drops <code>recover.py</code> into a RAM-only directory, verifies its SHA-256, and runs the recovery.</p>
+        <div class="cmd-block">
+          <div class="cmd-head">
+            <p class="label">on server (after ssh)</p>
+            <button class="copy secondary" data-copy="cmd-run">Copy</button>
+          </div>
+          <pre class="cmd empty" id="cmd-run">fill the form above</pre>
+        </div>
+        <p class="footnote">When the seed phrase appears on screen: <strong>write it on paper immediately</strong>, then run the cleanup block below. Don't screenshot, don't paste it into chat, don't email.</p>
+      </div>
     </div>
 
     <div class="step done">
-      <h3>③ After the seed is recovered — wipe the server</h3>
-      <p>Once you've written the seed on paper and moved funds to a fresh wallet:</p>
-      <div class="cmd-block">
-        <p class="label">copy &amp; paste — on server</p>
-        <pre class="cmd" id="cmd-cleanup">cd ~ &amp;&amp; sudo umount /mnt/work 2>/dev/null; sudo rm -rf /mnt/work
+      <div class="step-head">
+        <span class="badge">3</span>
+        <h3>Wipe the server</h3>
+      </div>
+      <div class="step-body">
+        <p>Once you've written the seed on paper and moved funds to a fresh wallet:</p>
+        <div class="cmd-block">
+          <div class="cmd-head">
+            <p class="label">on server</p>
+            <button class="copy secondary" data-copy="cmd-cleanup">Copy</button>
+          </div>
+          <pre class="cmd" id="cmd-cleanup">cd ~ &amp;&amp; sudo umount /mnt/work 2>/dev/null; sudo rm -rf /mnt/work
 history -c; rm -f ~/.bash_history ~/.zsh_history
 echo "wipe complete — now: full OS reinstall via host control panel, then cancel the rental"</pre>
-        <button class="copy secondary" data-copy="cmd-cleanup">Copy</button>
+        </div>
       </div>
     </div>
 
@@ -398,20 +423,26 @@ echo "wipe complete — now: full OS reinstall via host control panel, then canc
     // SSH command
     const user = $("ssh-user").value.trim();
     const host = $("ssh-host").value.trim();
+    const sshEl = $("cmd-ssh");
     if (!user || !host) {
-      $("cmd-ssh").textContent = "— enter SSH user + host above —";
+      sshEl.textContent = "fill Step 1 above";
+      sshEl.classList.add("empty");
     } else {
-      $("cmd-ssh").textContent = `ssh ${shellQuote(user)}@${shellQuote(host)}`;
+      sshEl.textContent = `ssh ${shellQuote(user)}@${shellQuote(host)}`;
+      sshEl.classList.remove("empty");
     }
 
     // Run command (embeds recover.py via base64 heredoc — single paste)
     const target = validTarget();
     const path = $("path").value.trim() || "m/44'/60'/0'/0/{i}";
 
+    const runEl = $("cmd-run");
     if (!target || !wordsOk || (needsPool && poolValid.length === 0)) {
-      $("cmd-run").textContent = "— form has missing/invalid fields —";
+      runEl.textContent = "fill the form above";
+      runEl.classList.add("empty");
       return;
     }
+    runEl.classList.remove("empty");
 
     const acctRange = `${acctMin}-${acctMax}`;
     const lines = [
@@ -450,7 +481,7 @@ echo "wipe complete — now: full OS reinstall via host control panel, then canc
       ``,
       `# When MATCH FOUND — write the phrase on paper, then run the cleanup block.`,
     ];
-    $("cmd-run").textContent = lines.join("\n");
+    runEl.textContent = lines.join("\n");
   }
 
   function tile(k, v, cls) {
