@@ -5,6 +5,7 @@ import { useGlobalShortcuts } from "./hooks/useGlobalShortcuts";
 import AlertEventsPanel from "./components/AlertEventsPanel";
 import DerivativesPanel from "./components/DerivativesPanel";
 import ExchangeFlowsPanel from "./components/ExchangeFlowsPanel";
+import MempoolPanel from "./components/MempoolPanel";
 import NetworkActivityPanel from "./components/NetworkActivityPanel";
 import OnchainVolumePanel from "./components/OnchainVolumePanel";
 import OrderFlowPanel from "./components/OrderFlowPanel";
@@ -79,6 +80,9 @@ export default function App() {
         </Guarded>
         <Guarded label="Whale transfers" id="whales">
           <WhaleTransfersPanel />
+        </Guarded>
+        <Guarded label="Mempool" id="mempool">
+          <MempoolPanel />
         </Guarded>
         <Guarded label="Alerts" id="alerts">
           <AlertEventsPanel />

@@ -53,12 +53,14 @@ def whale_transfers(
 @router.get("/pending", response_model=PendingTransfersResponse)
 def pending_whales(
     session: Annotated[Session, Depends(get_session)],
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=200),
+    asset: str | None = Query(None, description="filter: ETH, USDT, USDC, DAI"),
 ) -> PendingTransfersResponse:
+    stmt = select(PendingTransfer)
+    if asset:
+        stmt = stmt.where(PendingTransfer.asset == asset.upper())
     rows = (
-        session.execute(
-            select(PendingTransfer).order_by(PendingTransfer.seen_at.desc()).limit(limit)
-        )
+        session.execute(stmt.order_by(PendingTransfer.seen_at.desc()).limit(limit))
         .scalars()
         .all()
     )
@@ -74,6 +76,8 @@ def pending_whales(
                 amount=r.amount,
                 usd_value=r.usd_value,
                 seen_at=r.seen_at,
+                nonce=r.nonce,
+                gas_price_gwei=float(r.gas_price_gwei) if r.gas_price_gwei is not None else None,
             )
             for r in rows
         ]

@@ -296,6 +296,8 @@ class PendingTransferOut(BaseModel):
     seen_at: datetime
     from_label: str | None
     to_label: str | None
+    nonce: int | None = None
+    gas_price_gwei: float | None = None
 
 
 class PendingTransfersResponse(BaseModel):

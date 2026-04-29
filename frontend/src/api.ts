@@ -175,10 +175,18 @@ export type PendingWhale = {
   amount: number;
   usd_value: number | null;
   seen_at: string;
+  nonce: number | null;
+  gas_price_gwei: number | null;
 };
 
-export async function fetchPendingWhales(): Promise<PendingWhale[]> {
-  const r = await fetch(url(`/api/whales/pending`), {
+export async function fetchPendingWhales(
+  opts: { limit?: number; asset?: WhaleAsset } = {},
+): Promise<PendingWhale[]> {
+  const params = new URLSearchParams();
+  if (opts.limit) params.set("limit", String(opts.limit));
+  if (opts.asset) params.set("asset", opts.asset);
+  const qs = params.toString();
+  const r = await fetch(url(`/api/whales/pending${qs ? `?${qs}` : ""}`), {
     headers: authHeaders(),
   });
   if (!r.ok) throw new Error(`pending whales ${r.status}`);

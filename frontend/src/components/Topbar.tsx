@@ -6,6 +6,7 @@ const NAV: readonly { label: string; id: string }[] = [
   { label: "Overview", id: "overview" },
   { label: "Flows", id: "flows" },
   { label: "Whales", id: "whales" },
+  { label: "Mempool", id: "mempool" },
   { label: "Alerts", id: "alerts" },
 ];
 

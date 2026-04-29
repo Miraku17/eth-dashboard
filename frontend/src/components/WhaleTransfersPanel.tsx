@@ -86,7 +86,7 @@ export default function WhaleTransfersPanel() {
 
   const { data: pending = [] } = useQuery<PendingWhale[]>({
     queryKey: ["pendingWhales"],
-    queryFn: fetchPendingWhales,
+    queryFn: () => fetchPendingWhales(),
     refetchInterval: 5_000,
   });
 
