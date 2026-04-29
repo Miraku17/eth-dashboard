@@ -58,14 +58,17 @@
   .stat .v.good { color: var(--good); }
   .stat .v.warn { color: var(--warn); }
   .stat .v.bad { color: var(--bad); }
-  pre.cmd { background: #0a0d12; border: 1px solid var(--border); border-radius: 8px; padding: 14px; overflow-x: auto; color: #d4d8de; font-family: var(--mono); font-size: 12px; line-height: 1.55; margin: 0; white-space: pre; }
+  pre.cmd { background: #0a0d12; border: 1px solid var(--border); border-radius: 8px; padding: 14px; overflow-x: auto; color: #d4d8de; font-family: var(--mono); font-size: 12px; line-height: 1.55; margin: 0; white-space: pre; max-height: 360px; overflow-y: auto; }
   .cmd-block { position: relative; margin-bottom: 14px; }
   .cmd-block .copy { position: absolute; top: 8px; right: 8px; }
   .cmd-block .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin: 0 0 6px; }
-  .step { border-left: 3px solid var(--accent); padding-left: 12px; margin-bottom: 22px; }
+  .step { border-left: 3px solid var(--accent); padding-left: 14px; margin-bottom: 24px; }
   .step h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
   .step p { margin: 0 0 8px; color: var(--muted); font-size: 13px; }
-  a.dl { display: inline-block; background: var(--good); color: #0a1a14; text-decoration: none; padding: 8px 14px; border-radius: 6px; font-weight: 500; font-family: inherit; font-size: 13px; }
+  .step.done { border-left-color: var(--good); }
+  details { margin-top: 8px; }
+  summary { color: var(--muted); font-size: 12px; cursor: pointer; padding: 4px 0; }
+  summary:hover { color: var(--text); }
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--good); color: #0a1a14; padding: 10px 18px; border-radius: 6px; font-weight: 500; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
   .toast.show { opacity: 1; }
 </style>
@@ -73,10 +76,10 @@
 <body>
 <div class="wrap">
   <h1>Seed Recovery — Server Run Builder</h1>
-  <p class="sub">Generates the exact commands to run <code>recover.py</code> on a rented server. Your seed words are never sent anywhere — this page works fully offline and assembles a CLI invocation for you to copy.</p>
+  <p class="sub">Fill in what you remember. The form generates two copy-paste commands — that's it. Your seed words never leave this page.</p>
 
   <div class="banner warn">
-    <strong>Operational hygiene.</strong> This page builds commands; you still run them on the rented server. Before running, disable swap, disable shell history, and use a tmpfs working directory — the generated script does this for you. After recovery, write the seed on paper and immediately tear down the server.
+    <strong>How this works.</strong> You'll fill the form here on your laptop (Wi-Fi off is recommended). The form gives you <strong>two commands</strong>: one to SSH into your server, one to paste once you're in. The server runs the recovery; the seed phrase appears on screen when found. Write it on paper; tear down the server.
   </div>
 
   <div class="panel">
@@ -87,8 +90,8 @@
         <input id="ssh-user" placeholder="e.g. root" autocomplete="off" spellcheck="false">
       </label>
       <label>
-        <span class="lbl">SSH host</span>
-        <input id="ssh-host" placeholder="e.g. 1.2.3.4 or my-server.example" autocomplete="off" spellcheck="false">
+        <span class="lbl">SSH host (IP or hostname)</span>
+        <input id="ssh-host" placeholder="e.g. 1.2.3.4" autocomplete="off" spellcheck="false">
       </label>
     </div>
   </div>
@@ -113,77 +116,78 @@
         <input id="workers" type="number" value="32" min="1" max="128">
       </label>
     </div>
-    <label>
-      <span class="lbl">Derivation path template — <code>{i}</code> = account index</span>
-      <input id="path" value="m/44'/60'/0'/0/{i}" spellcheck="false" autocomplete="off">
-    </label>
-    <p class="footnote">MetaMask / Trust / Rabby: <code>m/44'/60'/0'/0/{i}</code> &middot; Ledger Live: <code>m/44'/60'/{i}'/0/0</code></p>
+    <details>
+      <summary>Advanced — derivation path</summary>
+      <label style="margin-top:10px">
+        <input id="path" value="m/44'/60'/0'/0/{i}" spellcheck="false" autocomplete="off">
+      </label>
+      <p class="footnote">MetaMask / Trust / Rabby: <code>m/44'/60'/0'/0/{i}</code> &middot; Ledger Live: <code>m/44'/60'/{i}'/0/0</code></p>
+    </details>
   </div>
 
   <div class="panel">
     <h2>Step 3 — Candidate word pool</h2>
     <label>
-      <span class="lbl">Pool words (the candidates for any "Pool" position below)</span>
-      <textarea id="pool" placeholder="paste your 40 favourite BIP39 words separated by spaces, commas, or newlines"></textarea>
+      <span class="lbl">Pool words — your candidates for any "Pool" position below</span>
+      <textarea id="pool" placeholder="paste your favourite BIP39 words separated by spaces, commas, or newlines"></textarea>
     </label>
     <p class="footnote" id="pool-status">Enter pool words above.</p>
   </div>
 
   <div class="panel">
-    <h2>Step 4 — Position-by-position</h2>
-    <p class="sub">For each of the 12 positions: <strong>Anchored</strong> (you remember the exact word and its position), <strong>Pool</strong> (one of the 40 candidates), or <strong>Unknown</strong> (any of the 2048 BIP39 words — search space explodes; use sparingly).</p>
+    <h2>Step 4 — The 12 positions</h2>
+    <p class="sub">For each position pick: <strong>Anchored</strong> (you remember the exact word), <strong>Pool</strong> (one of the 40 candidates), or <strong>Unknown</strong> (any of the 2048 BIP39 words — explodes the search; use sparingly).</p>
     <div id="grid" class="grid12"></div>
   </div>
 
   <div class="panel">
     <h2>Estimate</h2>
     <div id="estimate" class="stats"></div>
-    <p class="footnote">Throughput estimate assumes ~50k mnemonics/sec on a Ryzen 9950X (32 threads) using <code>recover.py</code>'s pure-Python derivation. GPU tools like btcrecover are ~50–100× faster but require setup; use <code>to-btcrecover.py</code> if this estimate is unworkable.</p>
+    <p class="footnote">Throughput: ~50k mnemonics/sec on a 32-thread Ryzen using <code>recover.py</code>'s pure-Python derivation. If the verdict is "infeasible on CPU", run <code>to-btcrecover.py</code> instead and rent a GPU.</p>
   </div>
 
   <div class="panel">
-    <h2>Step 5 — Generated commands</h2>
-    <p class="sub">Run these in order on the rented server. Don't paste the generated content into chat, email, or shared docs.</p>
+    <h2>Run on the server</h2>
+    <p class="sub">Two copy-paste steps. That's it.</p>
 
     <div class="step">
-      <h3>1. Download <code>recover.py</code></h3>
-      <p>Save to your laptop, then upload to the server in the next step.</p>
-      <a id="dl" class="dl" download="recover.py">⤓ Download recover.py</a>
-      <p class="footnote">SHA-256: <code id="sha-display">5d9123b50788ce5d5a937d832b06c16b1d0e2910301d6d78808480cdcc64e0e9</code> &mdash; the upload command below verifies the hash on the server.</p>
-    </div>
-
-    <div class="step">
-      <h3>2. Upload <code>recover.py</code> to server</h3>
-      <p>From your <em>laptop</em>:</p>
+      <h3>① SSH into your server</h3>
+      <p>Open a terminal on your laptop and paste:</p>
       <div class="cmd-block">
         <p class="label">copy &amp; paste — laptop terminal</p>
-        <pre class="cmd" id="cmd-upload">— fill in Step 1 first —</pre>
-        <button class="copy secondary" data-copy="cmd-upload">Copy</button>
+        <pre class="cmd" id="cmd-ssh">— fill Step 1 above —</pre>
+        <button class="copy secondary" data-copy="cmd-ssh">Copy</button>
       </div>
     </div>
 
     <div class="step">
-      <h3>3. Lock down server &amp; run recovery</h3>
-      <p>SSH into the server, then paste this <em>entire block</em>:</p>
+      <h3>② Paste this on the server</h3>
+      <p>Once you're SSH'd in, paste this <em>entire block</em> as one paste. It locks down the box, drops <code>recover.py</code> into a RAM-only directory, verifies its SHA-256, and runs the recovery.</p>
       <div class="cmd-block">
         <p class="label">copy &amp; paste — on server (after ssh)</p>
-        <pre class="cmd" id="cmd-run">— fill in the form first —</pre>
+        <pre class="cmd" id="cmd-run">— fill the form above —</pre>
         <button class="copy secondary" data-copy="cmd-run">Copy</button>
       </div>
-      <p class="footnote">This disables swap + shell history + system logs, mounts a tmpfs working dir, verifies the script's SHA-256, then runs the recovery. If a match is found it prints the seed phrase to stdout. <strong>Write it on paper immediately.</strong></p>
+      <p class="footnote">When the seed phrase appears on screen: <strong>write it on paper immediately</strong>, then run the cleanup block below. Don't screenshot, don't paste it into chat, don't email.</p>
     </div>
 
-    <div class="step">
-      <h3>4. Tear-down</h3>
-      <p>After you've written the seed on paper and moved funds to a fresh wallet:</p>
+    <div class="step done">
+      <h3>③ After the seed is recovered — wipe the server</h3>
+      <p>Once you've written the seed on paper and moved funds to a fresh wallet:</p>
       <div class="cmd-block">
         <p class="label">copy &amp; paste — on server</p>
         <pre class="cmd" id="cmd-cleanup">cd ~ &amp;&amp; sudo umount /mnt/work 2>/dev/null; sudo rm -rf /mnt/work
 history -c; rm -f ~/.bash_history ~/.zsh_history
-echo "wipe done — now: full OS reinstall via host control panel, then cancel rental"</pre>
+echo "wipe complete — now: full OS reinstall via host control panel, then cancel the rental"</pre>
         <button class="copy secondary" data-copy="cmd-cleanup">Copy</button>
       </div>
     </div>
+
+    <details>
+      <summary>Advanced — download recover.py separately (e.g. for code review before running)</summary>
+      <p class="footnote" style="margin-top:10px">If you'd rather inspect <code>recover.py</code> before pasting, download it here. SHA-256: <code>5d9123b50788ce5d5a937d832b06c16b1d0e2910301d6d78808480cdcc64e0e9</code></p>
+      <a id="dl" class="copy secondary" download="recover.py" style="display:inline-block;text-decoration:none;padding:8px 14px;border-radius:6px">⤓ Download recover.py</a>
+    </details>
   </div>
 
 </div>
@@ -199,7 +203,7 @@ echo "wipe done — now: full OS reinstall via host control panel, then cancel r
   const BIP39 = ["abandon","ability","able","about","above","absent","absorb","abstract","absurd","abuse","access","accident","account","accuse","achieve","acid","acoustic","acquire","across","act","action","actor","actress","actual","adapt","add","addict","address","adjust","admit","adult","advance","advice","aerobic","affair","afford","afraid","again","age","agent","agree","ahead","aim","air","airport","aisle","alarm","album","alcohol","alert","alien","all","alley","allow","almost","alone","alpha","already","also","alter","always","amateur","amazing","among","amount","amused","analyst","anchor","ancient","anger","angle","angry","animal","ankle","announce","annual","another","answer","antenna","antique","anxiety","any","apart","apology","appear","apple","approve","april","arch","arctic","area","arena","argue","arm","armed","armor","army","around","arrange","arrest","arrive","arrow","art","artefact","artist","artwork","ask","aspect","assault","asset","assist","assume","asthma","athlete","atom","attack","attend","attitude","attract","auction","audit","august","aunt","author","auto","autumn","average","avocado","avoid","awake","aware","away","awesome","awful","awkward","axis","baby","bachelor","bacon","badge","bag","balance","balcony","ball","bamboo","banana","banner","bar","barely","bargain","barrel","base","basic","basket","battle","beach","bean","beauty","because","become","beef","before","begin","behave","behind","believe","below","belt","bench","benefit","best","betray","better","between","beyond","bicycle","bid","bike","bind","biology","bird","birth","bitter","black","blade","blame","blanket","blast","bleak","bless","blind","blood","blossom","blouse","blue","blur","blush","board","boat","body","boil","bomb","bone","bonus","book","boost","border","boring","borrow","boss","bottom","bounce","box","boy","bracket","brain","brand","brass","brave","bread","breeze","brick","bridge","brief","bright","bring","brisk","broccoli","broken","bronze","broom","brother","brown","brush","bubble","buddy","budget","buffalo","build","bulb","bulk","bullet","bundle","bunker","burden","burger","burst","bus","business","busy","butter","buyer","buzz","cabbage","cabin","cable","cactus","cage","cake","call","calm","camera","camp","can","canal","cancel","candy","cannon","canoe","canvas","canyon","capable","capital","captain","car","carbon","card","cargo","carpet","carry","cart","case","cash","casino","castle","casual","cat","catalog","catch","category","cattle","caught","cause","caution","cave","ceiling","celery","cement","census","century","cereal","certain","chair","chalk","champion","change","chaos","chapter","charge","chase","chat","cheap","check","cheese","chef","cherry","chest","chicken","chief","child","chimney","choice","choose","chronic","chuckle","chunk","churn","cigar","cinnamon","circle","citizen","city","civil","claim","clap","clarify","claw","clay","clean","clerk","clever","click","client","cliff","climb","clinic","clip","clock","clog","close","cloth","cloud","clown","club","clump","cluster","clutch","coach","coast","coconut","code","coffee","coil","coin","collect","color","column","combine","come","comfort","comic","common","company","concert","conduct","confirm","congress","connect","consider","control","convince","cook","cool","copper","copy","coral","core","corn","correct","cost","cotton","couch","country","couple","course","cousin","cover","coyote","crack","cradle","craft","cram","crane","crash","crater","crawl","crazy","cream","credit","creek","crew","cricket","crime","crisp","critic","crop","cross","crouch","crowd","crucial","cruel","cruise","crumble","crunch","crush","cry","crystal","cube","culture","cup","cupboard","curious","current","curtain","curve","cushion","custom","cute","cycle","dad","damage","damp","dance","danger","daring","dash","daughter","dawn","day","deal","debate","debris","decade","december","decide","decline","decorate","decrease","deer","defense","define","defy","degree","delay","deliver","demand","demise","denial","dentist","deny","depart","depend","deposit","depth","deputy","derive","describe","desert","design","desk","despair","destroy","detail","detect","develop","device","devote","diagram","dial","diamond","diary","dice","diesel","diet","differ","digital","dignity","dilemma","dinner","dinosaur","direct","dirt","disagree","discover","disease","dish","dismiss","disorder","display","distance","divert","divide","divorce","dizzy","doctor","document","dog","doll","dolphin","domain","donate","donkey","donor","door","dose","double","dove","draft","dragon","drama","drastic","draw","dream","dress","drift","drill","drink","drip","drive","drop","drum","dry","duck","dumb","dune","during","dust","dutch","duty","dwarf","dynamic","eager","eagle","early","earn","earth","easily","east","easy","echo","ecology","economy","edge","edit","educate","effort","egg","eight","either","elbow","elder","electric","elegant","element","elephant","elevator","elite","else","embark","embody","embrace","emerge","emotion","employ","empower","empty","enable","enact","end","endless","endorse","enemy","energy","enforce","engage","engine","enhance","enjoy","enlist","enough","enrich","enroll","ensure","enter","entire","entry","envelope","episode","equal","equip","era","erase","erode","erosion","error","erupt","escape","essay","essence","estate","eternal","ethics","evidence","evil","evoke","evolve","exact","example","excess","exchange","excite","exclude","excuse","execute","exercise","exhaust","exhibit","exile","exist","exit","exotic","expand","expect","expire","explain","expose","express","extend","extra","eye","eyebrow","fabric","face","faculty","fade","faint","faith","fall","false","fame","family","famous","fan","fancy","fantasy","farm","fashion","fat","fatal","father","fatigue","fault","favorite","feature","february","federal","fee","feed","feel","female","fence","festival","fetch","fever","few","fiber","fiction","field","figure","file","film","filter","final","find","fine","finger","finish","fire","firm","first","fiscal","fish","fit","fitness","fix","flag","flame","flash","flat","flavor","flee","flight","flip","float","flock","floor","flower","fluid","flush","fly","foam","focus","fog","foil","fold","follow","food","foot","force","forest","forget","fork","fortune","forum","forward","fossil","foster","found","fox","fragile","frame","frequent","fresh","friend","fringe","frog","front","frost","frown","frozen","fruit","fuel","fun","funny","furnace","fury","future","gadget","gain","galaxy","gallery","game","gap","garage","garbage","garden","garlic","garment","gas","gasp","gate","gather","gauge","gaze","general","genius","genre","gentle","genuine","gesture","ghost","giant","gift","giggle","ginger","giraffe","girl","give","glad","glance","glare","glass","glide","glimpse","globe","gloom","glory","glove","glow","glue","goat","goddess","gold","good","goose","gorilla","gospel","gossip","govern","gown","grab","grace","grain","grant","grape","grass","gravity","great","green","grid","grief","grit","grocery","group","grow","grunt","guard","guess","guide","guilt","guitar","gun","gym","habit","hair","half","hammer","hamster","hand","happy","harbor","hard","harsh","harvest","hat","have","hawk","hazard","head","health","heart","heavy","hedgehog","height","hello","helmet","help","hen","hero","hidden","high","hill","hint","hip","hire","history","hobby","hockey","hold","hole","holiday","hollow","home","honey","hood","hope","horn","horror","horse","hospital","host","hotel","hour","hover","hub","huge","human","humble","humor","hundred","hungry","hunt","hurdle","hurry","hurt","husband","hybrid","ice","icon","idea","identify","idle","ignore","ill","illegal","illness","image","imitate","immense","immune","impact","impose","improve","impulse","inch","include","income","increase","index","indicate","indoor","industry","infant","inflict","inform","inhale","inherit","initial","inject","injury","inmate","inner","innocent","input","inquiry","insane","insect","inside","inspire","install","intact","interest","into","invest","invite","involve","iron","island","isolate","issue","item","ivory","jacket","jaguar","jar","jazz","jealous","jeans","jelly","jewel","job","join","joke","journey","joy","judge","juice","jump","jungle","junior","junk","just","kangaroo","keen","keep","ketchup","key","kick","kid","kidney","kind","kingdom","kiss","kit","kitchen","kite","kitten","kiwi","knee","knife","knock","know","lab","label","labor","ladder","lady","lake","lamp","language","laptop","large","later","latin","laugh","laundry","lava","law","lawn","lawsuit","layer","lazy","leader","leaf","learn","leave","lecture","left","leg","legal","legend","leisure","lemon","lend","length","lens","leopard","lesson","letter","level","liar","liberty","library","license","life","lift","light","like","limb","limit","link","lion","liquid","list","little","live","lizard","load","loan","lobster","local","lock","logic","lonely","long","loop","lottery","loud","lounge","love","loyal","lucky","luggage","lumber","lunar","lunch","luxury","lyrics","machine","mad","magic","magnet","maid","mail","main","major","make","mammal","man","manage","mandate","mango","mansion","manual","maple","marble","march","margin","marine","market","marriage","mask","mass","master","match","material","math","matrix","matter","maximum","maze","meadow","mean","measure","meat","mechanic","medal","media","melody","melt","member","memory","mention","menu","mercy","merge","merit","merry","mesh","message","metal","method","middle","midnight","milk","million","mimic","mind","minimum","minor","minute","miracle","mirror","misery","miss","mistake","mix","mixed","mixture","mobile","model","modify","mom","moment","monitor","monkey","monster","month","moon","moral","more","morning","mosquito","mother","motion","motor","mountain","mouse","move","movie","much","muffin","mule","multiply","muscle","museum","mushroom","music","must","mutual","myself","mystery","myth","naive","name","napkin","narrow","nasty","nation","nature","near","neck","need","negative","neglect","neither","nephew","nerve","nest","net","network","neutral","never","news","next","nice","night","noble","noise","nominee","noodle","normal","north","nose","notable","note","nothing","notice","novel","now","nuclear","number","nurse","nut","oak","obey","object","oblige","obscure","observe","obtain","obvious","occur","ocean","october","odor","off","offer","office","often","oil","okay","old","olive","olympic","omit","once","one","onion","online","only","open","opera","opinion","oppose","option","orange","orbit","orchard","order","ordinary","organ","orient","original","orphan","ostrich","other","outdoor","outer","output","outside","oval","oven","over","own","owner","oxygen","oyster","ozone","pact","paddle","page","pair","palace","palm","panda","panel","panic","panther","paper","parade","parent","park","parrot","party","pass","patch","path","patient","patrol","pattern","pause","pave","payment","peace","peanut","pear","peasant","pelican","pen","penalty","pencil","people","pepper","perfect","permit","person","pet","phone","photo","phrase","physical","piano","picnic","picture","piece","pig","pigeon","pill","pilot","pink","pioneer","pipe","pistol","pitch","pizza","place","planet","plastic","plate","play","please","pledge","pluck","plug","plunge","poem","poet","point","polar","pole","police","pond","pony","pool","popular","portion","position","possible","post","potato","pottery","poverty","powder","power","practice","praise","predict","prefer","prepare","present","pretty","prevent","price","pride","primary","print","priority","prison","private","prize","problem","process","produce","profit","program","project","promote","proof","property","prosper","protect","proud","provide","public","pudding","pull","pulp","pulse","pumpkin","punch","pupil","puppy","purchase","purity","purpose","purse","push","put","puzzle","pyramid","quality","quantum","quarter","question","quick","quit","quiz","quote","rabbit","raccoon","race","rack","radar","radio","rail","rain","raise","rally","ramp","ranch","random","range","rapid","rare","rate","rather","raven","raw","razor","ready","real","reason","rebel","rebuild","recall","receive","recipe","record","recycle","reduce","reflect","reform","refuse","region","regret","regular","reject","relax","release","relief","rely","remain","remember","remind","remove","render","renew","rent","reopen","repair","repeat","replace","report","require","rescue","resemble","resist","resource","response","result","retire","retreat","return","reunion","reveal","review","reward","rhythm","rib","ribbon","rice","rich","ride","ridge","rifle","right","rigid","ring","riot","ripple","risk","ritual","rival","river","road","roast","robot","robust","rocket","romance","roof","rookie","room","rose","rotate","rough","round","route","royal","rubber","rude","rug","rule","run","runway","rural","sad","saddle","sadness","safe","sail","salad","salmon","salon","salt","salute","same","sample","sand","satisfy","satoshi","sauce","sausage","save","say","scale","scan","scare","scatter","scene","scheme","school","science","scissors","scorpion","scout","scrap","screen","script","scrub","sea","search","season","seat","second","secret","section","security","seed","seek","segment","select","sell","seminar","senior","sense","sentence","series","service","session","settle","setup","seven","shadow","shaft","shallow","share","shed","shell","sheriff","shield","shift","shine","ship","shiver","shock","shoe","shoot","shop","short","shoulder","shove","shrimp","shrug","shuffle","shy","sibling","sick","side","siege","sight","sign","silent","silk","silly","silver","similar","simple","since","sing","siren","sister","situate","six","size","skate","sketch","ski","skill","skin","skirt","skull","slab","slam","sleep","slender","slice","slide","slight","slim","slogan","slot","slow","slush","small","smart","smile","smoke","smooth","snack","snake","snap","sniff","snow","soap","soccer","social","sock","soda","soft","solar","soldier","solid","solution","solve","someone","song","soon","sorry","sort","soul","sound","soup","source","south","space","spare","spatial","spawn","speak","special","speed","spell","spend","sphere","spice","spider","spike","spin","spirit","split","spoil","sponsor","spoon","sport","spot","spray","spread","spring","spy","square","squeeze","squirrel","stable","stadium","staff","stage","stairs","stamp","stand","start","state","stay","steak","steel","stem","step","stereo","stick","still","sting","stock","stomach","stone","stool","story","stove","strategy","street","strike","strong","struggle","student","stuff","stumble","style","subject","submit","subway","success","such","sudden","suffer","sugar","suggest","suit","summer","sun","sunny","sunset","super","supply","supreme","sure","surface","surge","surprise","surround","survey","suspect","sustain","swallow","swamp","swap","swarm","swear","sweet","swift","swim","swing","switch","sword","symbol","symptom","syrup","system","table","tackle","tag","tail","talent","talk","tank","tape","target","task","taste","tattoo","taxi","teach","team","tell","ten","tenant","tennis","tent","term","test","text","thank","that","theme","then","theory","there","they","thing","this","thought","three","thrive","throw","thumb","thunder","ticket","tide","tiger","tilt","timber","time","tiny","tip","tired","tissue","title","toast","tobacco","today","toddler","toe","together","toilet","token","tomato","tomorrow","tone","tongue","tonight","tool","tooth","top","topic","topple","torch","tornado","tortoise","toss","total","tourist","toward","tower","town","toy","track","trade","traffic","tragic","train","transfer","trap","trash","travel","tray","treat","tree","trend","trial","tribe","trick","trigger","trim","trip","trophy","trouble","truck","true","truly","trumpet","trust","truth","try","tube","tuition","tumble","tuna","tunnel","turkey","turn","turtle","twelve","twenty","twice","twin","twist","two","type","typical","ugly","umbrella","unable","unaware","uncle","uncover","under","undo","unfair","unfold","unhappy","uniform","unique","unit","universe","unknown","unlock","until","unusual","unveil","update","upgrade","uphold","upon","upper","upset","urban","urge","usage","use","used","useful","useless","usual","utility","vacant","vacuum","vague","valid","valley","valve","van","vanish","vapor","various","vast","vault","vehicle","velvet","vendor","venture","venue","verb","verify","version","very","vessel","veteran","viable","vibrant","vicious","victory","video","view","village","vintage","violin","virtual","virus","visa","visit","visual","vital","vivid","vocal","voice","void","volcano","volume","vote","voyage","wage","wagon","wait","walk","wall","walnut","want","warfare","warm","warrior","wash","wasp","waste","water","wave","way","wealth","weapon","wear","weasel","weather","web","wedding","weekend","weird","welcome","west","wet","whale","what","wheat","wheel","when","where","whip","whisper","wide","width","wife","wild","will","win","window","wine","wing","wink","winner","winter","wire","wisdom","wise","wish","witness","wolf","woman","wonder","wood","wool","word","work","world","worry","worth","wrap","wreck","wrestle","wrist","write","wrong","yard","year","yellow","you","young","youth","zebra","zero","zone","zoo"];
   const BIP39_SET = new Set(BIP39);
 
-  // --- recover.py download ---
+  // --- recover.py download (advanced section only) ---
   function bytesFromB64(b64) {
     const bin = atob(b64);
     const u8 = new Uint8Array(bin.length);
@@ -218,7 +222,7 @@ echo "wipe done — now: full OS reinstall via host control panel, then cancel r
 
     const sel = document.createElement("select");
     sel.id = "type-" + i;
-    sel.innerHTML = '<option value="anchored">Anchored (known word)</option><option value="pool">Pool (one of 40)</option><option value="full">Unknown (any of 2048)</option>';
+    sel.innerHTML = '<option value="anchored">Anchored (known word)</option><option value="pool">Pool (one of your favourites)</option><option value="full">Unknown (any BIP39)</option>';
 
     const inp = document.createElement("input");
     inp.id = "word-" + i;
@@ -294,7 +298,7 @@ echo "wipe done — now: full OS reinstall via host control panel, then cancel r
   }
   $("pool").addEventListener("input", () => { updatePoolStatus(); recompute(); });
 
-  // --- Validate target address ---
+  // --- Address validation ---
   function validTarget() {
     const v = $("target").value.trim();
     const ok = /^0x[0-9a-fA-F]{40}$/.test(v);
@@ -309,10 +313,10 @@ echo "wipe done — now: full OS reinstall via host control panel, then cancel r
   $("workers").addEventListener("input", recompute);
   $("path").addEventListener("input", recompute);
 
-  // --- Estimate + command generation ---
   function buildWordsArg(poolValid) {
     const parts = [];
     let allOk = true;
+    let needsPool = false;
     for (let i = 1; i <= 12; i++) {
       const t = $("type-" + i).value;
       if (t === "anchored") {
@@ -320,13 +324,14 @@ echo "wipe done — now: full OS reinstall via host control panel, then cancel r
         if (!BIP39_SET.has(w)) allOk = false;
         parts.push(w || "?");
       } else if (t === "pool") {
+        needsPool = true;
         if (poolValid.length === 0) allOk = false;
         parts.push(poolValid.join(";"));
       } else {
         parts.push("?");
       }
     }
-    return { spec: parts.join(","), ok: allOk };
+    return { spec: parts.join(","), ok: allOk, needsPool };
   }
 
   function fmtNum(n) {
@@ -349,30 +354,33 @@ echo "wipe done — now: full OS reinstall via host control panel, then cancel r
     return seconds.toExponential(2) + " s";
   }
 
+  function shellQuote(s) {
+    if (!s) return "''";
+    if (/^[a-zA-Z0-9_./@:=,\-]+$/.test(s)) return s;
+    return "'" + s.replace(/'/g, "'\"'\"'") + "'";
+  }
+
   function recompute() {
     const poolValid = updatePoolStatus();
-    const { spec, ok: wordsOk } = buildWordsArg(poolValid);
+    const { spec, ok: wordsOk, needsPool } = buildWordsArg(poolValid);
 
-    // Estimate raw search space
     let raw = 1;
-    let unknownTypes = { anchored: 0, pool: 0, full: 0 };
+    let counts = { anchored: 0, pool: 0, full: 0 };
     for (let i = 1; i <= 12; i++) {
       const t = $("type-" + i).value;
-      unknownTypes[t]++;
+      counts[t]++;
       if (t === "pool") raw *= Math.max(poolValid.length, 1);
       else if (t === "full") raw *= 2048;
     }
-    const filtered = raw / 16; // BIP39 4-bit checksum
-    // throughput: 50k/s baseline; account-range multiplies work
+    const filtered = raw / 16;
     const acctMin = parseInt($("acct-min").value, 10) || 0;
     const acctMax = parseInt($("acct-max").value, 10) || 0;
     const acctCount = Math.max(1, acctMax - acctMin + 1);
     const workers = Math.max(1, parseInt($("workers").value, 10) || 1);
-    const baselinePerThread = 1500; // mnemonics/sec/thread for pure-Python derivation
+    const baselinePerThread = 1500;
     const throughput = baselinePerThread * Math.min(workers, 32);
     const seconds = (filtered * acctCount) / throughput;
 
-    // Render estimate tiles
     const verdict =
       seconds < 3600 ? { label: "feasible", cls: "good" } :
       seconds < 86400 ? { label: "feasible (overnight)", cls: "good" } :
@@ -381,51 +389,56 @@ echo "wipe done — now: full OS reinstall via host control panel, then cancel r
       { label: "infeasible on CPU — use to-btcrecover.py", cls: "bad" };
 
     $("estimate").innerHTML =
-      tile("Anchored / Pool / Unknown", `${unknownTypes.anchored} / ${unknownTypes.pool} / ${unknownTypes.full}`, "") +
+      tile("Anchored / Pool / Unknown", `${counts.anchored} / ${counts.pool} / ${counts.full}`, "") +
       tile("Raw search space", fmtNum(raw), "") +
       tile("After BIP39 checksum", fmtNum(filtered), "") +
       tile("Estimated CPU time", fmtDuration(seconds), verdict.cls) +
       tile("Verdict", verdict.label, verdict.cls);
 
-    // Fill commands
-    const target = validTarget();
+    // SSH command
     const user = $("ssh-user").value.trim();
     const host = $("ssh-host").value.trim();
-    const path = $("path").value.trim() || "m/44'/60'/0'/0/{i}";
-
     if (!user || !host) {
-      $("cmd-upload").textContent = "— enter SSH user + host above —";
+      $("cmd-ssh").textContent = "— enter SSH user + host above —";
     } else {
-      $("cmd-upload").textContent =
-        `# from your laptop (path is the file you downloaded in Step 1)\n` +
-        `scp ~/Downloads/recover.py ${shellQuote(user)}@${shellQuote(host)}:/tmp/recover.py\n` +
-        `ssh ${shellQuote(user)}@${shellQuote(host)}`;
+      $("cmd-ssh").textContent = `ssh ${shellQuote(user)}@${shellQuote(host)}`;
     }
 
-    if (!target || !wordsOk || poolValid.length === 0 && unknownTypes.pool > 0) {
+    // Run command (embeds recover.py via base64 heredoc — single paste)
+    const target = validTarget();
+    const path = $("path").value.trim() || "m/44'/60'/0'/0/{i}";
+
+    if (!target || !wordsOk || (needsPool && poolValid.length === 0)) {
       $("cmd-run").textContent = "— form has missing/invalid fields —";
       return;
     }
 
     const acctRange = `${acctMin}-${acctMax}`;
-    const expected = SHA256;
-    $("cmd-run").textContent = [
-      `# Lock down the box (no swap, no logs, no history) and run inside tmpfs.`,
+    const lines = [
+      `# === Lock down the box (no swap, no logs, no history) ===`,
       `set -e`,
-      `unset HISTFILE; export HISTFILE=/dev/null; history -c`,
-      `sudo swapoff -a`,
+      `unset HISTFILE; export HISTFILE=/dev/null; history -c 2>/dev/null || true`,
+      `sudo swapoff -a 2>/dev/null || true`,
       `sudo systemctl stop rsyslog systemd-journald-audit 2>/dev/null || true`,
-      `sudo mkdir -p /mnt/work && sudo mount -t tmpfs -o size=2G tmpfs /mnt/work && sudo chown $(id -u):$(id -g) /mnt/work`,
-      `mv /tmp/recover.py /mnt/work/recover.py`,
+      ``,
+      `# === Mount tmpfs working dir (RAM-only — nothing hits disk) ===`,
+      `sudo mkdir -p /mnt/work`,
+      `sudo mount -t tmpfs -o size=2G tmpfs /mnt/work 2>/dev/null || true`,
+      `sudo chown $(id -u):$(id -g) /mnt/work`,
       `cd /mnt/work`,
       ``,
-      `# Verify script integrity before running.`,
-      `echo "${expected}  recover.py" | sha256sum -c || { echo "SHA256 mismatch — abort"; exit 1; }`,
+      `# === Drop recover.py into tmpfs (decoded from inline base64) ===`,
+      `base64 -d > recover.py <<'PY_B64_EOF'`,
+      RECOVER_B64,
+      `PY_B64_EOF`,
       ``,
-      `# Install uv if missing.`,
+      `# === Verify script integrity ===`,
+      `echo "${SHA256}  recover.py" | sha256sum -c || { echo "SHA256 mismatch — abort"; exit 1; }`,
+      ``,
+      `# === Install uv if missing ===`,
       `command -v uv >/dev/null || { curl -LsSf https://astral.sh/uv/install.sh | sh; export PATH="$HOME/.local/bin:$PATH"; }`,
       ``,
-      `# Run the recovery (output captured in tmpfs, lost on reboot).`,
+      `# === Run the recovery ===`,
       `uv run recover.py \\`,
       `  --target ${shellQuote(target)} \\`,
       `  --length 12 \\`,
@@ -433,23 +446,17 @@ echo "wipe done — now: full OS reinstall via host control panel, then cancel r
       `  --path ${shellQuote(path)} \\`,
       `  --accounts ${acctRange} \\`,
       `  --workers ${workers} \\`,
-      `  --yes 2>&1 | tee result.txt`,
+      `  --yes`,
       ``,
-      `# When MATCH FOUND — write phrase on paper, then run cleanup block.`,
-    ].join("\n");
+      `# When MATCH FOUND — write the phrase on paper, then run the cleanup block.`,
+    ];
+    $("cmd-run").textContent = lines.join("\n");
   }
 
   function tile(k, v, cls) {
     return `<div class="stat"><div class="k">${k}</div><div class="v ${cls||""}">${v}</div></div>`;
   }
 
-  function shellQuote(s) {
-    if (!s) return "''";
-    if (/^[a-zA-Z0-9_./@:=,'\-]+$/.test(s) && !s.includes("'")) return s;
-    return "'" + s.replace(/'/g, "'\"'\"'") + "'";
-  }
-
-  // --- Copy buttons ---
   function showToast(msg) {
     const t = $("toast"); t.textContent = msg; t.classList.add("show");
     setTimeout(() => t.classList.remove("show"), 1200);
