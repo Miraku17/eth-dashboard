@@ -281,19 +281,21 @@ async def run_once(ws_url: str, sessionmaker, thresholds: tuple[float, float]) -
 
 async def main() -> None:
     settings = get_settings()
-    if not settings.alchemy_ws_url:
-        log.warning("ALCHEMY_API_KEY not set — realtime listener idling")
+    ws_url = settings.effective_ws_url
+    if not ws_url:
+        log.warning("no eth ws url configured (set ALCHEMY_WS_URL or ALCHEMY_API_KEY) — realtime listener idling")
         while True:
             await asyncio.sleep(3600)
 
     sessionmaker = get_sessionmaker()
     thresholds = (settings.whale_eth_threshold, settings.whale_stable_threshold_usd)
-    log.info("starting realtime listener thresholds eth>=%s stable_usd>=%s at %s",
-             thresholds[0], thresholds[1], datetime.now(UTC).isoformat())
+    log.info("starting realtime listener thresholds eth>=%s stable_usd>=%s at %s using %s",
+             thresholds[0], thresholds[1], datetime.now(UTC).isoformat(),
+             "self-hosted node" if settings.alchemy_ws_url else "alchemy")
 
     while True:
         try:
-            await run_once(settings.alchemy_ws_url, sessionmaker, thresholds)
+            await run_once(ws_url, sessionmaker, thresholds)
         except Exception:
             log.exception("listener crashed, reconnecting in %.0fs", RECONNECT_DELAY_S)
             await asyncio.sleep(RECONNECT_DELAY_S)

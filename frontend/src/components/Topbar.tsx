@@ -12,7 +12,7 @@ const NAV: readonly { label: string; id: string }[] = [
 const SOURCE_LABELS: Record<string, string> = {
   binance_1m: "Binance",
   dune_flows: "Dune",
-  alchemy_blocks: "Alchemy",
+  alchemy_blocks: "ETH Node",
   whale_transfers: "Whales",
 };
 

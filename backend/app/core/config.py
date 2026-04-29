@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     redis_url: str
 
     alchemy_api_key: str = ""
+    # When set, the realtime listener connects here instead of Alchemy
+    # (e.g. ws://172.17.0.1:8546 for a self-hosted node).
+    alchemy_ws_url: str = ""
     dune_api_key: str = ""
     etherscan_api_key: str = ""
     coingecko_api_key: str = ""
@@ -54,7 +57,9 @@ class Settings(BaseSettings):
     cors_origins: str = "*"
 
     @property
-    def alchemy_ws_url(self) -> str:
+    def effective_ws_url(self) -> str:
+        if self.alchemy_ws_url:
+            return self.alchemy_ws_url
         if not self.alchemy_api_key:
             return ""
         return f"wss://eth-mainnet.g.alchemy.com/v2/{self.alchemy_api_key}"
