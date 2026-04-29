@@ -15,11 +15,14 @@ from app.workers.price_jobs import backfill_price_history, sync_price_latest
 async def startup(ctx: dict) -> None:
     ctx["http"] = httpx.AsyncClient(base_url=BINANCE_BASE_URL, timeout=15.0)
     await ctx["redis"].enqueue_job("backfill_price_history")
-    await ctx["redis"].enqueue_job("sync_dune_flows")
     await ctx["redis"].enqueue_job("sync_derivatives")
-    await ctx["redis"].enqueue_job("sync_order_flow")
-    await ctx["redis"].enqueue_job("sync_volume_buckets")
-    await ctx["redis"].enqueue_job("sync_smart_money_leaderboard")
+    # Dune-heavy jobs are staggered: free-tier serializes executions, and
+    # piling four 5-minute queries simultaneously trips the worker's
+    # job_timeout. Spread by 6 min so each finishes before the next starts.
+    await ctx["redis"].enqueue_job("sync_dune_flows", _defer_by=0)
+    await ctx["redis"].enqueue_job("sync_order_flow", _defer_by=360)
+    await ctx["redis"].enqueue_job("sync_volume_buckets", _defer_by=720)
+    await ctx["redis"].enqueue_job("sync_smart_money_leaderboard", _defer_by=1080)
 
 
 async def shutdown(ctx: dict) -> None:
@@ -88,3 +91,6 @@ class WorkerSettings:
     on_startup = startup
     on_shutdown = shutdown
     redis_settings = RedisSettings.from_dsn(_settings.redis_url)
+    # Free-tier Dune executions can take 5–15 minutes when queued. The
+    # default 300s arq timeout was prematurely killing healthy jobs.
+    job_timeout = 900

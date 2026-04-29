@@ -51,7 +51,7 @@ class DuneClient:
         query_id: int,
         *,
         poll_interval_s: float = 3.0,
-        max_wait_s: float = 300.0,
+        max_wait_s: float = 900.0,
         performance: str | None = None,
     ) -> list[dict]:
         """Trigger a fresh execution, wait for completion, return rows."""
