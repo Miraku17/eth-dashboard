@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; font-src 'none'; form-action 'none'; base-uri 'none'; frame-ancestors 'none';">
+<title>Seed Recovery — Server Run Builder</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --panel: #181d2a;
+    --panel2: #1f2435;
+    --border: #2a3142;
+    --text: #e8ebf0;
+    --muted: #8a92a6;
+    --accent: #4a9eff;
+    --good: #2dd4a4;
+    --warn: #f5a623;
+    --bad: #ef4444;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body { font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; padding: 24px 16px 80px; }
+  .wrap { max-width: 920px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 0 0 4px; font-weight: 600; }
+  h2 { font-size: 13px; margin: 0 0 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 20px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .banner { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 13px; }
+  .banner.warn { background: rgba(245, 166, 35, 0.10); border: 1px solid var(--warn); color: #ffe0a8; }
+  .banner code { color: #fff; background: rgba(0,0,0,0.25); padding: 1px 5px; border-radius: 3px; }
+  label { display: block; margin-bottom: 14px; }
+  label > .lbl { display: block; color: var(--muted); font-size: 11px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+  input, select, textarea { width: 100%; padding: 9px 11px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font: inherit; font-family: var(--mono); }
+  textarea { font-family: var(--mono); resize: vertical; min-height: 90px; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  input.invalid, textarea.invalid { border-color: var(--bad); background: rgba(239, 68, 68, 0.08); }
+  button { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 6px; font: inherit; font-weight: 500; cursor: pointer; }
+  button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+  button.copy { padding: 6px 12px; font-size: 12px; }
+  button:hover { filter: brightness(1.1); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid12 { display: grid; grid-template-columns: 36px 130px 1fr; gap: 8px 12px; align-items: center; }
+  .grid12 .pos { color: var(--muted); font-family: var(--mono); font-size: 12px; text-align: right; }
+  .grid12 select { padding: 7px 9px; font-size: 12px; }
+  .grid12 input { padding: 7px 9px; font-size: 13px; }
+  .grid12 .anchored { border-color: var(--good); background: rgba(45, 212, 164, 0.05); }
+  .grid12 .pool { border-color: var(--accent); background: rgba(74, 158, 255, 0.05); color: var(--muted); }
+  .grid12 .full { border-color: var(--warn); background: rgba(245, 166, 35, 0.05); color: var(--muted); }
+  .grid12 .invalid { border-color: var(--bad); background: rgba(239, 68, 68, 0.10); }
+  .footnote { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .stat { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+  .stat .k { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .stat .v { font-family: var(--mono); font-size: 15px; font-weight: 500; }
+  .stat .v.good { color: var(--good); }
+  .stat .v.warn { color: var(--warn); }
+  .stat .v.bad { color: var(--bad); }
+  pre.cmd { background: #0a0d12; border: 1px solid var(--border); border-radius: 8px; padding: 14px; overflow-x: auto; color: #d4d8de; font-family: var(--mono); font-size: 12px; line-height: 1.55; margin: 0; white-space: pre; }
+  .cmd-block { position: relative; margin-bottom: 14px; }
+  .cmd-block .copy { position: absolute; top: 8px; right: 8px; }
+  .cmd-block .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; margin: 0 0 6px; }
+  .step { border-left: 3px solid var(--accent); padding-left: 12px; margin-bottom: 22px; }
+  .step h3 { margin: 0 0 4px; font-size: 14px; font-weight: 600; }
+  .step p { margin: 0 0 8px; color: var(--muted); font-size: 13px; }
+  a.dl { display: inline-block; background: var(--good); color: #0a1a14; text-decoration: none; padding: 8px 14px; border-radius: 6px; font-weight: 500; font-family: inherit; font-size: 13px; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--good); color: #0a1a14; padding: 10px 18px; border-radius: 6px; font-weight: 500; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Seed Recovery — Server Run Builder</h1>
+  <p class="sub">Generates the exact commands to run <code>recover.py</code> on a rented server. Your seed words are never sent anywhere — this page works fully offline and assembles a CLI invocation for you to copy.</p>
+
+  <div class="banner warn">
+    <strong>Operational hygiene.</strong> This page builds commands; you still run them on the rented server. Before running, disable swap, disable shell history, and use a tmpfs working directory — the generated script does this for you. After recovery, write the seed on paper and immediately tear down the server.
+  </div>
+
+  <div class="panel">
+    <h2>Step 1 — Server connection</h2>
+    <div class="row">
+      <label>
+        <span class="lbl">SSH user</span>
+        <input id="ssh-user" placeholder="e.g. root" autocomplete="off" spellcheck="false">
+      </label>
+      <label>
+        <span class="lbl">SSH host</span>
+        <input id="ssh-host" placeholder="e.g. 1.2.3.4 or my-server.example" autocomplete="off" spellcheck="false">
+      </label>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Step 2 — Wallet target</h2>
+    <label>
+      <span class="lbl">Target ETH address (the wallet you're recovering)</span>
+      <input id="target" placeholder="0x..." spellcheck="false" autocomplete="off">
+    </label>
+    <div class="row">
+      <label>
+        <span class="lbl">Account-index range</span>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="acct-min" type="number" value="0" min="0" style="flex:1">
+          <span style="color:var(--muted)">to</span>
+          <input id="acct-max" type="number" value="9" min="0" style="flex:1">
+        </div>
+      </label>
+      <label>
+        <span class="lbl">Workers (server CPU threads)</span>
+        <input id="workers" type="number" value="32" min="1" max="128">
+      </label>
+    </div>
+    <label>
+      <span class="lbl">Derivation path template — <code>{i}</code> = account index</span>
+      <input id="path" value="m/44'/60'/0'/0/{i}" spellcheck="false" autocomplete="off">
+    </label>
+    <p class="footnote">MetaMask / Trust / Rabby: <code>m/44'/60'/0'/0/{i}</code> &middot; Ledger Live: <code>m/44'/60'/{i}'/0/0</code></p>
+  </div>
+
+  <div class="panel">
+    <h2>Step 3 — Candidate word pool</h2>
+    <label>
+      <span class="lbl">Pool words (the candidates for any "Pool" position below)</span>
+      <textarea id="pool" placeholder="paste your 40 favourite BIP39 words separated by spaces, commas, or newlines"></textarea>
+    </label>
+    <p class="footnote" id="pool-status">Enter pool words above.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Step 4 — Position-by-position</h2>
+    <p class="sub">For each of the 12 positions: <strong>Anchored</strong> (you remember the exact word and its position), <strong>Pool</strong> (one of the 40 candidates), or <strong>Unknown</strong> (any of the 2048 BIP39 words — search space explodes; use sparingly).</p>
+    <div id="grid" class="grid12"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Estimate</h2>
+    <div id="estimate" class="stats"></div>
+    <p class="footnote">Throughput estimate assumes ~50k mnemonics/sec on a Ryzen 9950X (32 threads) using <code>recover.py</code>'s pure-Python derivation. GPU tools like btcrecover are ~50–100× faster but require setup; use <code>to-btcrecover.py</code> if this estimate is unworkable.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Step 5 — Generated commands</h2>
+    <p class="sub">Run these in order on the rented server. Don't paste the generated content into chat, email, or shared docs.</p>
+
+    <div class="step">
+      <h3>1. Download <code>recover.py</code></h3>
+      <p>Save to your laptop, then upload to the server in the next step.</p>
+      <a id="dl" class="dl" download="recover.py">⤓ Download recover.py</a>
+      <p class="footnote">SHA-256: <code id="sha-display">5d9123b50788ce5d5a937d832b06c16b1d0e2910301d6d78808480cdcc64e0e9</code> &mdash; the upload command below verifies the hash on the server.</p>
+    </div>
+
+    <div class="step">
+      <h3>2. Upload <code>recover.py</code> to server</h3>
+      <p>From your <em>laptop</em>:</p>
+      <div class="cmd-block">
+        <p class="label">copy &amp; paste — laptop terminal</p>
+        <pre class="cmd" id="cmd-upload">— fill in Step 1 first —</pre>
+        <button class="copy secondary" data-copy="cmd-upload">Copy</button>
+      </div>
+    </div>
+
+    <div class="step">
+      <h3>3. Lock down server &amp; run recovery</h3>
+      <p>SSH into the server, then paste this <em>entire block</em>:</p>
+      <div class="cmd-block">
+        <p class="label">copy &amp; paste — on server (after ssh)</p>
+        <pre class="cmd" id="cmd-run">— fill in the form first —</pre>
+        <button class="copy secondary" data-copy="cmd-run">Copy</button>
+      </div>
+      <p class="footnote">This disables swap + shell history + system logs, mounts a tmpfs working dir, verifies the script's SHA-256, then runs the recovery. If a match is found it prints the seed phrase to stdout. <strong>Write it on paper immediately.</strong></p>
+    </div>
+
+    <div class="step">
+      <h3>4. Tear-down</h3>
+      <p>After you've written the seed on paper and moved funds to a fresh wallet:</p>
+      <div class="cmd-block">
+        <p class="label">copy &amp; paste — on server</p>
+        <pre class="cmd" id="cmd-cleanup">cd ~ &amp;&amp; sudo umount /mnt/work 2>/dev/null; sudo rm -rf /mnt/work
+history -c; rm -f ~/.bash_history ~/.zsh_history
+echo "wipe done — now: full OS reinstall via host control panel, then cancel rental"</pre>
+        <button class="copy secondary" data-copy="cmd-cleanup">Copy</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast">Copied</div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const SHA256 = "5d9123b50788ce5d5a937d832b06c16b1d0e2910301d6d78808480cdcc64e0e9";
+  const RECOVER_B64 = "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwojIC8vLyBzY3JpcHQKIyByZXF1aXJlcy1weXRob24gPSAiPj0zLjEwIgojIGRlcGVuZGVuY2llcyA9IFsKIyAgICJldGgtYWNjb3VudD49MC4xMy4wIiwKIyAgICJ0cWRtPj00LjY2LjAiLAojIF0KIyAvLy8KIiIiQklQMzkgc2VlZCBwaHJhc2UgcmVjb3Zlcnkg4oCUIG11bHRpLXByb2Nlc3MgUHl0aG9uIENMSS4KCkZvciAxLTIgdW5rbm93biBwb3NpdGlvbnMgdGhlIGJyb3dzZXIgdG9vbCAocmVjb3Zlci5odG1sKSBpcyBmaW5lLgpUaGlzIGlzIGZvciAzKyB1bmtub3ducyB3aGVyZSB5b3UgbmVlZCBldmVyeSBjb3JlIHdvcmtpbmcgaW4gcGFyYWxsZWwuCgpVc2FnZToKICAgIHV2IHJ1biByZWNvdmVyLnB5ICAgICAgICAgICAgICAgICAgICAgICAgICAjIGludGVyYWN0aXZlIHByb21wdHMKICAgIHV2IHJ1biByZWNvdmVyLnB5IC0tdGFyZ2V0IDB4YWJjLi4uIC0tbGVuZ3RoIDEyIFwKICAgICAgICAtLXdvcmRzICJhYmFuZG9uLD8sYWJpbGl0eSw/LC4uLixhYm91dCIgXAogICAgICAgIC0tYWNjb3VudHMgMC05CgpJZiB5b3UgZG9uJ3QgaGF2ZSB1diwgaW5zdGFsbCBkZXBzIG1hbnVhbGx5IHRoZW4gcnVuIHdpdGggcHl0aG9uMzoKICAgIHBpcCBpbnN0YWxsIGV0aC1hY2NvdW50IHRxZG0KICAgIHB5dGhvbjMgcmVjb3Zlci5weQoKUlVOIE9GRkxJTkUuIERpc2Nvbm5lY3QgZnJvbSB0aGUgaW50ZXJuZXQgYmVmb3JlIGVudGVyaW5nIGFueSB3b3Jkcy4KIiIiCmZyb20gX19mdXR1cmVfXyBpbXBvcnQgYW5ub3RhdGlvbnMKCmltcG9ydCBhcmdwYXJzZQppbXBvcnQgbXVsdGlwcm9jZXNzaW5nIGFzIG1wCmltcG9ydCBzaWduYWwKaW1wb3J0IHN5cwppbXBvcnQgdGltZQpmcm9tIHR5cGluZyBpbXBvcnQgT3B0aW9uYWwKCgojIFdvcmtlci1wcm9jZXNzIGdsb2JhbHMgKGluaXRpYWxpc2VkIG9uY2UgcGVyIHdvcmtlciB2aWEgUG9vbCBpbml0aWFsaXplcikKX00gPSBOb25lCl9XT1JETElTVDogbGlzdFtzdHJdID0gW10KCgpkZWYgX3dvcmtlcl9pbml0KCkgLT4gTm9uZToKICAgICIiIkNhbGxlZCBvbmNlIHBlciBwb29sIHdvcmtlci4iIiIKICAgIGdsb2JhbCBfTSwgX1dPUkRMSVNUCiAgICBmcm9tIGV0aF9hY2NvdW50IGltcG9ydCBBY2NvdW50CiAgICBmcm9tIGV0aF9hY2NvdW50LmhkYWNjb3VudC5tbmVtb25pYyBpbXBvcnQgTGFuZ3VhZ2UsIE1uZW1vbmljCgogICAgQWNjb3VudC5lbmFibGVfdW5hdWRpdGVkX2hkd2FsbGV0X2ZlYXR1cmVzKCkKICAgIF9NID0gTW5lbW9uaWMoTGFuZ3VhZ2UuRU5HTElTSCkKICAgIF9XT1JETElTVCA9IGxpc3QoX00ud29yZGxpc3QpCiAgICAjIFdvcmtlcnMgaWdub3JlIFNJR0lOVDsgdGhlIHBhcmVudCBoYW5kbGVzIEN0cmwtQyBhbmQgdGVybWluYXRlcyB0aGUgcG9vbC4KICAgIHNpZ25hbC5zaWduYWwoc2lnbmFsLlNJR0lOVCwgc2lnbmFsLlNJR19JR04pCgoKZGVmIF9zZWFyY2hfY2h1bmsoYXJnczogdHVwbGUpIC0+IE9wdGlvbmFsW3R1cGxlW3N0ciwgc3RyLCBzdHIsIGludF1dOgogICAgIiIiUHJvY2VzcyBvbmUgY2h1bms7IHJldHVybiAocGhyYXNlLCBwYXRoLCBhZGRyZXNzLCBjYW5kaWRhdGVzX3ZhbGlkYXRlZCkgb3IgTm9uZS4KCiAgICBhcmdzOiAoY2h1bmtfc3RhcnQsIGNodW5rX2NvdW50LCBjYW5kaWRhdGVzX3Blcl9wb3MsIHBhdGhfdHBsLAogICAgICAgICAgIGFjY291bnRfaW5kaWNlcywgdGFyZ2V0X2xjLCByZXF1aXJlZF9zZXQpCgogICAgY2FuZGlkYXRlc19wZXJfcG9zOiBsaXN0W2xpc3Rbc3RyXV0g4oCUIGNhbmRpZGF0ZSB3b3JkcyBhdCBlYWNoIHBvc2l0aW9uLgogICAgICAgIEFuY2hvcmVkIHBvc2l0aW9uIGhhcyBhIHNpbmdsZS1lbGVtZW50IGxpc3Q7IHBvb2wgaGFzIHRoZSBwb29sIGxpc3Q7CiAgICAgICAgZnVsbCB1bmtub3duIGhhcyB0aGUgZnVsbCAyMDQ4LXdvcmQgQklQMzkgd29yZGxpc3QuCiAgICByZXF1aXJlZF9zZXQ6IGZyb3plbnNldFtzdHJdIOKAlCBhdC1sZWFzdC1vbmUgbXVzdCBhcHBlYXIgaW4gdGhlIHBocmFzZS4KICAgICAgICBFbXB0eSBzZXQgZGlzYWJsZXMgdGhlIGZpbHRlci4KICAgICIiIgogICAgKAogICAgICAgIGNodW5rX3N0YXJ0LAogICAgICAgIGNodW5rX2NvdW50LAogICAgICAgIGNhbmRpZGF0ZXNfcGVyX3BvcywKICAgICAgICBwYXRoX3RwbCwKICAgICAgICBhY2NvdW50X2luZGljZXMsCiAgICAgICAgdGFyZ2V0X2xjLAogICAgICAgIHJlcXVpcmVkX3NldCwKICAgICkgPSBhcmdzCgogICAgZnJvbSBldGhfYWNjb3VudCBpbXBvcnQgQWNjb3VudAogICAgZnJvbSBldGhfYWNjb3VudC5oZGFjY291bnQgaW1wb3J0IGtleV9mcm9tX3NlZWQsIHNlZWRfZnJvbV9tbmVtb25pYwoKICAgIGlmIF9NIGlzIE5vbmU6CiAgICAgICAgX3dvcmtlcl9pbml0KCkKCiAgICBsZW5ndGggPSBsZW4oY2FuZGlkYXRlc19wZXJfcG9zKQogICAgc2l6ZXMgPSBbbGVuKGMpIGZvciBjIGluIGNhbmRpZGF0ZXNfcGVyX3Bvc10KICAgIHBocmFzZTogbGlzdFtPcHRpb25hbFtzdHJdXSA9IFtOb25lXSAqIGxlbmd0aAogICAgdmFsaWRhdGVkID0gMAoKICAgIGZvciBvZmZzZXQgaW4gcmFuZ2UoY2h1bmtfY291bnQpOgogICAgICAgIGxpbmVhciA9IGNodW5rX3N0YXJ0ICsgb2Zmc2V0CiAgICAgICAgZm9yIGkgaW4gcmFuZ2UobGVuZ3RoKToKICAgICAgICAgICAgcGhyYXNlW2ldID0gY2FuZGlkYXRlc19wZXJfcG9zW2ldW2xpbmVhciAlIHNpemVzW2ldXQogICAgICAgICAgICBsaW5lYXIgLy89IHNpemVzW2ldCgogICAgICAgIGlmIHJlcXVpcmVkX3NldCBhbmQgcmVxdWlyZWRfc2V0LmlzZGlzam9pbnQocGhyYXNlKToKICAgICAgICAgICAgY29udGludWUKCiAgICAgICAgcGhyYXNlX3N0ciA9ICIgIi5qb2luKHBocmFzZSkgICMgdHlwZTogaWdub3JlW2FyZy10eXBlXQogICAgICAgIGlmIG5vdCBfTS5pc19tbmVtb25pY192YWxpZChwaHJhc2Vfc3RyKToKICAgICAgICAgICAgY29udGludWUKICAgICAgICB2YWxpZGF0ZWQgKz0gMQoKICAgICAgICBzZWVkID0gc2VlZF9mcm9tX21uZW1vbmljKHBocmFzZV9zdHIsICIiKQogICAgICAgIGZvciBhIGluIGFjY291bnRfaW5kaWNlczoKICAgICAgICAgICAgcGF0aCA9IHBhdGhfdHBsLnJlcGxhY2UoIntpfSIsIHN0cihhKSkKICAgICAgICAgICAgdHJ5OgogICAgICAgICAgICAgICAga2V5ID0ga2V5X2Zyb21fc2VlZChzZWVkLCBhY2NvdW50X3BhdGg9cGF0aCkKICAgICAgICAgICAgICAgIGFkZHIgPSBBY2NvdW50LmZyb21fa2V5KGtleSkuYWRkcmVzcwogICAgICAgICAgICBleGNlcHQgRXhjZXB0aW9uOgogICAgICAgICAgICAgICAgY29udGludWUKICAgICAgICAgICAgaWYgYWRkci5sb3dlcigpID09IHRhcmdldF9sYzoKICAgICAgICAgICAgICAgIHJldHVybiAocGhyYXNlX3N0ciwgcGF0aCwgYWRkciwgdmFsaWRhdGVkKQoKICAgIHJldHVybiAoTm9uZSwgTm9uZSwgTm9uZSwgdmFsaWRhdGVkKQoKCmRlZiBfcGFyc2Vfd29yZF9zcGVjKHJhdzogc3RyLCB3b3Jkc2V0OiBzZXRbc3RyXSwgd29yZGxpc3Q6IGxpc3Rbc3RyXSkgLT4gdHVwbGVbc3RyLCBsaXN0W3N0cl1dOgogICAgIiIiUGFyc2Ugb25lIHdvcmQgZW50cnkuIFJldHVybnMgKGtpbmQsIGNhbmRpZGF0ZXMpLgoKICAgIGtpbmQ6ICdhbmNob3InIHwgJ3Vua25vd24nIHwgJ3Bvb2wnCiAgICBjYW5kaWRhdGVzOiBsaXN0IG9mIGNhbmRpZGF0ZSBCSVAzOSB3b3JkcyAoc2luZ2xlIGVsZW1lbnQgZm9yIGFuY2hvcikuCgogICAgQWNjZXB0ZWQgZm9ybXM6CiAgICAgICAgJycgICAgICAgICAgIOKGkiAoJ3Vua25vd24nLCBXT1JETElTVCkKICAgICAgICAnPycgICAgICAgICAg4oaSICgndW5rbm93bicsIFdPUkRMSVNUKQogICAgICAgICdjYXQnICAgICAgICDihpIgKCdhbmNob3InLCBbJ2NhdCddKQogICAgICAgICdjYXQ7ZG9nOy4uJyDihpIgKCdwb29sJywgWydjYXQnLCAnZG9nJywgLi4uXSkKICAgICIiIgogICAgdyA9IHJhdy5zdHJpcCgpLmxvd2VyKCkKICAgIGlmIHcgaW4gKCIiLCAiPyIpOgogICAgICAgIHJldHVybiAoInVua25vd24iLCB3b3JkbGlzdCkKICAgIGlmICI7IiBpbiB3OgogICAgICAgIHBvb2wgPSBbeC5zdHJpcCgpLmxvd2VyKCkgZm9yIHggaW4gdy5zcGxpdCgiOyIpIGlmIHguc3RyaXAoKV0KICAgICAgICBpZiBub3QgcG9vbDoKICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcigiZW1wdHkgcG9vbCIpCiAgICAgICAgYmFkID0gW3ggZm9yIHggaW4gcG9vbCBpZiB4IG5vdCBpbiB3b3Jkc2V0XQogICAgICAgIGlmIGJhZDoKICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcihmInBvb2wgd29yZHMgbm90IGluIEJJUDM5IHdvcmRsaXN0OiB7YmFkfSIpCiAgICAgICAgIyBEZWR1cGUgd2hpbGUgcHJlc2VydmluZyBvcmRlcgogICAgICAgIHNlZW46IHNldFtzdHJdID0gc2V0KCkKICAgICAgICBkZWR1cGVkID0gW3ggZm9yIHggaW4gcG9vbCBpZiBub3QgKHggaW4gc2VlbiBvciBzZWVuLmFkZCh4KSldCiAgICAgICAgcmV0dXJuICgicG9vbCIsIGRlZHVwZWQpCiAgICBpZiB3IGluIHdvcmRzZXQ6CiAgICAgICAgcmV0dXJuICgiYW5jaG9yIiwgW3ddKQogICAgcmFpc2UgVmFsdWVFcnJvcihmIid7d30nIGlzIG5vdCBhIEJJUDM5IHdvcmQiKQoKCmRlZiBfcGFyc2VfYWNjb3VudHMoczogc3RyKSAtPiBsaXN0W2ludF06CiAgICBpZiAiLSIgaW4gczoKICAgICAgICBsbywgaGkgPSBzLnNwbGl0KCItIiwgMSkKICAgICAgICByZXR1cm4gbGlzdChyYW5nZShpbnQobG8pLCBpbnQoaGkpICsgMSkpCiAgICByZXR1cm4gW2ludChzKV0KCgpkZWYgX2lzX2V0aF9hZGRyZXNzKHM6IHN0cikgLT4gYm9vbDoKICAgIGlmIG5vdCAocy5zdGFydHN3aXRoKCIweCIpIGFuZCBsZW4ocykgPT0gNDIpOgogICAgICAgIHJldHVybiBGYWxzZQogICAgdHJ5OgogICAgICAgIGludChzLCAxNikKICAgICAgICByZXR1cm4gVHJ1ZQogICAgZXhjZXB0IFZhbHVlRXJyb3I6CiAgICAgICAgcmV0dXJuIEZhbHNlCgoKZGVmIF9wcmludF9tYXRjaChwaHJhc2U6IHN0ciwgcGF0aDogc3RyLCBhZGRyOiBzdHIpIC0+IE5vbmU6CiAgICBiYXIgPSAiPSIgKiA2NAogICAgcHJpbnQoKQogICAgcHJpbnQoYmFyKQogICAgcHJpbnQoIk1BVENIIEZPVU5EIikKICAgIHByaW50KGJhcikKICAgIHByaW50KGYiUGhyYXNlOiAge3BocmFzZX0iKQogICAgcHJpbnQoZiJQYXRoOiAgICB7cGF0aH0iKQogICAgcHJpbnQoZiJBZGRyZXNzOiB7YWRkcn0iKQogICAgcHJpbnQoYmFyKQogICAgcHJpbnQoIldyaXRlIHRoZSBwaHJhc2UgZG93biBvbiBwYXBlciBub3cuIikKICAgIHByaW50KCJUaGVuIGNsb3NlIHRoaXMgdGVybWluYWwgYW5kIGNsZWFyIHNoZWxsIGhpc3RvcnkgKGUuZy4gYGhpc3RvcnkgLWNgKS4iKQoKCmRlZiBfaW50ZXJhY3RpdmVfd29yZHMobGVuZ3RoOiBpbnQsIHdvcmRzZXQ6IHNldFtzdHJdLCB3b3JkbGlzdDogbGlzdFtzdHJdKSAtPiBsaXN0W3N0cl06CiAgICBwcmludChmIlxuRW50ZXIge2xlbmd0aH0gd29yZHMgYnkgcG9zaXRpb24uIEVhY2ggZW50cnkgY2FuIGJlOiIpCiAgICBwcmludCgiICAgIGEgc2luZ2xlIHdvcmQgKGFuY2hvcmVkKSAgICAgICAgZS5nLiAgYWJhbmRvbiIpCiAgICBwcmludCgiICAgID8gb3IgYmxhbmsgKGFueSBCSVAzOSB3b3JkKSAgICAgZS5nLiAgPyIpCiAgICBwcmludCgiICAgIHBvb2wgb2YgY2FuZGlkYXRlcyAgICAgICAgICAgICAgZS5nLiAgY2F0O2RvZztiaXJkIikKICAgIHdvcmRzOiBsaXN0W3N0cl0gPSBbXQogICAgZm9yIGkgaW4gcmFuZ2UobGVuZ3RoKToKICAgICAgICB3aGlsZSBUcnVlOgogICAgICAgICAgICB0cnk6CiAgICAgICAgICAgICAgICByYXcgPSBpbnB1dChmIiAge2kgKyAxOjJkfTogIikuc3RyaXAoKQogICAgICAgICAgICBleGNlcHQgRU9GRXJyb3I6CiAgICAgICAgICAgICAgICBwcmludCgpCiAgICAgICAgICAgICAgICBzeXMuZXhpdCgxKQogICAgICAgICAgICB0cnk6CiAgICAgICAgICAgICAgICBfcGFyc2Vfd29yZF9zcGVjKHJhdywgd29yZHNldCwgd29yZGxpc3QpCiAgICAgICAgICAgICAgICB3b3Jkcy5hcHBlbmQocmF3KQogICAgICAgICAgICAgICAgYnJlYWsKICAgICAgICAgICAgZXhjZXB0IFZhbHVlRXJyb3IgYXMgZToKICAgICAgICAgICAgICAgIHByaW50KGYiICAgICB7ZX0iKQogICAgICAgICAgICAgICAgaWYgbm90IHJhdy5zdGFydHN3aXRoKCI/IikgYW5kICI7IiBub3QgaW4gcmF3IGFuZCByYXc6CiAgICAgICAgICAgICAgICAgICAgbWF0Y2hlcyA9IFt4IGZvciB4IGluIHdvcmRsaXN0IGlmIHguc3RhcnRzd2l0aChyYXcubG93ZXIoKVs6NF0pXVs6NV0KICAgICAgICAgICAgICAgICAgICBpZiBtYXRjaGVzOgogICAgICAgICAgICAgICAgICAgICAgICBwcmludChmIiAgICAgZGlkIHlvdSBtZWFuOiB7JywgJy5qb2luKG1hdGNoZXMpfSIpCiAgICByZXR1cm4gd29yZHMKCgpkZWYgbWFpbigpIC0+IGludDoKICAgIHAgPSBhcmdwYXJzZS5Bcmd1bWVudFBhcnNlcigKICAgICAgICBkZXNjcmlwdGlvbj1fX2RvY19fLAogICAgICAgIGZvcm1hdHRlcl9jbGFzcz1hcmdwYXJzZS5SYXdEZXNjcmlwdGlvbkhlbHBGb3JtYXR0ZXIsCiAgICApCiAgICBwLmFkZF9hcmd1bWVudCgiLS10YXJnZXQiLCBoZWxwPSJUYXJnZXQgRVRIIGFkZHJlc3MgKDB4Li4uKSIpCiAgICBwLmFkZF9hcmd1bWVudCgiLS1sZW5ndGgiLCB0eXBlPWludCwgY2hvaWNlcz1bMTIsIDI0XSwgaGVscD0iUGhyYXNlIGxlbmd0aCAoMTIgb3IgMjQpIikKICAgIHAuYWRkX2FyZ3VtZW50KAogICAgICAgICItLXdvcmRzIiwKICAgICAgICBoZWxwPSJDb21tYS1zZXBhcmF0ZWQgd29yZCBzcGVjcy4gRWFjaCBzcGVjIGlzIG9uZSBvZjogIgogICAgICAgICJhIEJJUDM5IHdvcmQgKGFuY2hvcmVkKSwgJz8nIChmdWxsIHVua25vd24pLCAiCiAgICAgICAgIm9yIGEgc2VtaWNvbG9uLXNlcGFyYXRlZCBwb29sIGUuZy4gJ2NhdDtkb2c7YmlyZCcuICIKICAgICAgICAiRXhhbXBsZTogJ2FiYW5kb24sPyxjYXQ7ZG9nO2JpcmQsYWJvdXQnIiwKICAgICkKICAgIHAuYWRkX2FyZ3VtZW50KAogICAgICAgICItLXJlcXVpcmVkIiwKICAgICAgICBoZWxwPSJDb21tYS1zZXBhcmF0ZWQgd29yZHM7IHRoZSBwaHJhc2UgbXVzdCBjb250YWluIGF0IGxlYXN0IG9uZSBvZiB0aGVtIHNvbWV3aGVyZS4iLAogICAgKQogICAgcC5hZGRfYXJndW1lbnQoCiAgICAgICAgIi0tcGF0aCIsCiAgICAgICAgZGVmYXVsdD0ibS80NCcvNjAnLzAnLzAve2l9IiwKICAgICAgICBoZWxwPSJEZXJpdmF0aW9uIHBhdGggdGVtcGxhdGU7IHtpfSA9IGFjY291bnQgaW5kZXggKGRlZmF1bHQ6ICUoZGVmYXVsdClzKSIsCiAgICApCiAgICBwLmFkZF9hcmd1bWVudCgKICAgICAgICAiLS1hY2NvdW50cyIsCiAgICAgICAgZGVmYXVsdD0iMC00IiwKICAgICAgICBoZWxwPSJBY2NvdW50IGluZGV4IHJhbmdlLCBlLmcuIDAtOSAoZGVmYXVsdDogJShkZWZhdWx0KXMpIiwKICAgICkKICAgIHAuYWRkX2FyZ3VtZW50KAogICAgICAgICItLXdvcmtlcnMiLAogICAgICAgIHR5cGU9aW50LAogICAgICAgIGRlZmF1bHQ9bXAuY3B1X2NvdW50KCksCiAgICAgICAgaGVscD0iUGFyYWxsZWwgd29ya2VyIHByb2Nlc3NlcyAoZGVmYXVsdDogJShkZWZhdWx0KXMpIiwKICAgICkKICAgIHAuYWRkX2FyZ3VtZW50KAogICAgICAgICItLWNodW5rLXNpemUiLAogICAgICAgIHR5cGU9aW50LAogICAgICAgIGRlZmF1bHQ9MzI3NjgsCiAgICAgICAgaGVscD0iQ2FuZGlkYXRlcyBwZXIgd29ya2VyIGNodW5rIChkZWZhdWx0OiAlKGRlZmF1bHQpcykuICIKICAgICAgICAiU21hbGxlciA9IG1vcmUgcHJvZ3Jlc3MgdXBkYXRlczsgbGFyZ2VyID0gbGVzcyBJUEMgb3ZlcmhlYWQuIiwKICAgICkKICAgIHAuYWRkX2FyZ3VtZW50KCItLXllcyIsIGFjdGlvbj0ic3RvcmVfdHJ1ZSIsIGhlbHA9IlNraXAgY29uZmlybWF0aW9uIHByb21wdCIpCiAgICBhcmdzID0gcC5wYXJzZV9hcmdzKCkKCiAgICB0cnk6CiAgICAgICAgZnJvbSBldGhfYWNjb3VudCBpbXBvcnQgQWNjb3VudAogICAgICAgIGZyb20gZXRoX2FjY291bnQuaGRhY2NvdW50Lm1uZW1vbmljIGltcG9ydCBMYW5ndWFnZSwgTW5lbW9uaWMKICAgICAgICBmcm9tIHRxZG0gaW1wb3J0IHRxZG0KICAgIGV4Y2VwdCBJbXBvcnRFcnJvciBhcyBlOgogICAgICAgIHByaW50KGYibWlzc2luZyBkZXBlbmRlbmN5OiB7ZX0iLCBmaWxlPXN5cy5zdGRlcnIpCiAgICAgICAgcHJpbnQoImluc3RhbGw6ICBwaXAgaW5zdGFsbCBldGgtYWNjb3VudCB0cWRtIiwgZmlsZT1zeXMuc3RkZXJyKQogICAgICAgIHByaW50KCJvcjogICAgICAgdXYgcnVuIHJlY292ZXIucHkgIChhdXRvLWluc3RhbGxzKSIsIGZpbGU9c3lzLnN0ZGVycikKICAgICAgICByZXR1cm4gMQoKICAgIEFjY291bnQuZW5hYmxlX3VuYXVkaXRlZF9oZHdhbGxldF9mZWF0dXJlcygpCiAgICBtID0gTW5lbW9uaWMoTGFuZ3VhZ2UuRU5HTElTSCkKICAgIHdvcmRsaXN0ID0gbGlzdChtLndvcmRsaXN0KQogICAgd29yZHNldCA9IHNldCh3b3JkbGlzdCkKICAgIGFzc2VydCBsZW4od29yZGxpc3QpID09IDIwNDggYW5kIHdvcmRsaXN0WzBdID09ICJhYmFuZG9uIiBhbmQgd29yZGxpc3RbLTFdID09ICJ6b28iCgogICAgIyBTZWxmLXRlc3Q6IGRlcml2ZSBjYW5vbmljYWwgemVyby12ZWN0b3IgcGhyYXNlIHRvIGNvbmZpcm0gdGhlIGNyeXB0byBwYXRoIGlzIGludGFjdC4KICAgIGZyb20gZXRoX2FjY291bnQuaGRhY2NvdW50IGltcG9ydCBrZXlfZnJvbV9zZWVkLCBzZWVkX2Zyb21fbW5lbW9uaWMKICAgIHRlc3RfcGhyYXNlID0gIiAiLmpvaW4oWyJhYmFuZG9uIl0gKiAxMSArIFsiYWJvdXQiXSkKICAgIHRlc3Rfc2VlZCA9IHNlZWRfZnJvbV9tbmVtb25pYyh0ZXN0X3BocmFzZSwgIiIpCiAgICB0ZXN0X2tleSA9IGtleV9mcm9tX3NlZWQodGVzdF9zZWVkLCBhY2NvdW50X3BhdGg9Im0vNDQnLzYwJy8wJy8wLzAiKQogICAgdGVzdF9hZGRyID0gQWNjb3VudC5mcm9tX2tleSh0ZXN0X2tleSkuYWRkcmVzcwogICAgaWYgdGVzdF9hZGRyLmxvd2VyKCkgIT0gIjB4OTg1OGVmZmQyMzJiNDAzM2U0N2Q5MDAwM2Q0MWVjMzRlY2FlZGE5NCI6CiAgICAgICAgcHJpbnQoZiJGQVRBTDogY3J5cHRvIHNlbGYtdGVzdCBmYWlsZWQ7IGdvdCB7dGVzdF9hZGRyfSIsIGZpbGU9c3lzLnN0ZGVycikKICAgICAgICByZXR1cm4gMQoKICAgIHByaW50KCI9PT0gQklQMzkgc2VlZCByZWNvdmVyeSAob2ZmbGluZSkgPT09IikKICAgIHByaW50KCJEaXNjb25uZWN0IGZyb20gdGhlIGludGVybmV0IGJlZm9yZSBjb250aW51aW5nLiIpCgogICAgIyAtLS0gTGVuZ3RoIC0tLQogICAgbGVuZ3RoID0gYXJncy5sZW5ndGgKICAgIGlmIGxlbmd0aCBpcyBOb25lOgogICAgICAgIHdoaWxlIFRydWU6CiAgICAgICAgICAgIHRyeToKICAgICAgICAgICAgICAgIHYgPSBpbnB1dCgiXG5QaHJhc2UgbGVuZ3RoIFsxMi8yNF06ICIpLnN0cmlwKCkKICAgICAgICAgICAgZXhjZXB0IEVPRkVycm9yOgogICAgICAgICAgICAgICAgcmV0dXJuIDEKICAgICAgICAgICAgaWYgdiBpbiAoIjEyIiwgIjI0Iik6CiAgICAgICAgICAgICAgICBsZW5ndGggPSBpbnQodikKICAgICAgICAgICAgICAgIGJyZWFrCiAgICAgICAgICAgIHByaW50KCJNdXN0IGJlIDEyIG9yIDI0IikKCiAgICAjIC0tLSBUYXJnZXQgYWRkcmVzcyAtLS0KICAgIHRhcmdldCA9IGFyZ3MudGFyZ2V0CiAgICBpZiB0YXJnZXQgaXMgTm9uZToKICAgICAgICB0cnk6CiAgICAgICAgICAgIHRhcmdldCA9IGlucHV0KCJUYXJnZXQgRVRIIGFkZHJlc3MgKDB4Li4uKTogIikuc3RyaXAoKQogICAgICAgIGV4Y2VwdCBFT0ZFcnJvcjoKICAgICAgICAgICAgcmV0dXJuIDEKICAgIGlmIG5vdCBfaXNfZXRoX2FkZHJlc3ModGFyZ2V0KToKICAgICAgICBwcmludChmImVycm9yOiBpbnZhbGlkIEVUSCBhZGRyZXNzOiB7dGFyZ2V0fSIsIGZpbGU9c3lzLnN0ZGVycikKICAgICAgICByZXR1cm4gMQogICAgdGFyZ2V0X2xjID0gdGFyZ2V0Lmxvd2VyKCkKCiAgICAjIC0tLSBBY2NvdW50IHJhbmdlIC0tLQogICAgdHJ5OgogICAgICAgIGFjY291bnRfaW5kaWNlcyA9IF9wYXJzZV9hY2NvdW50cyhhcmdzLmFjY291bnRzKQogICAgZXhjZXB0IFZhbHVlRXJyb3I6CiAgICAgICAgcHJpbnQoZiJlcnJvcjogaW52YWxpZCAtLWFjY291bnRzOiB7YXJncy5hY2NvdW50c30iLCBmaWxlPXN5cy5zdGRlcnIpCiAgICAgICAgcmV0dXJuIDEKICAgIGlmIG5vdCBhY2NvdW50X2luZGljZXMgb3IgYW55KGEgPCAwIGZvciBhIGluIGFjY291bnRfaW5kaWNlcyk6CiAgICAgICAgcHJpbnQoZiJlcnJvcjogaW52YWxpZCAtLWFjY291bnRzOiB7YXJncy5hY2NvdW50c30iLCBmaWxlPXN5cy5zdGRlcnIpCiAgICAgICAgcmV0dXJuIDEKCiAgICAjIC0tLSBQYXRoIC0tLQogICAgcGF0aF90cGwgPSBhcmdzLnBhdGgKICAgIGlmIG5vdCBwYXRoX3RwbC5zdGFydHN3aXRoKCJtLyIpOgogICAgICAgIHByaW50KGYiZXJyb3I6IGRlcml2YXRpb24gcGF0aCBtdXN0IHN0YXJ0IHdpdGggJ20vJzoge3BhdGhfdHBsfSIsIGZpbGU9c3lzLnN0ZGVycikKICAgICAgICByZXR1cm4gMQoKICAgICMgLS0tIFdvcmRzIC0tLQogICAgaWYgYXJncy53b3JkczoKICAgICAgICB3b3JkX3NwZWNzID0gW3cuc3RyaXAoKSBmb3IgdyBpbiBhcmdzLndvcmRzLnNwbGl0KCIsIildCiAgICBlbHNlOgogICAgICAgIHdvcmRfc3BlY3MgPSBfaW50ZXJhY3RpdmVfd29yZHMobGVuZ3RoLCB3b3Jkc2V0LCB3b3JkbGlzdCkKCiAgICBpZiBsZW4od29yZF9zcGVjcykgIT0gbGVuZ3RoOgogICAgICAgIHByaW50KGYiZXJyb3I6IGdvdCB7bGVuKHdvcmRfc3BlY3MpfSB3b3JkIHNwZWNzLCBleHBlY3RlZCB7bGVuZ3RofSIsIGZpbGU9c3lzLnN0ZGVycikKICAgICAgICByZXR1cm4gMQoKICAgIGNhbmRpZGF0ZXNfcGVyX3BvczogbGlzdFtsaXN0W3N0cl1dID0gW10KICAgIGtpbmRzOiBsaXN0W3N0cl0gPSBbXQogICAgZm9yIGksIHJhdyBpbiBlbnVtZXJhdGUod29yZF9zcGVjcyk6CiAgICAgICAgdHJ5OgogICAgICAgICAgICBraW5kLCBjYW5kcyA9IF9wYXJzZV93b3JkX3NwZWMocmF3LCB3b3Jkc2V0LCB3b3JkbGlzdCkKICAgICAgICBleGNlcHQgVmFsdWVFcnJvciBhcyBlOgogICAgICAgICAgICBwcmludChmImVycm9yOiBwb3NpdGlvbiB7aSArIDF9OiB7ZX0iLCBmaWxlPXN5cy5zdGRlcnIpCiAgICAgICAgICAgIHJldHVybiAxCiAgICAgICAga2luZHMuYXBwZW5kKGtpbmQpCiAgICAgICAgY2FuZGlkYXRlc19wZXJfcG9zLmFwcGVuZChjYW5kcykKCiAgICAjIC0tLSBSZXF1aXJlZC1zZXQgLS0tCiAgICByZXF1aXJlZF9zZXQ6IGZyb3plbnNldFtzdHJdID0gZnJvemVuc2V0KCkKICAgIGlmIGFyZ3MucmVxdWlyZWQ6CiAgICAgICAgcmVxID0gW3cuc3RyaXAoKS5sb3dlcigpIGZvciB3IGluIGFyZ3MucmVxdWlyZWQuc3BsaXQoIiwiKSBpZiB3LnN0cmlwKCldCiAgICAgICAgYmFkID0gW3cgZm9yIHcgaW4gcmVxIGlmIHcgbm90IGluIHdvcmRzZXRdCiAgICAgICAgaWYgYmFkOgogICAgICAgICAgICBwcmludChmImVycm9yOiAtLXJlcXVpcmVkIHdvcmRzIG5vdCBpbiBCSVAzOSB3b3JkbGlzdDoge2JhZH0iLCBmaWxlPXN5cy5zdGRlcnIpCiAgICAgICAgICAgIHJldHVybiAxCiAgICAgICAgcmVxdWlyZWRfc2V0ID0gZnJvemVuc2V0KHJlcSkKCiAgICBuX2FuY2hvcmVkID0gc3VtKDEgZm9yIGsgaW4ga2luZHMgaWYgayA9PSAiYW5jaG9yIikKICAgIG5fcG9vbCA9IHN1bSgxIGZvciBrIGluIGtpbmRzIGlmIGsgPT0gInBvb2wiKQogICAgbl91bmtub3duID0gc3VtKDEgZm9yIGsgaW4ga2luZHMgaWYgayA9PSAidW5rbm93biIpCgogICAgIyBUb3RhbCByYXcgc2VhcmNoIHNwYWNlIGFuZCBwb3N0LWNoZWNrc3VtIGVzdGltYXRlCiAgICByYXcgPSAxCiAgICBmb3IgYyBpbiBjYW5kaWRhdGVzX3Blcl9wb3M6CiAgICAgICAgcmF3ICo9IGxlbihjKQoKICAgIGxhc3Rfc2l6ZSA9IGxlbihjYW5kaWRhdGVzX3Blcl9wb3NbLTFdKQogICAgaWYgbGFzdF9zaXplID4gMToKICAgICAgICBjc19kaXYgPSAxNiBpZiBsZW5ndGggPT0gMTIgZWxzZSAyNTYKICAgIGVsc2U6CiAgICAgICAgY3NfZGl2ID0gMQogICAgZmlsdGVyZWQgPSBtYXgocmF3IC8vIGNzX2RpdiwgMSkKCiAgICBwb29sX3N1bW1hcnkgPSAiIgogICAgZm9yIGksIGsgaW4gZW51bWVyYXRlKGtpbmRzKToKICAgICAgICBpZiBrID09ICJwb29sIjoKICAgICAgICAgICAgcG9vbF9zdW1tYXJ5ICs9IGYiXG4gICAgcG9zIHtpICsgMX06IHBvb2wgb2Yge2xlbihjYW5kaWRhdGVzX3Blcl9wb3NbaV0pfSBjYW5kaWRhdGVzIgoKICAgIHByaW50KGYiXG5Qb3NpdGlvbiBicmVha2Rvd246IHtuX2FuY2hvcmVkfSBhbmNob3JlZCwge25fcG9vbH0gcG9vbCwge25fdW5rbm93bn0gZnVsbC11bmtub3due3Bvb2xfc3VtbWFyeX0iKQogICAgcHJpbnQoZiJSYXcgc2VhcmNoIHNwYWNlOiAgIHtyYXc6LH0iKQogICAgcHJpbnQoZiJBZnRlciBjaGVja3N1bTogICAgIHtmaWx0ZXJlZDosfSIpCiAgICBpZiByZXF1aXJlZF9zZXQ6CiAgICAgICAgcHJpbnQoZiJSZXF1aXJlZC1zZXQ6ICAgICAgIHtzb3J0ZWQocmVxdWlyZWRfc2V0KX0gKOKJpTEgbXVzdCBhcHBlYXIpIikKICAgIHByaW50KGYiV29ya2VyczogICAgICAgICAgICB7YXJncy53b3JrZXJzfSIpCiAgICBwcmludChmIkFjY291bnQgaW5kZXhlczogICAge2FjY291bnRfaW5kaWNlc30iKQogICAgcHJpbnQoZiJQYXRoIHRlbXBsYXRlOiAgICAgIHtwYXRoX3RwbH0iKQogICAgcHJpbnQoZiJUYXJnZXQ6ICAgICAgICAgICAgIHt0YXJnZXR9IikKCiAgICBpZiBub3QgYXJncy55ZXM6CiAgICAgICAgdHJ5OgogICAgICAgICAgICB2ID0gaW5wdXQoIlxuUHJvY2VlZD8gW3kvTl06ICIpLnN0cmlwKCkubG93ZXIoKQogICAgICAgIGV4Y2VwdCBFT0ZFcnJvcjoKICAgICAgICAgICAgcmV0dXJuIDEKICAgICAgICBpZiB2IG5vdCBpbiAoInkiLCAieWVzIik6CiAgICAgICAgICAgIHByaW50KCJhYm9ydGVkLiIpCiAgICAgICAgICAgIHJldHVybiAwCgogICAgIyAtLS0gWmVyby11bmtub3ducyBzaG9ydGN1dCAoZXZlcnkgcG9zaXRpb24gYW5jaG9yZWQgdG8gYSBzaW5nbGUgd29yZCkgLS0tCiAgICBpZiByYXcgPT0gMToKICAgICAgICBwaHJhc2Vfc3RyID0gIiAiLmpvaW4oY1swXSBmb3IgYyBpbiBjYW5kaWRhdGVzX3Blcl9wb3MpCiAgICAgICAgaWYgcmVxdWlyZWRfc2V0IGFuZCByZXF1aXJlZF9zZXQuaXNkaXNqb2ludChwaHJhc2Vfc3RyLnNwbGl0KCkpOgogICAgICAgICAgICBwcmludCgiXG5QaHJhc2UgZG9lcyBub3QgY29udGFpbiBhbnkgcmVxdWlyZWQtc2V0IHdvcmQuIikKICAgICAgICAgICAgcmV0dXJuIDEKICAgICAgICBpZiBub3QgbS5pc19tbmVtb25pY192YWxpZChwaHJhc2Vfc3RyKToKICAgICAgICAgICAgcHJpbnQoIlxuUGhyYXNlIGhhcyBpbnZhbGlkIEJJUDM5IGNoZWNrc3VtLiIpCiAgICAgICAgICAgIHJldHVybiAxCiAgICAgICAgc2VlZCA9IHNlZWRfZnJvbV9tbmVtb25pYyhwaHJhc2Vfc3RyLCAiIikKICAgICAgICBmb3IgYSBpbiBhY2NvdW50X2luZGljZXM6CiAgICAgICAgICAgIHBhdGggPSBwYXRoX3RwbC5yZXBsYWNlKCJ7aX0iLCBzdHIoYSkpCiAgICAgICAgICAgIGtleSA9IGtleV9mcm9tX3NlZWQoc2VlZCwgYWNjb3VudF9wYXRoPXBhdGgpCiAgICAgICAgICAgIGFkZHIgPSBBY2NvdW50LmZyb21fa2V5KGtleSkuYWRkcmVzcwogICAgICAgICAgICBpZiBhZGRyLmxvd2VyKCkgPT0gdGFyZ2V0X2xjOgogICAgICAgICAgICAgICAgX3ByaW50X21hdGNoKHBocmFzZV9zdHIsIHBhdGgsIGFkZHIpCiAgICAgICAgICAgICAgICByZXR1cm4gMAogICAgICAgIHByaW50KGYiXG5ObyBtYXRjaCBpbiBhY2NvdW50IHJhbmdlIHthcmdzLmFjY291bnRzfS4iKQogICAgICAgIHJldHVybiAxCgogICAgIyAtLS0gRGlzdHJpYnV0ZSB3b3JrIC0tLQogICAgY2h1bmtfc2l6ZSA9IG1heCgxLCBhcmdzLmNodW5rX3NpemUpCiAgICBuX2NodW5rcyA9IChyYXcgKyBjaHVua19zaXplIC0gMSkgLy8gY2h1bmtfc2l6ZQoKICAgIGRlZiBjaHVua19hcmdzX2l0ZXIoKToKICAgICAgICBmb3IgYyBpbiByYW5nZShuX2NodW5rcyk6CiAgICAgICAgICAgIHN0YXJ0ID0gYyAqIGNodW5rX3NpemUKICAgICAgICAgICAgY291bnQgPSBtaW4oY2h1bmtfc2l6ZSwgcmF3IC0gc3RhcnQpCiAgICAgICAgICAgIHlpZWxkICgKICAgICAgICAgICAgICAgIHN0YXJ0LAogICAgICAgICAgICAgICAgY291bnQsCiAgICAgICAgICAgICAgICBjYW5kaWRhdGVzX3Blcl9wb3MsCiAgICAgICAgICAgICAgICBwYXRoX3RwbCwKICAgICAgICAgICAgICAgIGFjY291bnRfaW5kaWNlcywKICAgICAgICAgICAgICAgIHRhcmdldF9sYywKICAgICAgICAgICAgICAgIHJlcXVpcmVkX3NldCwKICAgICAgICAgICAgKQoKICAgIHBvb2wgPSBtcC5Qb29sKGFyZ3Mud29ya2VycywgaW5pdGlhbGl6ZXI9X3dvcmtlcl9pbml0KQogICAgc3RhcnRfdGltZSA9IHRpbWUudGltZSgpCiAgICB0b3RhbF92YWxpZGF0ZWQgPSAwCiAgICBmb3VuZCA9IE5vbmUKCiAgICB0cnk6CiAgICAgICAgd2l0aCB0cWRtKHRvdGFsPWZpbHRlcmVkLCB1bml0PSJjYW5kIiwgc21vb3RoaW5nPTAuMDUsIG1pbmludGVydmFsPTAuNSkgYXMgcGJhcjoKICAgICAgICAgICAgZm9yIHJlc3VsdCBpbiBwb29sLmltYXBfdW5vcmRlcmVkKF9zZWFyY2hfY2h1bmssIGNodW5rX2FyZ3NfaXRlcigpKToKICAgICAgICAgICAgICAgIHBocmFzZV9zdHIsIHBhdGgsIGFkZHIsIHZhbGlkYXRlZCA9IHJlc3VsdAogICAgICAgICAgICAgICAgdG90YWxfdmFsaWRhdGVkICs9IHZhbGlkYXRlZAogICAgICAgICAgICAgICAgcGJhci51cGRhdGUodmFsaWRhdGVkKQogICAgICAgICAgICAgICAgaWYgcGhyYXNlX3N0ciBpcyBub3QgTm9uZToKICAgICAgICAgICAgICAgICAgICBmb3VuZCA9IChwaHJhc2Vfc3RyLCBwYXRoLCBhZGRyKQogICAgICAgICAgICAgICAgICAgIGJyZWFrCiAgICBleGNlcHQgS2V5Ym9hcmRJbnRlcnJ1cHQ6CiAgICAgICAgcHJpbnQoIlxuSW50ZXJydXB0ZWQgYnkgdXNlci4iLCBmaWxlPXN5cy5zdGRlcnIpCiAgICAgICAgcG9vbC50ZXJtaW5hdGUoKQogICAgICAgIHBvb2wuam9pbigpCiAgICAgICAgcmV0dXJuIDEzMAogICAgZmluYWxseToKICAgICAgICBwb29sLnRlcm1pbmF0ZSgpCiAgICAgICAgcG9vbC5qb2luKCkKCiAgICBlbGFwc2VkID0gdGltZS50aW1lKCkgLSBzdGFydF90aW1lCiAgICByYXRlID0gdG90YWxfdmFsaWRhdGVkIC8gZWxhcHNlZCBpZiBlbGFwc2VkID4gMCBlbHNlIDAKICAgIHByaW50KGYiXG5WYWxpZGF0ZWQge3RvdGFsX3ZhbGlkYXRlZDosfSBjYW5kaWRhdGVzIGluIHtlbGFwc2VkOi4xZn1zICh7cmF0ZTosLjBmfS9zZWMpLiIpCgogICAgaWYgZm91bmQ6CiAgICAgICAgX3ByaW50X21hdGNoKCpmb3VuZCkKICAgICAgICByZXR1cm4gMAoKICAgIHByaW50KCJcbk5vIG1hdGNoIGZvdW5kLiBQb3NzaWJsZSByZWFzb25zOiIpCiAgICBwcmludCgiICAtIE9uZSBvZiB0aGUga25vd24gd29yZHMgaXMgd3JvbmcgKG1hcmsgaXQgYXMgPyBhbmQgcmUtcnVuKSIpCiAgICBwcmludCgiICAtIFdyb25nIGRlcml2YXRpb24gcGF0aCAodHJ5IG0vNDQnLzYwJy97aX0nLzAvMCBmb3IgTGVkZ2VyIExpdmUpIikKICAgIHByaW50KCIgIC0gQWNjb3VudCByYW5nZSB0b28gbmFycm93ICh0cnkgLS1hY2NvdW50cyAwLTE5KSIpCiAgICBwcmludCgiICAtIFdyb25nIHBocmFzZSBsZW5ndGggKHRyeSB0aGUgb3RoZXIgb2YgMTIgLyAyNCkiKQogICAgcHJpbnQoIiAgLSBUYXJnZXQgYWRkcmVzcyBpcyBmcm9tIGEgZGlmZmVyZW50IHdhbGxldCIpCiAgICByZXR1cm4gMQoKCmlmIF9fbmFtZV9fID09ICJfX21haW5fXyI6CiAgICBzeXMuZXhpdChtYWluKCkpCg==";
+  const BIP39 = ["abandon","ability","able","about","above","absent","absorb","abstract","absurd","abuse","access","accident","account","accuse","achieve","acid","acoustic","acquire","across","act","action","actor","actress","actual","adapt","add","addict","address","adjust","admit","adult","advance","advice","aerobic","affair","afford","afraid","again","age","agent","agree","ahead","aim","air","airport","aisle","alarm","album","alcohol","alert","alien","all","alley","allow","almost","alone","alpha","already","also","alter","always","amateur","amazing","among","amount","amused","analyst","anchor","ancient","anger","angle","angry","animal","ankle","announce","annual","another","answer","antenna","antique","anxiety","any","apart","apology","appear","apple","approve","april","arch","arctic","area","arena","argue","arm","armed","armor","army","around","arrange","arrest","arrive","arrow","art","artefact","artist","artwork","ask","aspect","assault","asset","assist","assume","asthma","athlete","atom","attack","attend","attitude","attract","auction","audit","august","aunt","author","auto","autumn","average","avocado","avoid","awake","aware","away","awesome","awful","awkward","axis","baby","bachelor","bacon","badge","bag","balance","balcony","ball","bamboo","banana","banner","bar","barely","bargain","barrel","base","basic","basket","battle","beach","bean","beauty","because","become","beef","before","begin","behave","behind","believe","below","belt","bench","benefit","best","betray","better","between","beyond","bicycle","bid","bike","bind","biology","bird","birth","bitter","black","blade","blame","blanket","blast","bleak","bless","blind","blood","blossom","blouse","blue","blur","blush","board","boat","body","boil","bomb","bone","bonus","book","boost","border","boring","borrow","boss","bottom","bounce","box","boy","bracket","brain","brand","brass","brave","bread","breeze","brick","bridge","brief","bright","bring","brisk","broccoli","broken","bronze","broom","brother","brown","brush","bubble","buddy","budget","buffalo","build","bulb","bulk","bullet","bundle","bunker","burden","burger","burst","bus","business","busy","butter","buyer","buzz","cabbage","cabin","cable","cactus","cage","cake","call","calm","camera","camp","can","canal","cancel","candy","cannon","canoe","canvas","canyon","capable","capital","captain","car","carbon","card","cargo","carpet","carry","cart","case","cash","casino","castle","casual","cat","catalog","catch","category","cattle","caught","cause","caution","cave","ceiling","celery","cement","census","century","cereal","certain","chair","chalk","champion","change","chaos","chapter","charge","chase","chat","cheap","check","cheese","chef","cherry","chest","chicken","chief","child","chimney","choice","choose","chronic","chuckle","chunk","churn","cigar","cinnamon","circle","citizen","city","civil","claim","clap","clarify","claw","clay","clean","clerk","clever","click","client","cliff","climb","clinic","clip","clock","clog","close","cloth","cloud","clown","club","clump","cluster","clutch","coach","coast","coconut","code","coffee","coil","coin","collect","color","column","combine","come","comfort","comic","common","company","concert","conduct","confirm","congress","connect","consider","control","convince","cook","cool","copper","copy","coral","core","corn","correct","cost","cotton","couch","country","couple","course","cousin","cover","coyote","crack","cradle","craft","cram","crane","crash","crater","crawl","crazy","cream","credit","creek","crew","cricket","crime","crisp","critic","crop","cross","crouch","crowd","crucial","cruel","cruise","crumble","crunch","crush","cry","crystal","cube","culture","cup","cupboard","curious","current","curtain","curve","cushion","custom","cute","cycle","dad","damage","damp","dance","danger","daring","dash","daughter","dawn","day","deal","debate","debris","decade","december","decide","decline","decorate","decrease","deer","defense","define","defy","degree","delay","deliver","demand","demise","denial","dentist","deny","depart","depend","deposit","depth","deputy","derive","describe","desert","design","desk","despair","destroy","detail","detect","develop","device","devote","diagram","dial","diamond","diary","dice","diesel","diet","differ","digital","dignity","dilemma","dinner","dinosaur","direct","dirt","disagree","discover","disease","dish","dismiss","disorder","display","distance","divert","divide","divorce","dizzy","doctor","document","dog","doll","dolphin","domain","donate","donkey","donor","door","dose","double","dove","draft","dragon","drama","drastic","draw","dream","dress","drift","drill","drink","drip","drive","drop","drum","dry","duck","dumb","dune","during","dust","dutch","duty","dwarf","dynamic","eager","eagle","early","earn","earth","easily","east","easy","echo","ecology","economy","edge","edit","educate","effort","egg","eight","either","elbow","elder","electric","elegant","element","elephant","elevator","elite","else","embark","embody","embrace","emerge","emotion","employ","empower","empty","enable","enact","end","endless","endorse","enemy","energy","enforce","engage","engine","enhance","enjoy","enlist","enough","enrich","enroll","ensure","enter","entire","entry","envelope","episode","equal","equip","era","erase","erode","erosion","error","erupt","escape","essay","essence","estate","eternal","ethics","evidence","evil","evoke","evolve","exact","example","excess","exchange","excite","exclude","excuse","execute","exercise","exhaust","exhibit","exile","exist","exit","exotic","expand","expect","expire","explain","expose","express","extend","extra","eye","eyebrow","fabric","face","faculty","fade","faint","faith","fall","false","fame","family","famous","fan","fancy","fantasy","farm","fashion","fat","fatal","father","fatigue","fault","favorite","feature","february","federal","fee","feed","feel","female","fence","festival","fetch","fever","few","fiber","fiction","field","figure","file","film","filter","final","find","fine","finger","finish","fire","firm","first","fiscal","fish","fit","fitness","fix","flag","flame","flash","flat","flavor","flee","flight","flip","float","flock","floor","flower","fluid","flush","fly","foam","focus","fog","foil","fold","follow","food","foot","force","forest","forget","fork","fortune","forum","forward","fossil","foster","found","fox","fragile","frame","frequent","fresh","friend","fringe","frog","front","frost","frown","frozen","fruit","fuel","fun","funny","furnace","fury","future","gadget","gain","galaxy","gallery","game","gap","garage","garbage","garden","garlic","garment","gas","gasp","gate","gather","gauge","gaze","general","genius","genre","gentle","genuine","gesture","ghost","giant","gift","giggle","ginger","giraffe","girl","give","glad","glance","glare","glass","glide","glimpse","globe","gloom","glory","glove","glow","glue","goat","goddess","gold","good","goose","gorilla","gospel","gossip","govern","gown","grab","grace","grain","grant","grape","grass","gravity","great","green","grid","grief","grit","grocery","group","grow","grunt","guard","guess","guide","guilt","guitar","gun","gym","habit","hair","half","hammer","hamster","hand","happy","harbor","hard","harsh","harvest","hat","have","hawk","hazard","head","health","heart","heavy","hedgehog","height","hello","helmet","help","hen","hero","hidden","high","hill","hint","hip","hire","history","hobby","hockey","hold","hole","holiday","hollow","home","honey","hood","hope","horn","horror","horse","hospital","host","hotel","hour","hover","hub","huge","human","humble","humor","hundred","hungry","hunt","hurdle","hurry","hurt","husband","hybrid","ice","icon","idea","identify","idle","ignore","ill","illegal","illness","image","imitate","immense","immune","impact","impose","improve","impulse","inch","include","income","increase","index","indicate","indoor","industry","infant","inflict","inform","inhale","inherit","initial","inject","injury","inmate","inner","innocent","input","inquiry","insane","insect","inside","inspire","install","intact","interest","into","invest","invite","involve","iron","island","isolate","issue","item","ivory","jacket","jaguar","jar","jazz","jealous","jeans","jelly","jewel","job","join","joke","journey","joy","judge","juice","jump","jungle","junior","junk","just","kangaroo","keen","keep","ketchup","key","kick","kid","kidney","kind","kingdom","kiss","kit","kitchen","kite","kitten","kiwi","knee","knife","knock","know","lab","label","labor","ladder","lady","lake","lamp","language","laptop","large","later","latin","laugh","laundry","lava","law","lawn","lawsuit","layer","lazy","leader","leaf","learn","leave","lecture","left","leg","legal","legend","leisure","lemon","lend","length","lens","leopard","lesson","letter","level","liar","liberty","library","license","life","lift","light","like","limb","limit","link","lion","liquid","list","little","live","lizard","load","loan","lobster","local","lock","logic","lonely","long","loop","lottery","loud","lounge","love","loyal","lucky","luggage","lumber","lunar","lunch","luxury","lyrics","machine","mad","magic","magnet","maid","mail","main","major","make","mammal","man","manage","mandate","mango","mansion","manual","maple","marble","march","margin","marine","market","marriage","mask","mass","master","match","material","math","matrix","matter","maximum","maze","meadow","mean","measure","meat","mechanic","medal","media","melody","melt","member","memory","mention","menu","mercy","merge","merit","merry","mesh","message","metal","method","middle","midnight","milk","million","mimic","mind","minimum","minor","minute","miracle","mirror","misery","miss","mistake","mix","mixed","mixture","mobile","model","modify","mom","moment","monitor","monkey","monster","month","moon","moral","more","morning","mosquito","mother","motion","motor","mountain","mouse","move","movie","much","muffin","mule","multiply","muscle","museum","mushroom","music","must","mutual","myself","mystery","myth","naive","name","napkin","narrow","nasty","nation","nature","near","neck","need","negative","neglect","neither","nephew","nerve","nest","net","network","neutral","never","news","next","nice","night","noble","noise","nominee","noodle","normal","north","nose","notable","note","nothing","notice","novel","now","nuclear","number","nurse","nut","oak","obey","object","oblige","obscure","observe","obtain","obvious","occur","ocean","october","odor","off","offer","office","often","oil","okay","old","olive","olympic","omit","once","one","onion","online","only","open","opera","opinion","oppose","option","orange","orbit","orchard","order","ordinary","organ","orient","original","orphan","ostrich","other","outdoor","outer","output","outside","oval","oven","over","own","owner","oxygen","oyster","ozone","pact","paddle","page","pair","palace","palm","panda","panel","panic","panther","paper","parade","parent","park","parrot","party","pass","patch","path","patient","patrol","pattern","pause","pave","payment","peace","peanut","pear","peasant","pelican","pen","penalty","pencil","people","pepper","perfect","permit","person","pet","phone","photo","phrase","physical","piano","picnic","picture","piece","pig","pigeon","pill","pilot","pink","pioneer","pipe","pistol","pitch","pizza","place","planet","plastic","plate","play","please","pledge","pluck","plug","plunge","poem","poet","point","polar","pole","police","pond","pony","pool","popular","portion","position","possible","post","potato","pottery","poverty","powder","power","practice","praise","predict","prefer","prepare","present","pretty","prevent","price","pride","primary","print","priority","prison","private","prize","problem","process","produce","profit","program","project","promote","proof","property","prosper","protect","proud","provide","public","pudding","pull","pulp","pulse","pumpkin","punch","pupil","puppy","purchase","purity","purpose","purse","push","put","puzzle","pyramid","quality","quantum","quarter","question","quick","quit","quiz","quote","rabbit","raccoon","race","rack","radar","radio","rail","rain","raise","rally","ramp","ranch","random","range","rapid","rare","rate","rather","raven","raw","razor","ready","real","reason","rebel","rebuild","recall","receive","recipe","record","recycle","reduce","reflect","reform","refuse","region","regret","regular","reject","relax","release","relief","rely","remain","remember","remind","remove","render","renew","rent","reopen","repair","repeat","replace","report","require","rescue","resemble","resist","resource","response","result","retire","retreat","return","reunion","reveal","review","reward","rhythm","rib","ribbon","rice","rich","ride","ridge","rifle","right","rigid","ring","riot","ripple","risk","ritual","rival","river","road","roast","robot","robust","rocket","romance","roof","rookie","room","rose","rotate","rough","round","route","royal","rubber","rude","rug","rule","run","runway","rural","sad","saddle","sadness","safe","sail","salad","salmon","salon","salt","salute","same","sample","sand","satisfy","satoshi","sauce","sausage","save","say","scale","scan","scare","scatter","scene","scheme","school","science","scissors","scorpion","scout","scrap","screen","script","scrub","sea","search","season","seat","second","secret","section","security","seed","seek","segment","select","sell","seminar","senior","sense","sentence","series","service","session","settle","setup","seven","shadow","shaft","shallow","share","shed","shell","sheriff","shield","shift","shine","ship","shiver","shock","shoe","shoot","shop","short","shoulder","shove","shrimp","shrug","shuffle","shy","sibling","sick","side","siege","sight","sign","silent","silk","silly","silver","similar","simple","since","sing","siren","sister","situate","six","size","skate","sketch","ski","skill","skin","skirt","skull","slab","slam","sleep","slender","slice","slide","slight","slim","slogan","slot","slow","slush","small","smart","smile","smoke","smooth","snack","snake","snap","sniff","snow","soap","soccer","social","sock","soda","soft","solar","soldier","solid","solution","solve","someone","song","soon","sorry","sort","soul","sound","soup","source","south","space","spare","spatial","spawn","speak","special","speed","spell","spend","sphere","spice","spider","spike","spin","spirit","split","spoil","sponsor","spoon","sport","spot","spray","spread","spring","spy","square","squeeze","squirrel","stable","stadium","staff","stage","stairs","stamp","stand","start","state","stay","steak","steel","stem","step","stereo","stick","still","sting","stock","stomach","stone","stool","story","stove","strategy","street","strike","strong","struggle","student","stuff","stumble","style","subject","submit","subway","success","such","sudden","suffer","sugar","suggest","suit","summer","sun","sunny","sunset","super","supply","supreme","sure","surface","surge","surprise","surround","survey","suspect","sustain","swallow","swamp","swap","swarm","swear","sweet","swift","swim","swing","switch","sword","symbol","symptom","syrup","system","table","tackle","tag","tail","talent","talk","tank","tape","target","task","taste","tattoo","taxi","teach","team","tell","ten","tenant","tennis","tent","term","test","text","thank","that","theme","then","theory","there","they","thing","this","thought","three","thrive","throw","thumb","thunder","ticket","tide","tiger","tilt","timber","time","tiny","tip","tired","tissue","title","toast","tobacco","today","toddler","toe","together","toilet","token","tomato","tomorrow","tone","tongue","tonight","tool","tooth","top","topic","topple","torch","tornado","tortoise","toss","total","tourist","toward","tower","town","toy","track","trade","traffic","tragic","train","transfer","trap","trash","travel","tray","treat","tree","trend","trial","tribe","trick","trigger","trim","trip","trophy","trouble","truck","true","truly","trumpet","trust","truth","try","tube","tuition","tumble","tuna","tunnel","turkey","turn","turtle","twelve","twenty","twice","twin","twist","two","type","typical","ugly","umbrella","unable","unaware","uncle","uncover","under","undo","unfair","unfold","unhappy","uniform","unique","unit","universe","unknown","unlock","until","unusual","unveil","update","upgrade","uphold","upon","upper","upset","urban","urge","usage","use","used","useful","useless","usual","utility","vacant","vacuum","vague","valid","valley","valve","van","vanish","vapor","various","vast","vault","vehicle","velvet","vendor","venture","venue","verb","verify","version","very","vessel","veteran","viable","vibrant","vicious","victory","video","view","village","vintage","violin","virtual","virus","visa","visit","visual","vital","vivid","vocal","voice","void","volcano","volume","vote","voyage","wage","wagon","wait","walk","wall","walnut","want","warfare","warm","warrior","wash","wasp","waste","water","wave","way","wealth","weapon","wear","weasel","weather","web","wedding","weekend","weird","welcome","west","wet","whale","what","wheat","wheel","when","where","whip","whisper","wide","width","wife","wild","will","win","window","wine","wing","wink","winner","winter","wire","wisdom","wise","wish","witness","wolf","woman","wonder","wood","wool","word","work","world","worry","worth","wrap","wreck","wrestle","wrist","write","wrong","yard","year","yellow","you","young","youth","zebra","zero","zone","zoo"];
+  const BIP39_SET = new Set(BIP39);
+
+  // --- recover.py download ---
+  function bytesFromB64(b64) {
+    const bin = atob(b64);
+    const u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    return u8;
+  }
+  const blob = new Blob([bytesFromB64(RECOVER_B64)], { type: "text/x-python" });
+  $("dl").href = URL.createObjectURL(blob);
+
+  // --- Build 12-row position grid ---
+  const grid = $("grid");
+  for (let i = 1; i <= 12; i++) {
+    const posEl = document.createElement("div");
+    posEl.className = "pos";
+    posEl.textContent = "#" + i;
+
+    const sel = document.createElement("select");
+    sel.id = "type-" + i;
+    sel.innerHTML = '<option value="anchored">Anchored (known word)</option><option value="pool">Pool (one of 40)</option><option value="full">Unknown (any of 2048)</option>';
+
+    const inp = document.createElement("input");
+    inp.id = "word-" + i;
+    inp.placeholder = "word";
+    inp.autocomplete = "off";
+    inp.spellcheck = false;
+
+    const update = () => {
+      const t = sel.value;
+      inp.classList.remove("anchored","pool","full","invalid");
+      if (t === "anchored") {
+        inp.classList.add("anchored");
+        inp.placeholder = "BIP39 word";
+        inp.disabled = false;
+      } else if (t === "pool") {
+        inp.classList.add("pool");
+        inp.placeholder = "(filled from pool)";
+        inp.value = "";
+        inp.disabled = true;
+      } else {
+        inp.classList.add("full");
+        inp.placeholder = "(any of 2048 BIP39 words)";
+        inp.value = "";
+        inp.disabled = true;
+      }
+      validateRow(i);
+      recompute();
+    };
+    sel.addEventListener("change", update);
+    inp.addEventListener("input", () => { validateRow(i); recompute(); });
+
+    grid.append(posEl, sel, inp);
+    update();
+  }
+
+  function validateRow(i) {
+    const sel = $("type-" + i);
+    const inp = $("word-" + i);
+    if (sel.value !== "anchored") return true;
+    const w = inp.value.trim().toLowerCase();
+    const ok = w === "" ? false : BIP39_SET.has(w);
+    inp.classList.toggle("invalid", !ok && w !== "");
+    return ok;
+  }
+
+  // --- Pool parsing ---
+  function parsePool() {
+    const raw = $("pool").value;
+    const words = raw.split(/[\s,;]+/).map(w => w.trim().toLowerCase()).filter(Boolean);
+    const seen = new Set(); const dedup = [];
+    for (const w of words) if (!seen.has(w)) { seen.add(w); dedup.push(w); }
+    const valid = dedup.filter(w => BIP39_SET.has(w));
+    const invalid = dedup.filter(w => !BIP39_SET.has(w));
+    return { valid, invalid };
+  }
+
+  function updatePoolStatus() {
+    const { valid, invalid } = parsePool();
+    const poolEl = $("pool");
+    const status = $("pool-status");
+    poolEl.classList.toggle("invalid", invalid.length > 0);
+    if (valid.length === 0 && invalid.length === 0) {
+      status.textContent = "Enter pool words above.";
+      status.style.color = "var(--muted)";
+    } else if (invalid.length > 0) {
+      status.textContent = invalid.length + " word(s) NOT in BIP39: " + invalid.slice(0,5).join(", ") + (invalid.length > 5 ? "…" : "");
+      status.style.color = "var(--bad)";
+    } else {
+      status.textContent = valid.length + " valid pool words ready";
+      status.style.color = "var(--good)";
+    }
+    return valid;
+  }
+  $("pool").addEventListener("input", () => { updatePoolStatus(); recompute(); });
+
+  // --- Validate target address ---
+  function validTarget() {
+    const v = $("target").value.trim();
+    const ok = /^0x[0-9a-fA-F]{40}$/.test(v);
+    $("target").classList.toggle("invalid", !ok && v !== "");
+    return ok ? v : null;
+  }
+  $("target").addEventListener("input", recompute);
+  $("ssh-user").addEventListener("input", recompute);
+  $("ssh-host").addEventListener("input", recompute);
+  $("acct-min").addEventListener("input", recompute);
+  $("acct-max").addEventListener("input", recompute);
+  $("workers").addEventListener("input", recompute);
+  $("path").addEventListener("input", recompute);
+
+  // --- Estimate + command generation ---
+  function buildWordsArg(poolValid) {
+    const parts = [];
+    let allOk = true;
+    for (let i = 1; i <= 12; i++) {
+      const t = $("type-" + i).value;
+      if (t === "anchored") {
+        const w = $("word-" + i).value.trim().toLowerCase();
+        if (!BIP39_SET.has(w)) allOk = false;
+        parts.push(w || "?");
+      } else if (t === "pool") {
+        if (poolValid.length === 0) allOk = false;
+        parts.push(poolValid.join(";"));
+      } else {
+        parts.push("?");
+      }
+    }
+    return { spec: parts.join(","), ok: allOk };
+  }
+
+  function fmtNum(n) {
+    if (n < 1000) return Math.round(n).toString();
+    if (n < 1e6) return (n / 1e3).toFixed(1) + "k";
+    if (n < 1e9) return (n / 1e6).toFixed(1) + "M";
+    if (n < 1e12) return (n / 1e9).toFixed(1) + "B";
+    if (n < 1e15) return (n / 1e12).toFixed(1) + "T";
+    return n.toExponential(2);
+  }
+
+  function fmtDuration(seconds) {
+    if (!isFinite(seconds) || seconds <= 0) return "—";
+    if (seconds < 60) return Math.ceil(seconds) + " s";
+    if (seconds < 3600) return Math.ceil(seconds / 60) + " min";
+    if (seconds < 86400) return (seconds / 3600).toFixed(1) + " h";
+    if (seconds < 86400 * 30) return (seconds / 86400).toFixed(1) + " days";
+    if (seconds < 86400 * 365) return (seconds / 86400 / 30).toFixed(1) + " months";
+    if (seconds < 86400 * 365 * 1e6) return (seconds / 86400 / 365).toFixed(1) + " years";
+    return seconds.toExponential(2) + " s";
+  }
+
+  function recompute() {
+    const poolValid = updatePoolStatus();
+    const { spec, ok: wordsOk } = buildWordsArg(poolValid);
+
+    // Estimate raw search space
+    let raw = 1;
+    let unknownTypes = { anchored: 0, pool: 0, full: 0 };
+    for (let i = 1; i <= 12; i++) {
+      const t = $("type-" + i).value;
+      unknownTypes[t]++;
+      if (t === "pool") raw *= Math.max(poolValid.length, 1);
+      else if (t === "full") raw *= 2048;
+    }
+    const filtered = raw / 16; // BIP39 4-bit checksum
+    // throughput: 50k/s baseline; account-range multiplies work
+    const acctMin = parseInt($("acct-min").value, 10) || 0;
+    const acctMax = parseInt($("acct-max").value, 10) || 0;
+    const acctCount = Math.max(1, acctMax - acctMin + 1);
+    const workers = Math.max(1, parseInt($("workers").value, 10) || 1);
+    const baselinePerThread = 1500; // mnemonics/sec/thread for pure-Python derivation
+    const throughput = baselinePerThread * Math.min(workers, 32);
+    const seconds = (filtered * acctCount) / throughput;
+
+    // Render estimate tiles
+    const verdict =
+      seconds < 3600 ? { label: "feasible", cls: "good" } :
+      seconds < 86400 ? { label: "feasible (overnight)", cls: "good" } :
+      seconds < 86400 * 30 ? { label: "long but feasible", cls: "warn" } :
+      seconds < 86400 * 365 ? { label: "GPU recommended", cls: "warn" } :
+      { label: "infeasible on CPU — use to-btcrecover.py", cls: "bad" };
+
+    $("estimate").innerHTML =
+      tile("Anchored / Pool / Unknown", `${unknownTypes.anchored} / ${unknownTypes.pool} / ${unknownTypes.full}`, "") +
+      tile("Raw search space", fmtNum(raw), "") +
+      tile("After BIP39 checksum", fmtNum(filtered), "") +
+      tile("Estimated CPU time", fmtDuration(seconds), verdict.cls) +
+      tile("Verdict", verdict.label, verdict.cls);
+
+    // Fill commands
+    const target = validTarget();
+    const user = $("ssh-user").value.trim();
+    const host = $("ssh-host").value.trim();
+    const path = $("path").value.trim() || "m/44'/60'/0'/0/{i}";
+
+    if (!user || !host) {
+      $("cmd-upload").textContent = "— enter SSH user + host above —";
+    } else {
+      $("cmd-upload").textContent =
+        `# from your laptop (path is the file you downloaded in Step 1)\n` +
+        `scp ~/Downloads/recover.py ${shellQuote(user)}@${shellQuote(host)}:/tmp/recover.py\n` +
+        `ssh ${shellQuote(user)}@${shellQuote(host)}`;
+    }
+
+    if (!target || !wordsOk || poolValid.length === 0 && unknownTypes.pool > 0) {
+      $("cmd-run").textContent = "— form has missing/invalid fields —";
+      return;
+    }
+
+    const acctRange = `${acctMin}-${acctMax}`;
+    const expected = SHA256;
+    $("cmd-run").textContent = [
+      `# Lock down the box (no swap, no logs, no history) and run inside tmpfs.`,
+      `set -e`,
+      `unset HISTFILE; export HISTFILE=/dev/null; history -c`,
+      `sudo swapoff -a`,
+      `sudo systemctl stop rsyslog systemd-journald-audit 2>/dev/null || true`,
+      `sudo mkdir -p /mnt/work && sudo mount -t tmpfs -o size=2G tmpfs /mnt/work && sudo chown $(id -u):$(id -g) /mnt/work`,
+      `mv /tmp/recover.py /mnt/work/recover.py`,
+      `cd /mnt/work`,
+      ``,
+      `# Verify script integrity before running.`,
+      `echo "${expected}  recover.py" | sha256sum -c || { echo "SHA256 mismatch — abort"; exit 1; }`,
+      ``,
+      `# Install uv if missing.`,
+      `command -v uv >/dev/null || { curl -LsSf https://astral.sh/uv/install.sh | sh; export PATH="$HOME/.local/bin:$PATH"; }`,
+      ``,
+      `# Run the recovery (output captured in tmpfs, lost on reboot).`,
+      `uv run recover.py \\`,
+      `  --target ${shellQuote(target)} \\`,
+      `  --length 12 \\`,
+      `  --words ${shellQuote(spec)} \\`,
+      `  --path ${shellQuote(path)} \\`,
+      `  --accounts ${acctRange} \\`,
+      `  --workers ${workers} \\`,
+      `  --yes 2>&1 | tee result.txt`,
+      ``,
+      `# When MATCH FOUND — write phrase on paper, then run cleanup block.`,
+    ].join("\n");
+  }
+
+  function tile(k, v, cls) {
+    return `<div class="stat"><div class="k">${k}</div><div class="v ${cls||""}">${v}</div></div>`;
+  }
+
+  function shellQuote(s) {
+    if (!s) return "''";
+    if (/^[a-zA-Z0-9_./@:=,'\-]+$/.test(s) && !s.includes("'")) return s;
+    return "'" + s.replace(/'/g, "'\"'\"'") + "'";
+  }
+
+  // --- Copy buttons ---
+  function showToast(msg) {
+    const t = $("toast"); t.textContent = msg; t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 1200);
+  }
+  document.querySelectorAll("button.copy[data-copy]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const targetId = btn.getAttribute("data-copy");
+      const text = $(targetId).textContent;
+      navigator.clipboard.writeText(text).then(() => showToast("Copied"))
+        .catch(() => showToast("Copy failed — select manually"));
+    });
+  });
+
+  recompute();
+})();
+</script>
+</body>
+</html>
