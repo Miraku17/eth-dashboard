@@ -10,6 +10,16 @@ from app.realtime.tokens import STABLES_BY_ADDRESS, VOLATILE_BY_ADDRESS
 
 WEI = 10**18
 
+# Sanity caps for pending-mempool whale detection. Anyone can broadcast a tx
+# with any `amount` field — it fails to execute, but still appears in the
+# mempool. Without these caps the panel fills with spam ($6.7 quadrillion USDT
+# rows etc.). Largest legitimate single transfers historically:
+#   ETH: ~600k (Bitfinex hot wallet); we leave ample headroom
+#   stables: ~$2B (large CEX consolidations)
+MAX_PENDING_ETH = 2_000_000.0
+MAX_PENDING_STABLE_USD = 5_000_000_000.0  # $5B
+MAX_PENDING_VOLATILE_USD = 5_000_000_000.0
+
 
 @dataclass(frozen=True)
 class WhaleTransfer:
@@ -197,7 +207,9 @@ def decode_pending_tx(
         return None
 
     nonce = _parse_hex(tx.get("nonce"))
-    gas_price_wei = _parse_hex(tx.get("gasPrice"))
+    # EIP-1559 (type-2) txs report gasPrice=0 and put the bid in maxFeePerGas.
+    # Fall back so the displayed gas isn't always 0 on modern txs.
+    gas_price_wei = _parse_hex(tx.get("gasPrice")) or _parse_hex(tx.get("maxFeePerGas"))
     gas_price_gwei = gas_price_wei / GWEI if gas_price_wei else None
 
     # Native ETH transfer
@@ -205,6 +217,8 @@ def decode_pending_tx(
         value_wei = _parse_hex(tx.get("value"))
         if value_wei > 0:
             amount = value_wei / WEI
+            if amount > MAX_PENDING_ETH:
+                return None
             if amount >= threshold_eth:
                 usd = amount * eth_usd if eth_usd else None
                 return PendingWhale(
@@ -229,7 +243,7 @@ def decode_pending_tx(
         stable = STABLES_BY_ADDRESS.get(token_addr)
         if stable is not None:
             amount = raw_amount / (10**stable.decimals)
-            if amount < threshold_usd:
+            if amount < threshold_usd or amount > MAX_PENDING_STABLE_USD:
                 return None
             return PendingWhale(
                 tx_hash=tx["hash"],
@@ -245,7 +259,8 @@ def decode_pending_tx(
         volatile = VOLATILE_BY_ADDRESS.get(token_addr)
         if volatile is not None:
             amount = raw_amount / (10**volatile.decimals)
-            if amount < volatile.threshold_native:
+            usd = amount * volatile.price_usd_approx
+            if amount < volatile.threshold_native or usd > MAX_PENDING_VOLATILE_USD:
                 return None
             return PendingWhale(
                 tx_hash=tx["hash"],

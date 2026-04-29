@@ -59,11 +59,25 @@ def pending_whales(
     stmt = select(PendingTransfer)
     if asset:
         stmt = stmt.where(PendingTransfer.asset == asset.upper())
+    # Pull 2× then dedupe by (from, to, asset, amount). Bots commonly
+    # broadcast the same payload across many nonces / replacements; without
+    # this the table fills with N copies of the same transfer.
     rows = (
-        session.execute(stmt.order_by(PendingTransfer.seen_at.desc()).limit(limit))
+        session.execute(stmt.order_by(PendingTransfer.seen_at.desc()).limit(limit * 2))
         .scalars()
         .all()
     )
+    seen: set[tuple[str, str, str, float]] = set()
+    deduped: list[PendingTransfer] = []
+    for r in rows:
+        key = (r.from_addr, r.to_addr, r.asset, float(r.amount))
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(r)
+        if len(deduped) >= limit:
+            break
+
     return PendingTransfersResponse(
         pending=[
             PendingTransferOut(
@@ -79,6 +93,6 @@ def pending_whales(
                 nonce=r.nonce,
                 gas_price_gwei=float(r.gas_price_gwei) if r.gas_price_gwei is not None else None,
             )
-            for r in rows
+            for r in deduped
         ]
     )
