@@ -264,6 +264,20 @@ class OrderFlowResponse(BaseModel):
     points: list[OrderFlowPoint]
 
 
+# ---------- Volume size buckets (v2) ----------
+
+
+class VolumeBucketPoint(BaseModel):
+    ts_bucket: datetime
+    bucket: Literal["retail", "mid", "large", "whale"]
+    usd_value: float
+    trade_count: int
+
+
+class VolumeBucketsResponse(BaseModel):
+    points: list[VolumeBucketPoint]
+
+
 # ---------- Smart-money leaderboard (v2) ----------
 
 

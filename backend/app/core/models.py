@@ -137,6 +137,18 @@ class OrderFlow(Base):
     trade_count: Mapped[int] = mapped_column(BigInteger)
 
 
+class VolumeBucket(Base):
+    """Hourly ETH DEX volume bucketed by trade size (v2).
+
+    Buckets: retail (<$10k), mid ($10k-100k), large ($100k-1M), whale (≥$1M).
+    """
+    __tablename__ = "volume_buckets"
+    ts_bucket: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    bucket: Mapped[str] = mapped_column(String(8), primary_key=True)
+    usd_value: Mapped[float] = mapped_column(Numeric(32, 2))
+    trade_count: Mapped[int] = mapped_column(BigInteger)
+
+
 class SmartMoneyLeaderboard(Base):
     """Per-wallet realized-PnL ranking snapshot. One `run_id` per daily refresh. (v2)"""
     __tablename__ = "smart_money_leaderboard"

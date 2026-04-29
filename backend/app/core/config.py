@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     dune_query_id_onchain_volume: int = 0
     dune_query_id_order_flow: int = 0
     dune_query_id_smart_money_leaderboard: int = 0
+    dune_query_id_volume_buckets: int = 0
 
     # Minutes between Dune syncs. Free tier ≈ 500 executions/month total.
     dune_sync_interval_min: int = 240

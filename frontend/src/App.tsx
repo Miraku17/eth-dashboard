@@ -14,6 +14,7 @@ import SmartMoneyLeaderboard from "./components/SmartMoneyLeaderboard";
 import PriceHero from "./components/PriceHero";
 import StablecoinSupplyPanel from "./components/StablecoinSupplyPanel";
 import Topbar from "./components/Topbar";
+import VolumeStructurePanel from "./components/VolumeStructurePanel";
 import WhaleTransfersPanel from "./components/WhaleTransfersPanel";
 import ErrorBoundary from "./components/ui/ErrorBoundary";
 
@@ -71,6 +72,9 @@ export default function App() {
         </Guarded>
         <Guarded label="Order flow" id="order-flow">
           <OrderFlowPanel />
+        </Guarded>
+        <Guarded label="Volume structure" id="volume-structure">
+          <VolumeStructurePanel />
         </Guarded>
         <Guarded label="Network activity">
           <NetworkActivityPanel />

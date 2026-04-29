@@ -12,6 +12,7 @@ from app.services.flow_sync import (
     upsert_onchain_volume,
     upsert_order_flow,
     upsert_stablecoin_flows,
+    upsert_volume_buckets,
 )
 
 log = logging.getLogger(__name__)
@@ -89,3 +90,31 @@ async def sync_order_flow(ctx: dict) -> dict:
     record_sync_ok("order_flow")
     log.info("synced order_flow: %d rows", n)
     return {"order_flow": n}
+
+
+async def sync_volume_buckets(ctx: dict) -> dict:
+    """Sync hourly trade-size buckets (retail/mid/large/whale) from Dune.
+    Same source as order-flow (`dex.trades` filtered to WETH); shares the
+    8h cadence to keep credit usage predictable."""
+    settings = get_settings()
+    if not settings.dune_api_key:
+        log.warning("DUNE_API_KEY not set — skipping volume-buckets sync")
+        return {"skipped": "no api key"}
+    if settings.dune_query_id_volume_buckets == 0:
+        log.info("volume-buckets query ID not configured — skipping")
+        return {"skipped": "not configured"}
+
+    SessionLocal = get_sessionmaker()
+    async with httpx.AsyncClient(base_url=DUNE_BASE_URL, timeout=300.0) as http:
+        client = DuneClient(http, api_key=settings.dune_api_key)
+        try:
+            rows = await client.execute_and_fetch(settings.dune_query_id_volume_buckets)
+        except (DuneExecutionError, httpx.HTTPError) as e:
+            log.error("volume-buckets dune query failed: %s", e)
+            return {"error": str(e)}
+
+    with SessionLocal() as session:
+        n = upsert_volume_buckets(session, rows)
+    record_sync_ok("volume_buckets")
+    log.info("synced volume_buckets: %d rows", n)
+    return {"volume_buckets": n}

@@ -14,9 +14,17 @@ from app.api.schemas import (
     OrderFlowResponse,
     StablecoinFlowPoint,
     StablecoinFlowsResponse,
+    VolumeBucketPoint,
+    VolumeBucketsResponse,
 )
 from app.core.db import get_session
-from app.core.models import ExchangeFlow, OnchainVolume, OrderFlow, StablecoinFlow
+from app.core.models import (
+    ExchangeFlow,
+    OnchainVolume,
+    OrderFlow,
+    StablecoinFlow,
+    VolumeBucket,
+)
 
 router = APIRouter(prefix="/flows", tags=["flows"])
 
@@ -122,3 +130,28 @@ def order_flow(
         for r in reversed(rows)
     ]
     return OrderFlowResponse(points=points)
+
+
+@router.get("/volume-buckets", response_model=VolumeBucketsResponse)
+def volume_buckets(
+    session: Annotated[Session, Depends(get_session)],
+    hours: HoursParam = 24 * 7,
+    limit: int = Query(20000, ge=1, le=50000),
+) -> VolumeBucketsResponse:
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
+    rows = session.execute(
+        select(VolumeBucket)
+        .where(VolumeBucket.ts_bucket >= cutoff)
+        .order_by(VolumeBucket.ts_bucket.desc())
+        .limit(limit)
+    ).scalars().all()
+    points = [
+        VolumeBucketPoint(
+            ts_bucket=r.ts_bucket,
+            bucket=r.bucket,  # type: ignore[arg-type]
+            usd_value=float(r.usd_value),
+            trade_count=r.trade_count,
+        )
+        for r in reversed(rows)
+    ]
+    return VolumeBucketsResponse(points=points)

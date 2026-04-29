@@ -358,6 +358,23 @@ export async function fetchOrderFlow(hours = 24 * 7): Promise<OrderFlowPoint[]> 
   return (await r.json()).points;
 }
 
+export type VolumeBucket = "retail" | "mid" | "large" | "whale";
+
+export type VolumeBucketPoint = {
+  ts_bucket: string;
+  bucket: VolumeBucket;
+  usd_value: number;
+  trade_count: number;
+};
+
+export async function fetchVolumeBuckets(hours = 24 * 7): Promise<VolumeBucketPoint[]> {
+  const r = await fetch(url(`/api/flows/volume-buckets?hours=${hours}`), {
+    headers: authHeaders(),
+  });
+  if (!r.ok) throw new Error(`volume buckets ${r.status}`);
+  return (await r.json()).points;
+}
+
 export type SmartMoneyEntry = {
   rank: number;
   wallet: string;

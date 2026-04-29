@@ -6,7 +6,7 @@ from app.clients.binance import BINANCE_BASE_URL
 from app.core.config import get_settings
 from app.workers.alert_jobs import evaluate_alerts
 from app.workers.derivatives_jobs import sync_derivatives
-from app.workers.flow_jobs import sync_dune_flows, sync_order_flow
+from app.workers.flow_jobs import sync_dune_flows, sync_order_flow, sync_volume_buckets
 from app.workers.leaderboard_jobs import sync_smart_money_leaderboard
 from app.workers.pending_cleanup import cleanup_pending_transfers
 from app.workers.price_jobs import backfill_price_history, sync_price_latest
@@ -18,6 +18,7 @@ async def startup(ctx: dict) -> None:
     await ctx["redis"].enqueue_job("sync_dune_flows")
     await ctx["redis"].enqueue_job("sync_derivatives")
     await ctx["redis"].enqueue_job("sync_order_flow")
+    await ctx["redis"].enqueue_job("sync_volume_buckets")
     await ctx["redis"].enqueue_job("sync_smart_money_leaderboard")
 
 
@@ -46,6 +47,13 @@ def _order_flow_cron_kwargs() -> dict:
     return base
 
 
+def _volume_buckets_cron_kwargs() -> dict:
+    # Mirrors order-flow cadence (8h default) but offset to avoid colliding.
+    base = _cron_from_minutes(_settings.dune_order_flow_interval_min)
+    base["minute"] = {20}
+    return base
+
+
 class WorkerSettings:
     functions = [
         backfill_price_history,
@@ -54,6 +62,7 @@ class WorkerSettings:
         evaluate_alerts,
         sync_derivatives,
         sync_order_flow,
+        sync_volume_buckets,
         sync_smart_money_leaderboard,
         cleanup_pending_transfers,
     ]
@@ -67,6 +76,8 @@ class WorkerSettings:
         # Order flow: 8h cadence by default (every 3rd Dune slot) to keep
         # the free-tier credit budget healthy.
         cron(sync_order_flow, **_order_flow_cron_kwargs(), run_at_startup=False),
+        # Volume buckets: same 8h cadence as order-flow, offset by 10 min.
+        cron(sync_volume_buckets, **_volume_buckets_cron_kwargs(), run_at_startup=False),
         # Smart-money leaderboard: once a day at 03:00 UTC. The query is
         # meaningfully heavier than order-flow (30d vs 7d window), so a
         # single refresh per day keeps us inside the Dune free-tier budget.
