@@ -1,8 +1,4 @@
 """Redis-backed session CRUD."""
-import time
-
-import pytest
-
 from app.core import sessions
 
 
