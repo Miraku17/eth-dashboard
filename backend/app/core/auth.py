@@ -1,41 +1,38 @@
-"""Optional bearer-token auth dependency.
-
-If `API_AUTH_TOKEN` is unset, auth is disabled and every request passes — this
-keeps local development frictionless. When set, every route that depends on
-`require_auth` must present `Authorization: Bearer <token>`.
-
-`/api/health` is intentionally unauthenticated so uptime checks work.
-"""
+"""Password hashing + cookie-based session dependency."""
 from typing import Annotated
 
-from fastapi import Depends, Header, HTTPException, status
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHashError, VerifyMismatchError
+from fastapi import Cookie, Depends, HTTPException, status
 
-from app.core.config import get_settings
+from app.core.sessions import get_session_username
+
+COOKIE_NAME = "etherscope_session"
+
+_hasher = PasswordHasher()
 
 
-def _extract_token(header: str | None) -> str | None:
-    if not header:
-        return None
-    parts = header.split(" ", 1)
-    if len(parts) == 2 and parts[0].lower() == "bearer":
-        return parts[1].strip() or None
-    # Accept the raw token too — common for curl testing.
-    return header.strip() or None
+def hash_password(plain: str) -> str:
+    return _hasher.hash(plain)
+
+
+def verify_password(plain: str, hashed: str) -> bool:
+    try:
+        return _hasher.verify(hashed, plain)
+    except (VerifyMismatchError, InvalidHashError, Exception):
+        return False
 
 
 def require_auth(
-    authorization: Annotated[str | None, Header()] = None,
-) -> None:
-    expected = get_settings().api_auth_token
-    if not expected:
-        return  # auth disabled
-    provided = _extract_token(authorization)
-    if not provided or provided != expected:
+    etherscope_session: Annotated[str | None, Cookie()] = None,
+) -> str:
+    username = get_session_username(etherscope_session or "")
+    if not username:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="invalid or missing API token",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="not authenticated",
         )
+    return username
 
 
 AuthDep = Depends(require_auth)
