@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.alerts import router as alerts_router
+from app.api.auth import router as auth_router
 from app.api.derivatives import router as derivatives_router
 from app.api.flows import router as flows_router
 from app.api.health import router as health_router
@@ -30,6 +31,7 @@ app.add_middleware(
 
 # Health stays public so uptime pings + the topbar indicator still work.
 app.include_router(health_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
 
 # Everything else is gated when API_AUTH_TOKEN is set; passes through otherwise.
 app.include_router(price_router, prefix="/api", dependencies=[AuthDep])
