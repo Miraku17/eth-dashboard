@@ -2,11 +2,9 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from app.core.models import Transfer
-from app.main import app
 
 
 @pytest.fixture
@@ -45,9 +43,8 @@ def seeded_transfers(migrated_engine):
         yield s
 
 
-def test_whales_transfers_endpoint(seeded_transfers):
-    client = TestClient(app)
-    r = client.get("/api/whales/transfers?hours=24")
+def test_whales_transfers_endpoint(seeded_transfers, auth_client):
+    r = auth_client.get("/api/whales/transfers?hours=24")
     assert r.status_code == 200
     body = r.json()
     assert len(body["transfers"]) == 2
@@ -57,9 +54,8 @@ def test_whales_transfers_endpoint(seeded_transfers):
     assert body["transfers"][1]["from_label"] == "Coinbase 1"
 
 
-def test_whales_transfers_asset_filter(seeded_transfers):
-    client = TestClient(app)
-    r = client.get("/api/whales/transfers?asset=usdc")
+def test_whales_transfers_asset_filter(seeded_transfers, auth_client):
+    r = auth_client.get("/api/whales/transfers?asset=usdc")
     assert r.status_code == 200
     body = r.json()
     assert len(body["transfers"]) == 1

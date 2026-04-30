@@ -3,11 +3,9 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from app.core.models import OrderFlow
-from app.main import app
 from app.services.flow_sync import upsert_order_flow
 
 
@@ -56,7 +54,7 @@ def test_upsert_upserts_on_conflict(session):
     assert r.trade_count == 200
 
 
-def test_api_returns_recent_buckets(session):
+def test_api_returns_recent_buckets(session, auth_client):
     now = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
     for h in range(3):
         ts = now - timedelta(hours=h)
@@ -72,7 +70,7 @@ def test_api_returns_recent_buckets(session):
         ))
     session.commit()
 
-    r = TestClient(app).get("/api/flows/order-flow?hours=24")
+    r = auth_client.get("/api/flows/order-flow?hours=24")
     assert r.status_code == 200
     body = r.json()
     assert len(body["points"]) == 6
@@ -81,11 +79,11 @@ def test_api_returns_recent_buckets(session):
     assert tss == sorted(tss)
 
 
-def test_api_empty(migrated_engine):
+def test_api_empty(migrated_engine, auth_client):
     Session = sessionmaker(bind=migrated_engine, expire_on_commit=False)
     with Session() as s:
         s.query(OrderFlow).delete()
         s.commit()
-    r = TestClient(app).get("/api/flows/order-flow")
+    r = auth_client.get("/api/flows/order-flow")
     assert r.status_code == 200
     assert r.json()["points"] == []

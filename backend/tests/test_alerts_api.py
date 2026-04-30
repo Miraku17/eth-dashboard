@@ -1,9 +1,7 @@
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from app.core.models import AlertEvent, AlertRule
-from app.main import app
 
 
 @pytest.fixture
@@ -16,9 +14,8 @@ def clean(migrated_engine):
         yield s
 
 
-def test_create_list_patch_delete_rule(clean):
-    client = TestClient(app)
-    r = client.post(
+def test_create_list_patch_delete_rule(clean, auth_client):
+    r = auth_client.post(
         "/api/alerts/rules",
         json={
             "name": "ETH>4000",
@@ -33,36 +30,34 @@ def test_create_list_patch_delete_rule(clean):
     assert r.json()["cooldown_min"] == 30
     assert r.json()["params"]["threshold"] == 4000
 
-    r = client.get("/api/alerts/rules")
+    r = auth_client.get("/api/alerts/rules")
     assert r.status_code == 200
     assert len(r.json()["rules"]) == 1
 
-    r = client.patch(f"/api/alerts/rules/{rule_id}", json={"enabled": False})
+    r = auth_client.patch(f"/api/alerts/rules/{rule_id}", json={"enabled": False})
     assert r.status_code == 200
     assert r.json()["enabled"] is False
 
-    r = client.delete(f"/api/alerts/rules/{rule_id}")
+    r = auth_client.delete(f"/api/alerts/rules/{rule_id}")
     assert r.status_code == 204
 
-    r = client.get("/api/alerts/rules")
+    r = auth_client.get("/api/alerts/rules")
     assert r.json()["rules"] == []
 
 
-def test_create_duplicate_name_conflict(clean):
-    client = TestClient(app)
+def test_create_duplicate_name_conflict(clean, auth_client):
     body = {
         "name": "dup",
         "params": {"rule_type": "price_below", "threshold": 1000},
         "channels": [],
     }
-    assert client.post("/api/alerts/rules", json=body).status_code == 200
-    r2 = client.post("/api/alerts/rules", json=body)
+    assert auth_client.post("/api/alerts/rules", json=body).status_code == 200
+    r2 = auth_client.post("/api/alerts/rules", json=body)
     assert r2.status_code == 409
 
 
-def test_create_invalid_params_422(clean):
-    client = TestClient(app)
-    r = client.post(
+def test_create_invalid_params_422(clean, auth_client):
+    r = auth_client.post(
         "/api/alerts/rules",
         json={
             "name": "bad",
@@ -73,9 +68,8 @@ def test_create_invalid_params_422(clean):
     assert r.status_code == 422
 
 
-def test_events_endpoint(clean):
-    client = TestClient(app)
-    client.post(
+def test_events_endpoint(clean, auth_client):
+    auth_client.post(
         "/api/alerts/rules",
         json={
             "name": "x",
@@ -83,6 +77,6 @@ def test_events_endpoint(clean):
             "channels": [],
         },
     )
-    r = client.get("/api/alerts/events?hours=1")
+    r = auth_client.get("/api/alerts/events?hours=1")
     assert r.status_code == 200
     assert r.json()["events"] == []

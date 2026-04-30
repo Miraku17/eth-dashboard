@@ -2,11 +2,9 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from app.core.models import ExchangeFlow, OnchainVolume, StablecoinFlow
-from app.main import app
 
 
 @pytest.fixture
@@ -24,24 +22,21 @@ def seeded(migrated_engine):
         yield s
 
 
-def test_exchange_endpoint(seeded):
-    client = TestClient(app)
-    r = client.get("/api/flows/exchange")
+def test_exchange_endpoint(seeded, auth_client):
+    r = auth_client.get("/api/flows/exchange")
     assert r.status_code == 200
     data = r.json()
     assert len(data["points"]) == 1
     assert data["points"][0]["exchange"] == "Binance"
 
 
-def test_stablecoins_endpoint(seeded):
-    client = TestClient(app)
-    r = client.get("/api/flows/stablecoins")
+def test_stablecoins_endpoint(seeded, auth_client):
+    r = auth_client.get("/api/flows/stablecoins")
     assert r.status_code == 200
     assert r.json()["points"][0]["asset"] == "USDT"
 
 
-def test_onchain_volume_endpoint(seeded):
-    client = TestClient(app)
-    r = client.get("/api/flows/onchain-volume")
+def test_onchain_volume_endpoint(seeded, auth_client):
+    r = auth_client.get("/api/flows/onchain-volume")
     assert r.status_code == 200
     assert r.json()["points"][0]["tx_count"] == 1_234_567

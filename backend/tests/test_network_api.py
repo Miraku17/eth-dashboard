@@ -28,9 +28,8 @@ def seeded_network(migrated_engine):
         yield s
 
 
-def test_network_summary(seeded_network):
-    client = TestClient(app)
-    r = client.get("/api/network/summary")
+def test_network_summary(seeded_network, auth_client):
+    r = auth_client.get("/api/network/summary")
     assert r.status_code == 200
     body = r.json()
     assert body["latest_ts"] is not None
@@ -42,21 +41,20 @@ def test_network_summary(seeded_network):
     assert body["avg_tx_per_block"] == pytest.approx(204.5)
 
 
-def test_network_summary_empty(migrated_engine):
+def test_network_summary_empty(migrated_engine, auth_client):
     Session = sessionmaker(bind=migrated_engine, expire_on_commit=False)
     with Session() as s:
         s.query(NetworkActivity).delete()
         s.commit()
-    r = TestClient(app).get("/api/network/summary")
+    r = auth_client.get("/api/network/summary")
     assert r.status_code == 200
     body = r.json()
     assert body["latest_ts"] is None
     assert body["gas_price_gwei"] is None
 
 
-def test_network_series(seeded_network):
-    client = TestClient(app)
-    r = client.get("/api/network/series?hours=1")
+def test_network_series(seeded_network, auth_client):
+    r = auth_client.get("/api/network/series?hours=1")
     assert r.status_code == 200
     points = r.json()["points"]
     assert len(points) == 10

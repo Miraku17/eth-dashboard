@@ -49,3 +49,42 @@ def _flush_redis(redis_container: RedisContainer) -> Iterator[None]:
     yield
     client = redis_container.get_client()
     client.flushdb()
+
+
+@pytest.fixture
+def auth_client(migrated_engine, monkeypatch):
+    """TestClient for the full app with a logged-in session cookie attached.
+
+    Use in any test that hits a protected endpoint. Reloads `app.main` with
+    AUTH_USERNAME / AUTH_PASSWORD_HASH set, then logs in so the returned
+    client carries a valid `etherscope_session` cookie."""
+    import importlib
+
+    from fastapi.testclient import TestClient
+
+    from app.core import auth as auth_mod
+    from app.core import config as config_mod
+
+    pw_hash = auth_mod.hash_password("hunter2")
+    monkeypatch.setenv("AUTH_USERNAME", "admin")
+    monkeypatch.setenv("AUTH_PASSWORD_HASH", pw_hash)
+    monkeypatch.setenv("SESSION_COOKIE_SECURE", "false")
+    monkeypatch.setenv("CORS_ORIGINS", "http://localhost:5173")
+    import app.main as main_mod
+
+    importlib.reload(config_mod)
+    importlib.reload(main_mod)
+    client = TestClient(main_mod.app)
+    r = client.post(
+        "/api/auth/login",
+        json={"username": "admin", "password": "hunter2"},
+    )
+    assert r.status_code == 200, r.text
+    yield client
+    # Restore default app for any later test that uses TestClient(app) directly.
+    monkeypatch.delenv("AUTH_USERNAME", raising=False)
+    monkeypatch.delenv("AUTH_PASSWORD_HASH", raising=False)
+    monkeypatch.delenv("SESSION_COOKIE_SECURE", raising=False)
+    monkeypatch.delenv("CORS_ORIGINS", raising=False)
+    importlib.reload(config_mod)
+    importlib.reload(main_mod)

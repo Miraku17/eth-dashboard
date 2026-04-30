@@ -2,11 +2,9 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from app.core.models import PriceCandle
-from app.main import app
 
 
 @pytest.fixture
@@ -27,9 +25,8 @@ def seeded_session(migrated_engine):
         yield s
 
 
-def test_candles_endpoint_returns_ordered_candles(seeded_session):
-    client = TestClient(app)
-    resp = client.get("/api/price/candles", params={"timeframe": "1h", "limit": 5})
+def test_candles_endpoint_returns_ordered_candles(seeded_session, auth_client):
+    resp = auth_client.get("/api/price/candles", params={"timeframe": "1h", "limit": 5})
     assert resp.status_code == 200
     data = resp.json()
     assert data["symbol"] == "ETHUSDT"
@@ -39,14 +36,12 @@ def test_candles_endpoint_returns_ordered_candles(seeded_session):
     assert times == sorted(times), "candles must be returned in ascending time order"
 
 
-def test_candles_endpoint_rejects_invalid_timeframe(seeded_session):
-    client = TestClient(app)
-    resp = client.get("/api/price/candles", params={"timeframe": "2h", "limit": 5})
+def test_candles_endpoint_rejects_invalid_timeframe(seeded_session, auth_client):
+    resp = auth_client.get("/api/price/candles", params={"timeframe": "2h", "limit": 5})
     assert resp.status_code == 422
 
 
-def test_candles_endpoint_default_timeframe_is_1h(seeded_session):
-    client = TestClient(app)
-    resp = client.get("/api/price/candles")
+def test_candles_endpoint_default_timeframe_is_1h(seeded_session, auth_client):
+    resp = auth_client.get("/api/price/candles")
     assert resp.status_code == 200
     assert resp.json()["timeframe"] == "1h"

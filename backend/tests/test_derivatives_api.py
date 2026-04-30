@@ -2,11 +2,9 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from app.core.models import DerivativesSnapshot
-from app.main import app
 
 
 @pytest.fixture
@@ -34,8 +32,8 @@ def seeded(migrated_engine):
         yield s
 
 
-def test_summary_endpoint(seeded):
-    r = TestClient(app).get("/api/derivatives/summary")
+def test_summary_endpoint(seeded, auth_client):
+    r = auth_client.get("/api/derivatives/summary")
     assert r.status_code == 200
     body = r.json()
     # Latest row per exchange
@@ -47,27 +45,27 @@ def test_summary_endpoint(seeded):
     assert body["avg_funding_rate"] == pytest.approx((0.0001 - 0.0002) / 2)
 
 
-def test_summary_empty(migrated_engine):
+def test_summary_empty(migrated_engine, auth_client):
     Session = sessionmaker(bind=migrated_engine, expire_on_commit=False)
     with Session() as s:
         s.query(DerivativesSnapshot).delete()
         s.commit()
-    r = TestClient(app).get("/api/derivatives/summary")
+    r = auth_client.get("/api/derivatives/summary")
     assert r.status_code == 200
     body = r.json()
     assert body["latest"] == []
     assert body["total_oi_usd"] is None
 
 
-def test_series_endpoint(seeded):
-    r = TestClient(app).get("/api/derivatives/series?hours=24")
+def test_series_endpoint(seeded, auth_client):
+    r = auth_client.get("/api/derivatives/series?hours=24")
     assert r.status_code == 200
     points = r.json()["points"]
     assert len(points) == 4  # 2 hours × 2 exchanges
 
 
-def test_series_exchange_filter(seeded):
-    r = TestClient(app).get("/api/derivatives/series?hours=24&exchange=binance")
+def test_series_exchange_filter(seeded, auth_client):
+    r = auth_client.get("/api/derivatives/series?hours=24&exchange=binance")
     assert r.status_code == 200
     points = r.json()["points"]
     assert len(points) == 2
