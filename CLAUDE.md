@@ -47,6 +47,13 @@ docker-compose.yml
 - Never commit secrets — use `.env` (gitignored); `.env.example` documents required keys
 - Prefer existing patterns in the codebase over introducing new ones
 
+## Auth
+
+Single-account session login (argon2 password, Redis-backed HttpOnly cookies)
+gates the dashboard UI and all protected API routes. `/api/health` stays
+public. Operator setup: see `docs/auth-setup.md`. Design: see
+`docs/superpowers/specs/2026-04-30-login-auth-design.md`.
+
 ## Scope discipline
 
 The design doc's v1 scope is fixed. Do **not** implement v2/v3 features (DEX leaderboard, order flow, clustering, derivatives, backtesting) until v1 is shipped and stable. If a change seems to pull in v2+ work, flag it instead of expanding scope.
