@@ -49,13 +49,16 @@ class Settings(BaseSettings):
     webhook_signing_secret: str = ""
     alert_default_cooldown_min: int = 15
 
-    # API access control (v1 polish). When unset, the API is open — fine for
-    # a single-user local setup. Set it before exposing the deploy publicly.
-    api_auth_token: str = ""
-    # Comma-separated allowed origins for CORS. "*" = permissive (dev).
-    # In prod set to your frontend domain, e.g.
-    # "https://etherscope-frontend-production.up.railway.app".
-    cors_origins: str = "*"
+    # Auth (single-account session login). Both must be set in any non-local
+    # deployment; if either is unset, /api/auth/login returns 503.
+    auth_username: str = ""
+    # argon2id hash; generate with `python -m app.scripts.hash_password`.
+    auth_password_hash: str = ""
+    # Set to "false" only for local http development. In production keep true.
+    session_cookie_secure: bool = True
+    # Comma-separated allowed origins for CORS. Cookie auth requires explicit
+    # origins (no "*"). For local dev the default below is sufficient.
+    cors_origins: str = "http://localhost:5173,http://localhost:3000"
 
     @property
     def effective_ws_url(self) -> str:
