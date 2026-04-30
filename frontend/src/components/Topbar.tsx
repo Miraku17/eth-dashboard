@@ -64,8 +64,13 @@ function UserMenu() {
   const user = useAuthUser();
   if (!user) return null;
   async function onLogout() {
-    await logout();
-    window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+    try {
+      await logout();
+    } finally {
+      // Flip the UI back to login even if the server call failed —
+      // the server-side session will expire on its own.
+      window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+    }
   }
   return (
     <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
