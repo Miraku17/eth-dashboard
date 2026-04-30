@@ -1,0 +1,81 @@
+import { useState, FormEvent } from "react";
+import { login, LoginError } from "../auth";
+
+export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    try {
+      await login(username, password);
+      onSuccess();
+    } catch (err) {
+      if (err instanceof LoginError) {
+        if (err.status === 429 && err.retryAfter) {
+          const mins = Math.max(1, Math.ceil(err.retryAfter / 60));
+          setError(`Too many attempts. Try again in ${mins} min.`);
+        } else {
+          setError(err.message);
+        }
+      } else {
+        setError("Login failed");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-surface-base px-4">
+      <form
+        onSubmit={onSubmit}
+        className="w-full max-w-sm rounded-lg border border-surface-border bg-surface-card p-6 shadow-card space-y-4"
+      >
+        <div>
+          <h1 className="text-lg font-semibold tracking-wide">Etherscope</h1>
+          <p className="text-xs text-slate-500 mt-1">Sign in to continue</p>
+        </div>
+        <label className="block">
+          <span className="text-[11px] uppercase tracking-widest text-slate-500">Username</span>
+          <input
+            type="text"
+            autoFocus
+            autoComplete="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="mt-1 w-full rounded-md border border-surface-border bg-surface-base px-3 py-2 text-sm focus:outline-none focus:border-slate-400"
+            required
+          />
+        </label>
+        <label className="block">
+          <span className="text-[11px] uppercase tracking-widest text-slate-500">Password</span>
+          <input
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="mt-1 w-full rounded-md border border-surface-border bg-surface-base px-3 py-2 text-sm focus:outline-none focus:border-slate-400"
+            required
+          />
+        </label>
+        {error && (
+          <p className="text-xs text-red-400" role="alert">
+            {error}
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full rounded-md bg-slate-200 text-slate-900 text-sm font-medium py-2 hover:bg-white disabled:opacity-50"
+        >
+          {submitting ? "Signing in…" : "Sign in"}
+        </button>
+      </form>
+    </div>
+  );
+}
