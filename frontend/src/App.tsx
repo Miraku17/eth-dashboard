@@ -16,6 +16,7 @@ import StablecoinSupplyPanel from "./components/StablecoinSupplyPanel";
 import Topbar from "./components/Topbar";
 import VolumeStructurePanel from "./components/VolumeStructurePanel";
 import WhaleTransfersPanel from "./components/WhaleTransfersPanel";
+import AuthGate from "./components/AuthGate";
 import ErrorBoundary from "./components/ui/ErrorBoundary";
 
 function Guarded({
@@ -41,8 +42,9 @@ export default function App() {
   useGlobalShortcuts();
 
   return (
-    <div className="min-h-screen">
-      <Topbar />
+    <AuthGate>
+      <div className="min-h-screen">
+        <Topbar />
       <main className="mx-auto max-w-[1600px] px-4 sm:px-6 py-6 space-y-6">
         <Guarded label="Price" id="overview">
           <PriceHero />
@@ -97,5 +99,6 @@ export default function App() {
         </footer>
       </main>
     </div>
+    </AuthGate>
   );
 }

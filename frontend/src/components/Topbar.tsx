@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { fetchHealth, type DataSourceStatus } from "../api";
+import { fetchHealth, type DataSourceStatus, AUTH_EXPIRED_EVENT } from "../api";
+import { logout } from "../auth";
+import { useAuthUser } from "./AuthGate";
 
 const NAV: readonly { label: string; id: string }[] = [
   { label: "Overview", id: "overview" },
@@ -54,6 +56,28 @@ function SourceRow({ s }: { s: DataSourceStatus }) {
         <span className="text-slate-200">{SOURCE_LABELS[s.name] ?? s.name}</span>
       </div>
       <span className="font-mono text-slate-500">{formatLag(s.lag_seconds)}</span>
+    </div>
+  );
+}
+
+function UserMenu() {
+  const user = useAuthUser();
+  if (!user) return null;
+  async function onLogout() {
+    await logout();
+    window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+  }
+  return (
+    <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
+      <span className="text-slate-500">
+        Signed in as <span className="text-slate-300">{user.username}</span>
+      </span>
+      <button
+        onClick={onLogout}
+        className="px-2 py-1 rounded-md border border-transparent hover:border-surface-border hover:text-slate-200"
+      >
+        Logout
+      </button>
     </div>
   );
 }
@@ -136,6 +160,7 @@ export default function Topbar() {
               </div>
             </>
           )}
+          <UserMenu />
         </div>
       </div>
     </header>
