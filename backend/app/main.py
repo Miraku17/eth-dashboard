@@ -14,26 +14,31 @@ from app.api.price import router as price_router
 from app.api.whales import router as whales_router
 from app.core.auth import AuthDep
 
-# Read CORS directly from env so importing this module doesn't require the
-# full Pydantic Settings object (which enforces Postgres/Redis envs).
-_raw_origins = os.environ.get("CORS_ORIGINS", "*")
-_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+# Cookie auth requires explicit origins; "*" is incompatible with credentials.
+_raw_origins = os.environ.get(
+    "CORS_ORIGINS", "http://localhost:5173,http://localhost:3000"
+)
+_origins = [
+    o.strip()
+    for o in _raw_origins.split(",")
+    if o.strip() and o.strip() != "*"
+]
 
 app = FastAPI(title="Etherscope API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_origins or ["*"],
-    allow_credentials=False,
+    allow_origins=_origins,
+    allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Content-Type"],
 )
 
-# Health stays public so uptime pings + the topbar indicator still work.
+# Public routes.
 app.include_router(health_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 
-# Everything else is gated when API_AUTH_TOKEN is set; passes through otherwise.
+# Session-gated routes.
 app.include_router(price_router, prefix="/api", dependencies=[AuthDep])
 app.include_router(flows_router, prefix="/api", dependencies=[AuthDep])
 app.include_router(whales_router, prefix="/api", dependencies=[AuthDep])

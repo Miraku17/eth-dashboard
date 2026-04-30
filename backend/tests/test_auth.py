@@ -1,84 +1,108 @@
-"""Auth + CORS middleware tests."""
+"""Auth + CORS tests for the cookie-session world."""
 import importlib
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core import auth as auth_mod
+
 
 def _reload_app(monkeypatch, **env):
-    """Rebuild `app.main.app` with the given env — the module-level Settings is
-    instantiated at import time, so we reimport it."""
     from app.core import config as config_mod
-
     for k, v in env.items():
         monkeypatch.setenv(k, v)
     import app.main as main_mod
-
     importlib.reload(config_mod)
     importlib.reload(main_mod)
     return main_mod.app
 
 
-def test_auth_disabled_by_default(migrated_engine, monkeypatch):
-    monkeypatch.delenv("API_AUTH_TOKEN", raising=False)
-    app = _reload_app(monkeypatch)
-    client = TestClient(app)
-    # Health is always open.
+@pytest.fixture
+def configured_app(migrated_engine, monkeypatch):
+    pw_hash = auth_mod.hash_password("hunter2")
+    return _reload_app(
+        monkeypatch,
+        AUTH_USERNAME="admin",
+        AUTH_PASSWORD_HASH=pw_hash,
+        SESSION_COOKIE_SECURE="false",
+        CORS_ORIGINS="http://localhost:5173",
+    )
+
+
+def test_health_is_public(configured_app):
+    client = TestClient(configured_app)
     assert client.get("/api/health").status_code == 200
-    # Price endpoint is reachable without any token.
-    assert client.get("/api/price/candles").status_code == 200
 
 
-def test_auth_required_when_token_set(migrated_engine, monkeypatch):
-    app = _reload_app(monkeypatch, API_AUTH_TOKEN="s3cret")
-    client = TestClient(app)
-
-    # Health stays open.
-    assert client.get("/api/health").status_code == 200
-
-    # No token → 401 on a protected route.
+def test_protected_endpoint_requires_session(configured_app):
+    client = TestClient(configured_app)
     r = client.get("/api/price/candles")
     assert r.status_code == 401
 
-    # Wrong token → 401.
-    r = client.get(
-        "/api/price/candles", headers={"Authorization": "Bearer wrong"}
-    )
-    assert r.status_code == 401
 
-    # Correct token → 200.
-    r = client.get(
-        "/api/price/candles", headers={"Authorization": "Bearer s3cret"}
+def test_protected_endpoint_after_login(configured_app):
+    client = TestClient(configured_app)
+    client.post(
+        "/api/auth/login",
+        json={"username": "admin", "password": "hunter2"},
     )
-    assert r.status_code == 200
-
-    # Raw token (no Bearer prefix) also accepted — convenience for curl tests.
-    r = client.get("/api/price/candles", headers={"Authorization": "s3cret"})
+    r = client.get("/api/price/candles")
     assert r.status_code == 200
 
 
-@pytest.fixture(autouse=True)
-def _reload_app_after(monkeypatch):
-    """After any auth test, restore the default app so other test modules
-    running afterwards don't see a lingering auth token requirement."""
-    yield
-    monkeypatch.delenv("API_AUTH_TOKEN", raising=False)
-    from app.core import config as config_mod
-    import app.main as main_mod
-    importlib.reload(config_mod)
-    importlib.reload(main_mod)
+def test_logout_revokes_access(configured_app):
+    client = TestClient(configured_app)
+    client.post(
+        "/api/auth/login",
+        json={"username": "admin", "password": "hunter2"},
+    )
+    client.post("/api/auth/logout")
+    assert client.get("/api/price/candles").status_code == 401
 
 
-def test_cors_preflight(migrated_engine, monkeypatch):
-    app = _reload_app(monkeypatch, CORS_ORIGINS="https://example.com")
+def test_cors_preflight_allows_credentials(configured_app):
+    client = TestClient(configured_app)
+    r = client.options(
+        "/api/price/candles",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "Content-Type",
+        },
+    )
+    assert r.status_code == 200
+    assert r.headers.get("access-control-allow-credentials") == "true"
+    assert (
+        r.headers.get("access-control-allow-origin") == "http://localhost:5173"
+    )
+
+
+def test_cors_rejects_wildcard_origin(monkeypatch, migrated_engine):
+    # Even if CORS_ORIGINS contained "*", we strip it because credentials mode
+    # requires an explicit origin.
+    app = _reload_app(monkeypatch, CORS_ORIGINS="*")
     client = TestClient(app)
     r = client.options(
         "/api/price/candles",
         headers={
-            "Origin": "https://example.com",
+            "Origin": "https://evil.example",
             "Access-Control-Request-Method": "GET",
-            "Access-Control-Request-Headers": "Authorization",
         },
     )
-    assert r.status_code == 200
-    assert r.headers.get("access-control-allow-origin") == "https://example.com"
+    assert r.headers.get("access-control-allow-origin") in (None, "")
+
+
+@pytest.fixture(autouse=True)
+def _restore_default_app(monkeypatch):
+    yield
+    for var in (
+        "AUTH_USERNAME",
+        "AUTH_PASSWORD_HASH",
+        "SESSION_COOKIE_SECURE",
+        "CORS_ORIGINS",
+    ):
+        monkeypatch.delenv(var, raising=False)
+    import app.main as main_mod
+    from app.core import config as config_mod
+    importlib.reload(config_mod)
+    importlib.reload(main_mod)
