@@ -6,6 +6,8 @@ import { useAuthUser } from "./AuthGate";
 import { NavLink, useLocation } from "react-router-dom";
 import { useCustomizeMode } from "../state/customizeMode";
 import { useOverviewLayout } from "../state/overviewLayout";
+import Modal from "./ui/Modal";
+import Button from "./ui/Button";
 
 const NAV: readonly { label: string; to: string }[] = [
   { label: "Overview", to: "/" },
@@ -82,18 +84,46 @@ function ResetButton() {
   const location = useLocation();
   const editing = useCustomizeMode((s) => s.editing);
   const reset = useOverviewLayout((s) => s.reset);
+  const [open, setOpen] = useState(false);
   if (location.pathname !== "/" || !editing) return null;
-  function onClick() {
-    if (window.confirm("Reset overview to default layout?")) reset();
+  function onConfirm() {
+    reset();
+    setOpen(false);
   }
   return (
-    <button
-      onClick={onClick}
-      className="hidden md:inline-flex items-center text-xs text-slate-500 hover:text-down px-2 py-1 rounded-md border border-transparent hover:border-surface-border"
-      title="Restore the default panel selection, order, and sizes"
-    >
-      Reset
-    </button>
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="hidden md:inline-flex items-center text-xs text-slate-500 hover:text-down px-2 py-1 rounded-md border border-transparent hover:border-surface-border"
+        title="Restore the default panel selection, order, and sizes"
+      >
+        Reset
+      </button>
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Reset overview"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={onConfirm}>
+              Reset layout
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-300">
+          This will restore the default panel selection, order, and sizes for
+          your overview.
+        </p>
+        <p className="mt-2 text-xs text-slate-500">
+          Any panels you've added or removed and any size changes will be
+          discarded. This action can't be undone.
+        </p>
+      </Modal>
+    </>
   );
 }
 

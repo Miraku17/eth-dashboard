@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 type Props = {
   open: boolean;
@@ -21,8 +22,8 @@ export default function Modal({ open, onClose, title, children, footer, wide }: 
 
   if (!open) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 backdrop-blur-sm pt-16 pb-6 px-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/60 backdrop-blur-sm pt-16 pb-6 px-4">
       <div
         role="dialog"
         aria-modal="true"
@@ -57,6 +58,7 @@ export default function Modal({ open, onClose, title, children, footer, wide }: 
         className="fixed inset-0 -z-10 cursor-default"
         onClick={onClose}
       />
-    </div>
+    </div>,
+    document.body,
   );
 }
