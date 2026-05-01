@@ -1,9 +1,11 @@
 import uuid as _uuid
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    Date,
     DateTime,
     ForeignKey,
     Integer,
@@ -166,6 +168,21 @@ class SmartMoneyLeaderboard(Base):
     volume_usd: Mapped[float] = mapped_column(Numeric(24, 2), nullable=False)
     weth_bought: Mapped[float] = mapped_column(Numeric(36, 18), nullable=False)
     weth_sold: Mapped[float] = mapped_column(Numeric(36, 18), nullable=False)
+
+
+class WalletBalanceHistory(Base):
+    """Daily ETH balance snapshot per wallet (v2 wallet profile).
+
+    Past-day rows are immutable — once today rolls over they're correct
+    forever, so we never invalidate them. The current day is rewritten
+    on each fetch so the chart stays current.
+    """
+    __tablename__ = "wallet_balance_history"
+    address: Mapped[str] = mapped_column(String(42), primary_key=True)
+    date: Mapped[date] = mapped_column(Date, primary_key=True)
+    block_number: Mapped[int] = mapped_column(BigInteger)
+    balance_wei: Mapped[Decimal] = mapped_column(Numeric(78, 0))
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class WalletCluster(Base):

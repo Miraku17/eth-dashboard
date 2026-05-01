@@ -421,3 +421,46 @@ export async function refreshCluster(address: string): Promise<ClusterResult> {
   if (!r.ok) throw new Error(`refreshCluster failed: ${r.status}`);
   return r.json();
 }
+
+// ---------- Wallet profile ----------
+
+export type BalancePoint = { date: string; balance_eth: number };
+export type NetFlowPoint = { date: string; net_usd: number };
+export type Counterparty = {
+  address: string;
+  label: string | null;
+  total_usd: number;
+  tx_count: number;
+};
+export type WalletTransfer = {
+  tx_hash: string;
+  ts: string;
+  direction: "in" | "out";
+  counterparty: string;
+  counterparty_label: string | null;
+  asset: string;
+  amount: number;
+  usd_value: number | null;
+};
+export type WalletProfile = {
+  address: string;
+  labels: string[];
+  current_balance_eth: number | null;
+  current_balance_usd: number | null;
+  balance_change_30d_pct: number | null;
+  first_seen: string | null;
+  last_seen: string | null;
+  tx_count: number;
+  balance_history: BalancePoint[];
+  net_flow_7d: NetFlowPoint[];
+  top_counterparties: Counterparty[];
+  recent_transfers: WalletTransfer[];
+  linked_wallets: LinkedWallet[];
+  balance_unavailable: boolean;
+};
+
+export async function fetchWalletProfile(address: string): Promise<WalletProfile> {
+  const r = await apiFetch(`/api/wallets/${address}/profile`);
+  if (!r.ok) throw new Error(`fetchWalletProfile failed: ${r.status}`);
+  return r.json();
+}
