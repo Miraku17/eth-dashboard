@@ -77,7 +77,9 @@ The design doc's v1 scope is fixed. Do **not** implement v2/v3 features (DEX lea
 - v2-smart-money-leaderboard ✅ Daily Dune refresh of top 50 ETH DEX traders by 30d realized PnL on WETH; FIFO engine runs in Python over `dex.trades` candidate rows; persists snapshot per run to `smart_money_leaderboard`; `/api/leaderboard/smart-money` endpoint; dashboard panel. Requires `DUNE_QUERY_ID_SMART_MONEY_LEADERBOARD` in `.env` (SQL at `backend/dune/smart_money_leaderboard.sql`).
 - v2-mempool ✅ Self-hosted Geth + Lighthouse node; `backend/app/realtime/mempool.py` subscribes to `newPendingTransactions` concurrently with `newHeads`; whale-sized pending txs persist to `pending_transfers` (auto-cleaned at 30m or on confirm); `/api/whales/pending` endpoint; "Pending" section atop `WhaleTransfersPanel`. Spec: `docs/superpowers/specs/2026-04-28-mempool-tracking-design.md`.
 - v2-volume-structure ✅ Hourly Dune refresh bucketing ETH DEX volume into retail (<$10k) / mid ($10k–100k) / large ($100k–1M) / whale (≥$1M); persists to `volume_buckets`; `/api/flows/volume-buckets` endpoint; `VolumeStructurePanel` with USD/% mode toggle. Requires `DUNE_QUERY_ID_VOLUME_BUCKETS` in `.env` (SQL at `backend/dune/volume_buckets.sql`).
-- v2-wallet-clustering 🚧 design approved 2026-05-01; on-demand wallet investigation drawer (Etherscan-backed, sync, 7d cache); shared gas-funder + same-CEX-deposit heuristics + label enrichment; clickable addresses across whale / smart-money / pending panels. Spec: `docs/superpowers/specs/2026-05-01-wallet-clustering-design.md`.
+- v2-wallet-clustering ✅ On-demand wallet drawer (Etherscan-backed, sync, 7d Postgres `wallet_clusters` cache); shared gas-funder + same-CEX-deposit heuristics with public-funder denylist (CEX hot wallets, Tornado, bridges) suppressing false positives; clickable addresses across whale + smart-money panels via shared `<AddressLink>` + Zustand drawer state; daily 03:11 UTC purge cron drops rows past the 7-day grace window. Requires `ETHERSCAN_API_KEY` in `.env`. Spec: `docs/superpowers/specs/2026-05-01-wallet-clustering-design.md`.
+
+**v2 complete.**
 
 ## Environment note
 
