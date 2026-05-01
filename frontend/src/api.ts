@@ -119,7 +119,10 @@ export async function fetchOnchainVolume(
   return (await r.json()).points;
 }
 
-export type WhaleAsset = "ETH" | "USDT" | "USDC" | "DAI";
+export type WhaleAsset =
+  | "ETH"
+  | "USDT" | "USDC" | "DAI"
+  | "PYUSD" | "FDUSD" | "USDS" | "GHO" | "EUROC" | "ZCHF";
 
 export type WhaleTransfer = {
   tx_hash: string;

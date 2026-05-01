@@ -75,7 +75,12 @@ class WhaleTransfersResponse(BaseModel):
 
 # ---------- Alerts (M4) ----------
 
-WhaleAsset = Literal["ETH", "USDT", "USDC", "DAI", "ANY"]
+WhaleAsset = Literal[
+    "ETH",
+    "USDT", "USDC", "DAI",
+    "PYUSD", "FDUSD", "USDS", "GHO", "EUROC", "ZCHF",
+    "ANY",
+]
 
 
 class PriceAboveParams(BaseModel):

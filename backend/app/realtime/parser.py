@@ -108,7 +108,8 @@ def parse_erc20_log(
     stable = STABLES_BY_ADDRESS.get(addr)
     if stable is not None:
         amount = raw / (10**stable.decimals)
-        if amount < threshold_usd:
+        usd = amount * stable.price_usd_approx
+        if usd < threshold_usd:
             return None
         return WhaleTransfer(
             tx_hash=log["transactionHash"],
@@ -119,7 +120,7 @@ def parse_erc20_log(
             to_addr=to_addr,
             asset=stable.symbol,
             amount=amount,
-            usd_value=amount,
+            usd_value=usd,
         )
 
     volatile = VOLATILE_BY_ADDRESS.get(addr)
@@ -243,7 +244,8 @@ def decode_pending_tx(
         stable = STABLES_BY_ADDRESS.get(token_addr)
         if stable is not None:
             amount = raw_amount / (10**stable.decimals)
-            if amount < threshold_usd or amount > MAX_PENDING_STABLE_USD:
+            usd = amount * stable.price_usd_approx
+            if usd < threshold_usd or usd > MAX_PENDING_STABLE_USD:
                 return None
             return PendingWhale(
                 tx_hash=tx["hash"],
@@ -251,7 +253,7 @@ def decode_pending_tx(
                 to_addr=decoded_to.lower(),
                 asset=stable.symbol,
                 amount=amount,
-                usd_value=amount,
+                usd_value=usd,
                 nonce=nonce,
                 gas_price_gwei=gas_price_gwei,
             )

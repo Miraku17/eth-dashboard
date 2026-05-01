@@ -1,13 +1,13 @@
 """Token metadata for whale-tracking. ERC-20 Transfer topic + contract addresses.
 
-Two tracked sets:
+Three tracked sets:
 
-- STABLES: USD-pegged, threshold comes from runtime config (WHALE_STABLE_THRESHOLD_USD).
-- VOLATILE_TOKENS: price-floating, threshold is hardcoded per-token in native units,
-  sized to approximate ~$250k USD at the time of authoring. These will drift as
-  prices move — refresh the numbers periodically. The approximation is fine for
-  whale-detection purposes (a 30% price move changes an alert from "$250k whale"
-  to "$175k whale", still whale-sized).
+- STABLES: pegged tokens (USD/EUR/CHF). Threshold compare uses
+  amount × price_usd_approx so non-USD pegs surface at the right USD
+  notional. price_usd_approx is a hand-curated rate; refresh
+  periodically (whale-detection isn't sensitive to ±10% drift).
+- VOLATILE_TOKENS: price-floating, threshold is hardcoded per-token in
+  native units, sized to approximate ~$250k USD at the time of authoring.
 """
 from dataclasses import dataclass
 
@@ -23,22 +23,30 @@ class Token:
 
 
 @dataclass(frozen=True)
+class StableToken(Token):
+    peg_currency: str         # "USD" | "EUR" | "CHF" (display only)
+    price_usd_approx: float   # 1.0 for USD pegs; ~1.08 for EUR; ~1.10 for CHF
+
+
+@dataclass(frozen=True)
 class VolatileToken(Token):
-    # Native-unit threshold: transfers at or above this amount (in token units)
-    # are considered whale-sized and get persisted.
     threshold_native: float
-    # Approximate USD price per token, used for the persisted usd_value column.
-    # Refresh periodically; intended as a display approximation, not truth.
     price_usd_approx: float
 
 
-STABLES: tuple[Token, ...] = (
-    Token("USDT", "0xdac17f958d2ee523a2206206994597c13d831ec7", 6),
-    Token("USDC", "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", 6),
-    Token("DAI", "0x6b175474e89094c44da98b954eedeac495271d0f", 18),
+STABLES: tuple[StableToken, ...] = (
+    StableToken("USDT",  "0xdac17f958d2ee523a2206206994597c13d831ec7", 6,  "USD", 1.00),
+    StableToken("USDC",  "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", 6,  "USD", 1.00),
+    StableToken("DAI",   "0x6b175474e89094c44da98b954eedeac495271d0f", 18, "USD", 1.00),
+    StableToken("PYUSD", "0x6c3ea9036406852006290770bedfcaba0e23a0e8", 6,  "USD", 1.00),
+    StableToken("FDUSD", "0xc5f0f7b66764f6ec8c8dff7ba683102295e16409", 18, "USD", 1.00),
+    StableToken("USDS",  "0xdc035d45d973e3ec169d2276ddab16f1e407384f", 18, "USD", 1.00),
+    StableToken("GHO",   "0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f", 18, "USD", 1.00),
+    StableToken("EUROC", "0x1abaea1f7c830bd89acc67ec4af516284b1bc33c", 6,  "EUR", 1.08),
+    StableToken("ZCHF",  "0xb58e61c3098d85632df34eecfb899a1ed80921cb", 18, "CHF", 1.10),
 )
 
-STABLES_BY_ADDRESS: dict[str, Token] = {t.address: t for t in STABLES}
+STABLES_BY_ADDRESS: dict[str, StableToken] = {t.address: t for t in STABLES}
 
 
 # Thresholds each target ~$250k USD notional; refresh as prices drift.
