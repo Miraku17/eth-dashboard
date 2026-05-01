@@ -1,5 +1,6 @@
 import { Line, LineChart, ResponsiveContainer } from "recharts";
 import { useMarketSummary } from "../hooks/useMarketSummary";
+import { useBinanceTrade } from "../hooks/useBinanceTrade";
 import {
   formatNumberCompact,
   formatPct,
@@ -47,17 +48,30 @@ function StripCell({
 
 export default function PriceHero() {
   const { data, error } = useMarketSummary();
+  const trade = useBinanceTrade();
 
-  const up = (data?.change24hPct ?? 0) >= 0;
+  // Live price overrides the polled value as soon as a trade arrives.
+  // 24h-ago anchor = (last polled price) - (last polled 24h abs change).
+  const livePrice = trade ? trade.price : data?.price ?? null;
+  const price24hAgo =
+    data && Number.isFinite(data.change24hAbs) ? data.price - data.change24hAbs : null;
+  const liveChangeAbs =
+    livePrice !== null && price24hAgo !== null ? livePrice - price24hAgo : null;
+  const liveChangePct =
+    livePrice !== null && price24hAgo !== null && price24hAgo !== 0
+      ? (liveChangeAbs! / price24hAgo) * 100
+      : data?.change24hPct ?? null;
+
+  const up = (liveChangePct ?? 0) >= 0;
   const color = up ? "text-up" : "text-down";
   const arrow = up ? "▲" : "▼";
   const lineColor = up ? "#19c37d" : "#ff5c62";
 
   const rangePct =
-    data && data.high24h > data.low24h
+    data && data.high24h > data.low24h && livePrice !== null
       ? Math.max(
           0,
-          Math.min(100, ((data.price - data.low24h) / (data.high24h - data.low24h)) * 100),
+          Math.min(100, ((livePrice - data.low24h) / (data.high24h - data.low24h)) * 100),
         )
       : 50;
 
@@ -77,16 +91,16 @@ export default function PriceHero() {
                 <span className="text-[11px] text-slate-500">· Mainnet</span>
               </div>
               <div className="mt-3 flex items-baseline gap-3 flex-wrap">
-                {data ? (
+                {data && livePrice !== null && liveChangePct !== null && liveChangeAbs !== null ? (
                   <>
                     <div className="font-mono text-4xl lg:text-5xl font-semibold tabular-nums tracking-tight">
-                      {formatUsdFull(data.price)}
+                      {formatUsdFull(livePrice)}
                     </div>
                     <div className={"font-mono text-base font-semibold " + color}>
-                      {arrow} {formatPct(data.change24hPct)}
+                      {arrow} {formatPct(liveChangePct)}
                       <span className="text-slate-500 font-normal ml-2">
                         ({up ? "+" : ""}
-                        {formatUsdFull(data.change24hAbs)})
+                        {formatUsdFull(liveChangeAbs)})
                       </span>
                     </div>
                   </>
