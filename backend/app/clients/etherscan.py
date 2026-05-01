@@ -38,13 +38,13 @@ class EtherscanClient:
         _max_attempts: int = 3,
         _backoff_s: float = 0.5,
     ) -> list[dict] | dict:
-        params = {**params, "apikey": self._api_key}
+        params = {**params, "apikey": self._api_key, "chainid": 1}
         attempt = 0
         async with self._sem:
             while True:
                 attempt += 1
                 try:
-                    r = await self._http.get("/api", params=params)
+                    r = await self._http.get("/v2/api", params=params)
                 except httpx.HTTPError as e:
                     if attempt >= _max_attempts:
                         raise EtherscanUnavailable(str(e)) from e
