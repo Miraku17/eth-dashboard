@@ -7,7 +7,8 @@ import {
   type WhaleAsset,
   type WhaleTransfer,
 } from "../api";
-import { formatUsdCompact, relativeTime, shortAddr } from "../lib/format";
+import { formatUsdCompact, relativeTime } from "../lib/format";
+import AddressLink from "./AddressLink";
 import Card from "./ui/Card";
 import Pill from "./ui/Pill";
 
@@ -35,28 +36,20 @@ function AssetBadge({ asset }: { asset: string }) {
 function Party({ addr, label }: { addr: string; label: string | null }) {
   if (label) {
     return (
-      <a
-        href={`https://etherscan.io/address/${addr}`}
-        target="_blank"
-        rel="noreferrer"
+      <span
         className="inline-flex items-center gap-1.5 rounded-md bg-amber-500/10 text-amber-300 ring-1 ring-amber-400/20 px-1.5 py-0.5 text-xs hover:bg-amber-500/20"
         title={addr}
       >
         <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-        {label}
-      </a>
+        <AddressLink address={addr} label={label} className="text-amber-300 no-underline hover:no-underline" />
+      </span>
     );
   }
   return (
-    <a
-      href={`https://etherscan.io/address/${addr}`}
-      target="_blank"
-      rel="noreferrer"
-      className="font-mono text-xs text-slate-400 hover:text-slate-200 transition"
-      title={addr}
-    >
-      {shortAddr(addr)}
-    </a>
+    <AddressLink
+      address={addr}
+      className="text-xs text-slate-400 hover:text-slate-200"
+    />
   );
 }
 
