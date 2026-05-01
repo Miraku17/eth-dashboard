@@ -167,7 +167,7 @@ export default function WhaleTransfersPanel() {
           <table className="w-full text-sm border-separate border-spacing-0">
             <thead className="text-[11px] tracking-wider uppercase text-slate-500">
               <tr>
-                <th className="text-left font-medium px-5 py-3 border-b border-surface-divider">
+                <th className="hidden @md:table-cell text-left font-medium px-5 py-3 border-b border-surface-divider">
                   Time
                 </th>
                 <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">
@@ -185,7 +185,7 @@ export default function WhaleTransfersPanel() {
                 <th className="text-right font-medium px-3 py-3 border-b border-surface-divider">
                   USD
                 </th>
-                <th className="text-right font-medium px-5 py-3 border-b border-surface-divider">
+                <th className="hidden @md:table-cell text-right font-medium px-5 py-3 border-b border-surface-divider">
                   Tx
                 </th>
               </tr>
@@ -199,7 +199,7 @@ export default function WhaleTransfersPanel() {
                     (i % 2 === 0 ? "bg-transparent" : "bg-surface-sunken/40")
                   }
                 >
-                  <td className="px-5 py-2.5 text-slate-400 whitespace-nowrap border-b border-surface-divider/60">
+                  <td className="hidden @md:table-cell px-5 py-2.5 text-slate-400 whitespace-nowrap border-b border-surface-divider/60">
                     {relativeTime(t.ts)}
                   </td>
                   <td className="px-3 py-2.5 border-b border-surface-divider/60">
@@ -218,7 +218,7 @@ export default function WhaleTransfersPanel() {
                   <td className="px-3 py-2.5 text-right font-mono tabular-nums text-up border-b border-surface-divider/60">
                     {formatUsdCompact(t.usd_value)}
                   </td>
-                  <td className="px-5 py-2.5 text-right border-b border-surface-divider/60">
+                  <td className="hidden @md:table-cell px-5 py-2.5 text-right border-b border-surface-divider/60">
                     <a
                       href={`https://etherscan.io/tx/${t.tx_hash}`}
                       target="_blank"
