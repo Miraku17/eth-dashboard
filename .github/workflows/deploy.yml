@@ -55,6 +55,7 @@ jobs:
               - 'backend/alembic/versions/**'
             compose:
               - 'docker-compose.yml'
+              - 'docker-compose.prod.yml'
               - '.github/workflows/deploy.yml'
             caddy:
               - 'Caddyfile'
@@ -81,6 +82,11 @@ jobs:
             set -euo pipefail
             cd "$DEPLOY_PATH"
 
+            # Compose CLI prefix used for every command on the VPS. The prod
+            # override swaps the Vite dev server for the nginx static build and
+            # drops the dev bind mount + anonymous node_modules volume.
+            DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
+
             echo "→ git fetch && reset to origin/main"
             git fetch --prune origin
             git reset --hard origin/main
@@ -106,31 +112,35 @@ jobs:
             echo "→ plan: backend=$REBUILD_BACKEND frontend=$REBUILD_FRONTEND migrations=$RUN_MIGRATIONS full=$FULL"
 
             if [ "$FULL" = "true" ]; then
-              docker compose up -d --build
+              # rm -sfv on frontend wipes its anonymous volume so a fresh
+              # node_modules from the new image can populate the container.
+              $DC rm -sfv frontend || true
+              $DC up -d --build
             else
               if [ "$REBUILD_BACKEND" = "true" ]; then
-                docker compose build api worker realtime
-                docker compose up -d api worker realtime
+                $DC build api worker realtime
+                $DC up -d api worker realtime
               fi
               if [ "$REBUILD_FRONTEND" = "true" ]; then
-                docker compose build frontend
-                docker compose up -d frontend
+                $DC rm -sfv frontend || true
+                $DC build frontend
+                $DC up -d frontend
               fi
               if [ "$CADDY" = "true" ]; then
-                docker compose restart caddy
+                $DC restart caddy
               fi
             fi
 
             if [ "$RUN_MIGRATIONS" = "true" ]; then
               echo "→ alembic upgrade head"
-              docker compose exec -T api alembic upgrade head
+              $DC exec -T api alembic upgrade head
             fi
 
             echo "→ post-deploy health"
             sleep 3
             curl -fsS http://127.0.0.1:8000/api/health | head -c 400 || true
             echo
-            docker compose ps
+            $DC ps
         env:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           BACKEND: ${{ needs.changes.outputs.backend }}

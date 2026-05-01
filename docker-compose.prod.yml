@@ -1,0 +1,29 @@
+# Production overrides. Use with:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# This swaps the frontend service from the Vite dev server (HMR, source maps,
+# error overlays) to the optimised nginx static build, drops the bind mount +
+# anonymous node_modules volume that caused dep-skew bugs, and removes
+# --reload from the api so tracebacks aren't restarted on file changes.
+# Postgres + Redis are unchanged.
+
+services:
+  api:
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    # nginx listens on $PORT inside the container; Caddyfile already proxies
+    # to frontend:5173, so keep the internal port at 5173 to avoid touching
+    # Caddy.
+    environment:
+      PORT: 5173
+    ports:
+      - "127.0.0.1:5173:5173"
+    # Wipe the dev-only bind mount + anonymous node_modules. The image is
+    # self-contained — assets are baked in at build time.
+    volumes: []
