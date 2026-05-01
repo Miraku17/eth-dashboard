@@ -84,6 +84,7 @@ The design doc's v1 scope is fixed. Do **not** implement v2/v3 features (DEX lea
 ## UI polish
 
 - Live chart ✅ Direct browser-to-Binance WebSocket (combined `@trade` + `@kline_<tf>` streams) drives the price-hero ticker and in-place candle updates via `series.update()`; backend wraps `/api/price/candles` in a 60s Redis cache for the bootstrap path. Spec: `docs/superpowers/specs/2026-05-01-live-chart-ws-design.md`.
+- Customizable overview ✅ React Router 4-page split (`Overview · Markets · Onchain · Mempool`); overview supports drag-to-reorder + add/remove via `dnd-kit/sortable`, persisted to LocalStorage with a versioned schema; category pages are fixed-in-code, derived from a single `lib/panelRegistry.ts`. Desktop only (`≥md`); mobile renders a clean default stack. Spec: `docs/superpowers/specs/2026-05-01-customizable-layout-design.md`.
 
 ## Environment note
 
