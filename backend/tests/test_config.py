@@ -43,3 +43,17 @@ def test_smart_money_query_id_defaults_to_zero(monkeypatch):
     s = Settings(_env_file=None)
 
     assert s.dune_query_id_smart_money_leaderboard == 0
+
+
+def test_cluster_settings_have_defaults(monkeypatch):
+    monkeypatch.setenv("POSTGRES_USER", "x")
+    monkeypatch.setenv("POSTGRES_PASSWORD", "x")
+    monkeypatch.setenv("POSTGRES_DB", "x")
+    monkeypatch.setenv("POSTGRES_HOST", "x")
+    monkeypatch.setenv("REDIS_URL", "redis://x")
+    from app.core.config import Settings
+    s = Settings(_env_file=None)
+    assert s.cluster_cache_ttl_days == 7
+    assert s.cluster_max_linked_wallets == 50
+    assert s.cluster_max_deposit_candidates == 10
+    assert s.cluster_funder_strong_threshold == 50
