@@ -151,7 +151,7 @@ function NetFlowChart({ data }: { data: WalletProfile["net_flow_7d"] }) {
   if (data.length === 0) {
     return (
       <div className="text-[12px] text-slate-500">
-        No tracked flow in the last 7 days.
+        No whale-sized transfers in the last 7 days.
       </div>
     );
   }
@@ -336,6 +336,20 @@ function ProfileBody({
         </div>
       </div>
 
+      {/* Below-threshold hint — only when nothing in the transfers table
+          touches this address but we *do* have on-chain balance data, i.e.
+          the wallet is real but small enough to never trip whale tracking. */}
+      {!data.balance_unavailable
+        && data.recent_transfers.length === 0
+        && data.top_counterparties.length === 0
+        && data.net_flow_7d.length === 0 && (
+        <div className="rounded ring-1 ring-amber-400/20 bg-amber-400/5 px-3 py-2 text-[12px] text-amber-200/90">
+          This wallet is below the whale-tracking threshold (≥100 ETH or
+          ≥$250k stables per transfer). Profile shows on-chain balance only —
+          smaller moves are not indexed.
+        </div>
+      )}
+
       {/* Net flow */}
       <div>
         <SectionTitle>Net flow · 7d (whale moves)</SectionTitle>
@@ -347,7 +361,7 @@ function ProfileBody({
         <SectionTitle>Top counterparties · 30d</SectionTitle>
         {data.top_counterparties.length === 0 ? (
           <div className="text-[12px] text-slate-500">
-            No tracked counterparties yet.
+            No whale-sized counterparties in the last 30 days.
           </div>
         ) : (
           <ul>
@@ -363,7 +377,8 @@ function ProfileBody({
         <SectionTitle>Recent whale activity</SectionTitle>
         {data.recent_transfers.length === 0 ? (
           <div className="text-[12px] text-slate-500">
-            No tracked transfers involving this address.
+            No transfers above the whale threshold involving this address.
+            The wallet may still be active in smaller moves.
           </div>
         ) : (
           <ul>
