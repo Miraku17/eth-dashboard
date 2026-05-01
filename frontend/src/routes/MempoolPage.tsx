@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { PANELS } from "../lib/panelRegistry";
 import ErrorBoundary from "../components/ui/ErrorBoundary";
+import PanelShell from "../components/ui/PanelShell";
 
 function Guarded({
   label,
@@ -14,7 +15,9 @@ function Guarded({
 }) {
   return (
     <section id={id} className="scroll-mt-20">
-      <ErrorBoundary label={label}>{children}</ErrorBoundary>
+      <ErrorBoundary label={label}>
+        <PanelShell>{children}</PanelShell>
+      </ErrorBoundary>
     </section>
   );
 }

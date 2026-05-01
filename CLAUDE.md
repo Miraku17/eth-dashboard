@@ -85,6 +85,7 @@ The design doc's v1 scope is fixed. Do **not** implement v2/v3 features (DEX lea
 
 - Live chart ✅ Direct browser-to-Binance WebSocket (combined `@trade` + `@kline_<tf>` streams) drives the price-hero ticker and in-place candle updates via `series.update()`; backend wraps `/api/price/candles` in a 60s Redis cache for the bootstrap path. Spec: `docs/superpowers/specs/2026-05-01-live-chart-ws-design.md`.
 - Customizable overview ✅ React Router 4-page split (`Overview · Markets · Onchain · Mempool`); overview supports drag-to-reorder, add/remove, and bento-grid resize (S/M/L/Full → 1/2/3/4 cols) via `dnd-kit/sortable` + a 4-col CSS grid, persisted to LocalStorage (schema v2); category pages are fixed-in-code, derived from a single `lib/panelRegistry.ts`. Desktop only (`≥md`); mobile renders a clean default stack. Specs: `docs/superpowers/specs/2026-05-01-customizable-layout-design.md`, `docs/superpowers/specs/2026-05-01-bento-grid-resize-design.md`.
+- Panel-responsive content ✅ `@tailwindcss/container-queries` plugin + `<PanelShell>` wraps every panel in an `@container` div so inner Tailwind classes (`@xs:` / `@sm:` / `@md:` / `@2xl:`) react to the panel's own rendered width rather than the viewport. v1 ships narrow-mode passes for the 5 most pinch-sensitive panels (WhaleTransfers, SmartMoneyLeaderboard, AlertEvents, NetworkActivity, PriceHero); other 8 get the foundation only. Spec: `docs/superpowers/specs/2026-05-01-panel-responsive-design.md`.
 
 ## Environment note
 

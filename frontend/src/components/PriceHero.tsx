@@ -77,9 +77,9 @@ export default function PriceHero() {
 
   return (
     <section className="rounded-xl border border-surface-border bg-gradient-to-br from-surface-card to-surface-sunken shadow-card overflow-hidden">
-      <div className="flex flex-col lg:flex-row">
+      <div className="flex flex-col @2xl:flex-row">
         {/* Left: identity + price */}
-        <div className="flex-1 p-6 border-b lg:border-b-0 lg:border-r border-surface-divider min-w-0">
+        <div className="flex-1 p-6 border-b @2xl:border-b-0 @2xl:border-r border-surface-divider min-w-0">
           <div className="flex items-start gap-4">
             <EthGlyph />
             <div className="min-w-0">
@@ -93,7 +93,7 @@ export default function PriceHero() {
               <div className="mt-3 flex items-baseline gap-3 flex-wrap">
                 {data && livePrice !== null && liveChangePct !== null && liveChangeAbs !== null ? (
                   <>
-                    <div className="font-mono text-4xl lg:text-5xl font-semibold tabular-nums tracking-tight">
+                    <div className="font-mono text-4xl @2xl:text-5xl font-semibold tabular-nums tracking-tight">
                       {formatUsdFull(livePrice)}
                     </div>
                     <div className={"font-mono text-base font-semibold " + color}>
@@ -105,14 +105,14 @@ export default function PriceHero() {
                     </div>
                   </>
                 ) : error ? (
-                  <div className="font-mono text-4xl lg:text-5xl font-semibold text-slate-700 tracking-tight">
+                  <div className="font-mono text-4xl @2xl:text-5xl font-semibold text-slate-700 tracking-tight">
                     —
                   </div>
                 ) : (
                   // Loading skeleton — matches the shape of the real headline
                   // so the layout doesn't jump when data arrives.
                   <>
-                    <div className="skeleton h-10 lg:h-12 w-48" />
+                    <div className="skeleton h-10 @2xl:h-12 w-48" />
                     <div className="skeleton h-5 w-32" />
                   </>
                 )}
@@ -145,7 +145,7 @@ export default function PriceHero() {
           </div>
         </div>
 
-        <div className="lg:w-[40%] p-6 flex items-center">
+        <div className="@2xl:w-[40%] p-6 flex items-center">
           <div className="w-full h-28">
             {data ? (
               <ResponsiveContainer>
