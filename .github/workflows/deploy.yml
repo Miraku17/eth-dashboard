@@ -1,0 +1,141 @@
+# Deploy main → VPS over SSH.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   SSH_HOST     — VPS hostname or IP
+#   SSH_USER     — login user (e.g. `deploy` or `root`)
+#   SSH_KEY      — private key matching an authorized_keys entry on the VPS
+#   DEPLOY_PATH  — absolute path to the repo checkout on the VPS
+# Optional:
+#   SSH_PORT     — defaults to 22
+#
+# Behaviour:
+#   • workflow_dispatch  → always runs, with optional "force full rebuild" toggle
+#   • push to main       → disabled until you flip ENABLE_AUTO_DEPLOY below to
+#                          true (so the first run is intentional and you can
+#                          watch it from the Actions tab)
+#   • Only services whose source paths changed are rebuilt. A change to
+#     docker-compose.yml or the workflow itself triggers a full rebuild.
+
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_full_rebuild:
+        description: "Rebuild & restart every service regardless of changed paths"
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      migrations: ${{ steps.filter.outputs.migrations }}
+      compose: ${{ steps.filter.outputs.compose }}
+      caddy: ${{ steps.filter.outputs.caddy }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+            migrations:
+              - 'backend/alembic/versions/**'
+            compose:
+              - 'docker-compose.yml'
+              - '.github/workflows/deploy.yml'
+            caddy:
+              - 'Caddyfile'
+
+  deploy:
+    needs: changes
+    runs-on: ubuntu-latest
+    # Gate auto-deploy on push behind a manual flip. The workflow_dispatch path
+    # is always allowed so you can deploy from the Actions tab without flipping
+    # this. Once you've verified a manual deploy works end-to-end, change this
+    # condition to: if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          envs: DEPLOY_PATH,BACKEND,FRONTEND,MIGRATIONS,COMPOSE,CADDY,FORCE
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd "$DEPLOY_PATH"
+
+            echo "→ git fetch && reset to origin/main"
+            git fetch --prune origin
+            git reset --hard origin/main
+
+            REBUILD_BACKEND=false
+            REBUILD_FRONTEND=false
+            RUN_MIGRATIONS=false
+            FULL=false
+
+            if [ "$FORCE" = "true" ] || [ "$COMPOSE" = "true" ]; then
+              FULL=true
+            fi
+            if [ "$FULL" = "true" ] || [ "$BACKEND" = "true" ]; then
+              REBUILD_BACKEND=true
+            fi
+            if [ "$FULL" = "true" ] || [ "$FRONTEND" = "true" ]; then
+              REBUILD_FRONTEND=true
+            fi
+            if [ "$FULL" = "true" ] || [ "$MIGRATIONS" = "true" ]; then
+              RUN_MIGRATIONS=true
+            fi
+
+            echo "→ plan: backend=$REBUILD_BACKEND frontend=$REBUILD_FRONTEND migrations=$RUN_MIGRATIONS full=$FULL"
+
+            if [ "$FULL" = "true" ]; then
+              docker compose up -d --build
+            else
+              if [ "$REBUILD_BACKEND" = "true" ]; then
+                docker compose build api worker realtime
+                docker compose up -d api worker realtime
+              fi
+              if [ "$REBUILD_FRONTEND" = "true" ]; then
+                docker compose build frontend
+                docker compose up -d frontend
+              fi
+              if [ "$CADDY" = "true" ]; then
+                docker compose restart caddy
+              fi
+            fi
+
+            if [ "$RUN_MIGRATIONS" = "true" ]; then
+              echo "→ alembic upgrade head"
+              docker compose exec -T api alembic upgrade head
+            fi
+
+            echo "→ post-deploy health"
+            sleep 3
+            curl -fsS http://127.0.0.1:8000/api/health | head -c 400 || true
+            echo
+            docker compose ps
+        env:
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          BACKEND: ${{ needs.changes.outputs.backend }}
+          FRONTEND: ${{ needs.changes.outputs.frontend }}
+          MIGRATIONS: ${{ needs.changes.outputs.migrations }}
+          COMPOSE: ${{ needs.changes.outputs.compose }}
+          CADDY: ${{ needs.changes.outputs.caddy }}
+          FORCE: ${{ inputs.force_full_rebuild || 'false' }}
