@@ -1,3 +1,5 @@
+import containerQueries from "@tailwindcss/container-queries";
+
 export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
@@ -16,15 +18,15 @@ export default {
       },
       colors: {
         surface: {
-          base: "#0a0d12",     // body bg
-          card: "#10141b",     // panel bg
-          sunken: "#0d1117",   // subtle darker blocks (tables)
-          raised: "#151a22",   // hover / elevated rows
-          border: "#1b2028",   // panel borders
-          divider: "#161b23",  // inner dividers
+          base: "#0a0d12",
+          card: "#10141b",
+          sunken: "#0d1117",
+          raised: "#151a22",
+          border: "#1b2028",
+          divider: "#161b23",
         },
         brand: {
-          DEFAULT: "#7c83ff",  // Ethereum-ish violet
+          DEFAULT: "#7c83ff",
           soft: "#8b93ff",
           muted: "#2a2e4a",
         },
@@ -36,5 +38,5 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [containerQueries],
 };
