@@ -5,12 +5,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import Candle, CandlesResponse, Timeframe
+from app.core.cache import cached_json_get, cached_json_set
 from app.core.db import get_session
 from app.core.models import PriceCandle
 
 router = APIRouter(prefix="/price", tags=["price"])
 
 DEFAULT_SYMBOL = "ETHUSDT"
+CANDLES_CACHE_TTL_S = 60
 
 
 @router.get("/candles", response_model=CandlesResponse)
@@ -20,6 +22,11 @@ def get_candles(
     limit: int = Query(500, ge=1, le=2000),
     symbol: str = DEFAULT_SYMBOL,
 ) -> CandlesResponse:
+    cache_key = f"candles:{symbol}:{timeframe}:{limit}"
+    cached = cached_json_get(cache_key)
+    if cached is not None:
+        return CandlesResponse.model_validate(cached)
+
     rows = session.execute(
         select(PriceCandle)
         .where(PriceCandle.symbol == symbol, PriceCandle.timeframe == timeframe)
@@ -29,7 +36,7 @@ def get_candles(
 
     rows = list(reversed(rows))
 
-    return CandlesResponse(
+    response = CandlesResponse(
         symbol=symbol,
         timeframe=timeframe,
         candles=[
@@ -44,3 +51,5 @@ def get_candles(
             for r in rows
         ],
     )
+    cached_json_set(cache_key, response.model_dump(mode="json"), CANDLES_CACHE_TTL_S)
+    return response

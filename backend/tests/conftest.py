@@ -45,10 +45,13 @@ def migrated_engine(
 
 @pytest.fixture(autouse=True)
 def _flush_redis(redis_container: RedisContainer) -> Iterator[None]:
-    """Each test starts with an empty Redis so session/rate-limit state is clean."""
+    """Each test starts with an empty Redis so session/cache state is clean."""
     yield
     client = redis_container.get_client()
     client.flushdb()
+    # Drop cached redis-client singletons so a flushed DB is seen.
+    from app.core.cache import _reset_client_for_tests as _reset_cache
+    _reset_cache()
 
 
 @pytest.fixture
