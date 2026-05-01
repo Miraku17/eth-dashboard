@@ -14,6 +14,7 @@ import {
   fetchWalletProfile,
   type Counterparty,
   type LinkedWallet,
+  type TokenHolding,
   type WalletProfile,
   type WalletTransfer,
 } from "../api";
@@ -176,6 +177,42 @@ function NetFlowChart({ data }: { data: WalletProfile["net_flow_7d"] }) {
   );
 }
 
+function formatTokenAmount(amount: number): string {
+  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(2)}M`;
+  if (amount >= 10_000) return amount.toFixed(0);
+  if (amount >= 1) return amount.toFixed(2);
+  return amount.toFixed(4);
+}
+
+function TokenHoldingRow({ h }: { h: TokenHolding }) {
+  return (
+    <li className="flex items-center justify-between gap-3 py-1.5 text-sm border-b border-surface-divider/60 last:border-0">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="text-[10px] font-semibold uppercase tracking-wider rounded px-1.5 py-0.5 ring-1 bg-surface-raised text-slate-200 ring-surface-border">
+          {h.symbol}
+        </span>
+        <span className="font-mono tabular-nums text-slate-100 whitespace-nowrap">
+          {formatTokenAmount(h.amount)}
+        </span>
+      </div>
+      <div className="flex items-center gap-2 whitespace-nowrap">
+        {h.usd_value !== null ? (
+          <span className="font-mono text-[12px] text-slate-200 tabular-nums">
+            {formatUsdCompact(h.usd_value)}
+          </span>
+        ) : (
+          <span className="text-[11px] text-slate-500 italic">unpriced</span>
+        )}
+        {h.price_usd !== null && h.price_usd > 0 && (
+          <span className="text-[10px] text-slate-600 font-mono tabular-nums">
+            @ ${h.price_usd < 0.01 ? h.price_usd.toExponential(1) : h.price_usd.toFixed(2)}
+          </span>
+        )}
+      </div>
+    </li>
+  );
+}
+
 function CounterpartyRow({
   cp,
   onClick,
@@ -335,6 +372,23 @@ function ProfileBody({
           </div>
         </div>
       </div>
+
+      {/* Token holdings */}
+      {data.token_holdings.length > 0 && (
+        <div>
+          <SectionTitle>
+            Token holdings
+            <span className="ml-1.5 normal-case tracking-normal text-slate-600 font-normal">
+              · top {data.token_holdings.length} by USD
+            </span>
+          </SectionTitle>
+          <ul>
+            {data.token_holdings.map((h) => (
+              <TokenHoldingRow key={h.address} h={h} />
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Below-threshold hint — only when nothing in the transfers table
           touches this address but we *do* have on-chain balance data, i.e.

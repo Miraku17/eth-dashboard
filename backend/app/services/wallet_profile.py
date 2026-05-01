@@ -292,8 +292,10 @@ def build_profile(
 async def build_profile_async(
     session: Session,
     rpc: EthRpcClient | None,
+    http: httpx.AsyncClient | None,
     address: str,
     eth_price_usd: float | None,
+    coingecko_api_key: str = "",
 ) -> WalletProfile:
     cluster_payload = _read_cluster_payload(session, address)
     labels, linked, first_seen, last_seen, tx_count = _hydrate_cluster_bits(cluster_payload)
@@ -325,6 +327,17 @@ async def build_profile_async(
             * 100
         )
 
+    # Token holdings — separate concern, never blocks the rest of the profile
+    # if RPC or CoinGecko is briefly unavailable.
+    token_holdings = []
+    if rpc is not None and http is not None:
+        try:
+            from app.services.token_holdings import get_token_holdings
+
+            token_holdings = await get_token_holdings(rpc, http, address, coingecko_api_key)
+        except Exception as exc:  # noqa: BLE001 — never fail the whole profile.
+            log.warning("token holdings unavailable for %s: %s", address, exc)
+
     return WalletProfile(
         address=address,
         labels=labels,
@@ -339,5 +352,6 @@ async def build_profile_async(
         top_counterparties=_top_counterparties(session, address),
         recent_transfers=_recent_transfers(session, address),
         linked_wallets=linked,
+        token_holdings=token_holdings,
         balance_unavailable=balance_unavailable,
     )
