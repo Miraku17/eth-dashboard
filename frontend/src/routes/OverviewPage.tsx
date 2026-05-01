@@ -1,19 +1,8 @@
 import { useState, type ReactNode } from "react";
 
 import type { Timeframe } from "../api";
-import AlertEventsPanel from "../components/AlertEventsPanel";
-import DerivativesPanel from "../components/DerivativesPanel";
-import ExchangeFlowsPanel from "../components/ExchangeFlowsPanel";
-import MempoolPanel from "../components/MempoolPanel";
-import NetworkActivityPanel from "../components/NetworkActivityPanel";
-import OnchainVolumePanel from "../components/OnchainVolumePanel";
-import OrderFlowPanel from "../components/OrderFlowPanel";
-import PriceChart from "../components/PriceChart";
-import SmartMoneyLeaderboard from "../components/SmartMoneyLeaderboard";
-import PriceHero from "../components/PriceHero";
-import StablecoinSupplyPanel from "../components/StablecoinSupplyPanel";
-import VolumeStructurePanel from "../components/VolumeStructurePanel";
-import WhaleTransfersPanel from "../components/WhaleTransfersPanel";
+import { PANELS_BY_ID } from "../lib/panelRegistry";
+import { useOverviewLayout } from "../state/overviewLayout";
 import ErrorBoundary from "../components/ui/ErrorBoundary";
 
 function Guarded({
@@ -33,57 +22,33 @@ function Guarded({
 }
 
 export default function OverviewPage() {
+  const panelIds = useOverviewLayout((s) => s.panelIds);
   const [timeframe, setTimeframe] = useState<Timeframe>("1h");
+
+  if (panelIds.length === 0) {
+    return (
+      <div className="text-center text-sm text-slate-500 py-20">
+        Click <span className="text-slate-300">Customize</span> to add panels to your overview.
+      </div>
+    );
+  }
 
   return (
     <>
-      <Guarded label="Price" id="overview">
-        <PriceHero />
-      </Guarded>
-
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <div className="xl:col-span-2">
-          <Guarded label="Chart">
-            <PriceChart timeframe={timeframe} onTimeframeChange={setTimeframe} />
+      {panelIds.map((id) => {
+        const def = PANELS_BY_ID[id];
+        if (!def) return null;
+        const Component = def.component;
+        const props =
+          id === "price-chart"
+            ? { timeframe, onTimeframeChange: setTimeframe }
+            : {};
+        return (
+          <Guarded key={id} label={def.label} id={id}>
+            <Component {...props} />
           </Guarded>
-        </div>
-        <div className="space-y-6">
-          <Guarded label="Exchange flows" id="flows">
-            <ExchangeFlowsPanel />
-          </Guarded>
-          <Guarded label="Stablecoin supply">
-            <StablecoinSupplyPanel />
-          </Guarded>
-        </div>
-      </div>
-
-      <Guarded label="Derivatives" id="derivatives">
-        <DerivativesPanel />
-      </Guarded>
-      <Guarded label="Smart money" id="smart-money">
-        <SmartMoneyLeaderboard />
-      </Guarded>
-      <Guarded label="Order flow" id="order-flow">
-        <OrderFlowPanel />
-      </Guarded>
-      <Guarded label="Volume structure" id="volume-structure">
-        <VolumeStructurePanel />
-      </Guarded>
-      <Guarded label="Network activity">
-        <NetworkActivityPanel />
-      </Guarded>
-      <Guarded label="On-chain volume">
-        <OnchainVolumePanel />
-      </Guarded>
-      <Guarded label="Whale transfers" id="whales">
-        <WhaleTransfersPanel />
-      </Guarded>
-      <Guarded label="Mempool" id="mempool">
-        <MempoolPanel />
-      </Guarded>
-      <Guarded label="Alerts" id="alerts">
-        <AlertEventsPanel />
-      </Guarded>
+        );
+      })}
     </>
   );
 }
