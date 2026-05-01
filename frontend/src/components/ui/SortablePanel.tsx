@@ -6,6 +6,7 @@ import { SPAN_CLASS, type PanelWidth } from "../../lib/panelRegistry";
 import { useCustomizeMode } from "../../state/customizeMode";
 import { useOverviewLayout } from "../../state/overviewLayout";
 import ErrorBoundary from "./ErrorBoundary";
+import PanelShell from "./PanelShell";
 
 type Props = {
   id: string;
@@ -86,7 +87,9 @@ export default function SortablePanel({ id, label, width, children }: Props) {
           </button>
         </div>
       )}
-      <ErrorBoundary label={label}>{children}</ErrorBoundary>
+      <ErrorBoundary label={label}>
+        <PanelShell>{children}</PanelShell>
+      </ErrorBoundary>
     </section>
   );
 }
