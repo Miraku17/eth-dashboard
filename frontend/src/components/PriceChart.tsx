@@ -154,14 +154,15 @@ export default function PriceChart({ timeframe, onTimeframeChange }: Props) {
     };
     chart.subscribeCrosshairMove(onCrosshairMove);
 
-    const handleResize = () => {
-      if (containerRef.current && chartRef.current) {
-        chartRef.current.applyOptions({ width: containerRef.current.clientWidth });
-      }
-    };
-    window.addEventListener("resize", handleResize);
+    const ro = new ResizeObserver((entries) => {
+      const el = containerRef.current;
+      if (!el || !chartRef.current) return;
+      const w = entries[0]?.contentRect.width ?? el.clientWidth;
+      chartRef.current.applyOptions({ width: Math.floor(w) });
+    });
+    ro.observe(containerRef.current);
     return () => {
-      window.removeEventListener("resize", handleResize);
+      ro.disconnect();
       chart.unsubscribeCrosshairMove(onCrosshairMove);
       chart.remove();
       chartRef.current = null;
@@ -278,9 +279,9 @@ export default function PriceChart({ timeframe, onTimeframeChange }: Props) {
       actions={<TimeframeSelector value={timeframe} onChange={onTimeframeChange} />}
       bodyClassName="p-0"
     >
-      <div className="relative">
+      <div className="relative pt-2 pb-3">
         <HoverLegend hover={hover} />
-        <div ref={containerRef} className="px-2 pt-2 pb-3" />
+        <div ref={containerRef} className="w-full overflow-hidden" />
       </div>
     </Card>
   );
