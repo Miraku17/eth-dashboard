@@ -81,6 +81,10 @@ The design doc's v1 scope is fixed. Do **not** implement v2/v3 features (DEX lea
 
 **v2 complete.**
 
+## UI polish
+
+- Live chart ✅ Direct browser-to-Binance WebSocket (combined `@trade` + `@kline_<tf>` streams) drives the price-hero ticker and in-place candle updates via `series.update()`; backend wraps `/api/price/candles` in a 60s Redis cache for the bootstrap path. Spec: `docs/superpowers/specs/2026-05-01-live-chart-ws-design.md`.
+
 ## Environment note
 
 Local ISP (dev machine) DNS-intercepts `api.binance.com` and other crypto-exchange domains, returning a fake "blocking-page-authority" cert. `docker-compose.yml` works around this by pinning container DNS to 1.1.1.1/8.8.8.8. In production (Hetzner/Railway) this override is harmless; remove it only if resolver performance matters.
