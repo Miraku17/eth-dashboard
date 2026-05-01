@@ -9,7 +9,7 @@ with mints as (
   from tokens.transfers
   where blockchain = 'ethereum'
     and "from" = 0x0000000000000000000000000000000000000000
-    and symbol in ('USDT','USDC','DAI')
+    and symbol in ('USDT','USDC','DAI','PYUSD','FDUSD','USDS','GHO','EUROC','ZCHF')
     and block_time > now() - interval '30' day
     and amount_usd is not null
   group by 1, 2
@@ -23,7 +23,7 @@ burns as (
   from tokens.transfers
   where blockchain = 'ethereum'
     and to = 0x0000000000000000000000000000000000000000
-    and symbol in ('USDT','USDC','DAI')
+    and symbol in ('USDT','USDC','DAI','PYUSD','FDUSD','USDS','GHO','EUROC','ZCHF')
     and block_time > now() - interval '30' day
     and amount_usd is not null
   group by 1, 2
