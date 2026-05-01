@@ -3,13 +3,14 @@ import { useState } from "react";
 import { fetchHealth, type DataSourceStatus, AUTH_EXPIRED_EVENT } from "../api";
 import { logout } from "../auth";
 import { useAuthUser } from "./AuthGate";
+import { NavLink, useLocation } from "react-router-dom";
+import { useCustomizeMode } from "../state/customizeMode";
 
-const NAV: readonly { label: string; id: string }[] = [
-  { label: "Overview", id: "overview" },
-  { label: "Flows", id: "flows" },
-  { label: "Whales", id: "whales" },
-  { label: "Mempool", id: "mempool" },
-  { label: "Alerts", id: "alerts" },
+const NAV: readonly { label: string; to: string }[] = [
+  { label: "Overview", to: "/" },
+  { label: "Markets", to: "/markets" },
+  { label: "Onchain", to: "/onchain" },
+  { label: "Mempool", to: "/mempool" },
 ];
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -60,6 +61,22 @@ function SourceRow({ s }: { s: DataSourceStatus }) {
   );
 }
 
+function CustomizeButton() {
+  const location = useLocation();
+  const editing = useCustomizeMode((s) => s.editing);
+  const toggle = useCustomizeMode((s) => s.toggle);
+  const isOverview = location.pathname === "/";
+  if (!isOverview) return null;
+  return (
+    <button
+      onClick={toggle}
+      className="hidden md:inline-flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200 px-2 py-1 rounded-md border border-transparent hover:border-surface-border"
+    >
+      {editing ? "Done" : "Customize"}
+    </button>
+  );
+}
+
 function UserMenu() {
   const user = useAuthUser();
   if (!user) return null;
@@ -107,15 +124,21 @@ export default function Topbar() {
               Pro
             </span>
           </div>
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="flex items-center gap-1">
             {NAV.map((n) => (
-              <a
-                key={n.id}
-                href={`#${n.id}`}
-                className="px-3 py-1.5 text-sm rounded-md transition text-slate-400 hover:text-slate-200 hover:bg-surface-raised/60"
+              <NavLink
+                key={n.to}
+                to={n.to}
+                end={n.to === "/"}
+                className={({ isActive }) =>
+                  "px-3 py-1.5 text-sm rounded-md transition " +
+                  (isActive
+                    ? "text-slate-100 bg-surface-raised/80"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-surface-raised/60")
+                }
               >
                 {n.label}
-              </a>
+              </NavLink>
             ))}
           </nav>
         </div>
@@ -165,6 +188,7 @@ export default function Topbar() {
               </div>
             </>
           )}
+          <CustomizeButton />
           <UserMenu />
         </div>
       </div>
