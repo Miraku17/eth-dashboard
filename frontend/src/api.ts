@@ -442,6 +442,13 @@ export type WalletTransfer = {
   amount: number;
   usd_value: number | null;
 };
+export type TokenHolding = {
+  address: string;
+  symbol: string;
+  amount: number;
+  price_usd: number | null;
+  usd_value: number | null;
+};
 export type WalletProfile = {
   address: string;
   labels: string[];
@@ -456,6 +463,7 @@ export type WalletProfile = {
   top_counterparties: Counterparty[];
   recent_transfers: WalletTransfer[];
   linked_wallets: LinkedWallet[];
+  token_holdings: TokenHolding[];
   balance_unavailable: boolean;
 };
 

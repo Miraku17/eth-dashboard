@@ -63,10 +63,15 @@ async def get_wallet_profile(
 
     rpc_url = settings.effective_http_url
     if not rpc_url:
-        # No RPC configured — return profile without balance history. The
-        # frontend renders the rest (cluster, counterparties, activity).
-        return await build_profile_async(session, None, addr, eth_price)
+        # No RPC configured — return profile without balance history or
+        # token holdings. The frontend renders the rest (cluster,
+        # counterparties, activity).
+        return await build_profile_async(
+            session, None, None, addr, eth_price, settings.coingecko_api_key
+        )
 
     async with httpx.AsyncClient(timeout=20.0) as http:
         rpc = EthRpcClient(http, rpc_url)
-        return await build_profile_async(session, rpc, addr, eth_price)
+        return await build_profile_async(
+            session, rpc, http, addr, eth_price, settings.coingecko_api_key
+        )

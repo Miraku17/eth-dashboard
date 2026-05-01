@@ -389,6 +389,14 @@ class NetFlowPoint(BaseModel):
     net_usd: float
 
 
+class TokenHolding(BaseModel):
+    address: str
+    symbol: str
+    amount: float
+    price_usd: float | None = None
+    usd_value: float | None = None
+
+
 class WalletProfile(BaseModel):
     address: str
     labels: list[str] = []
@@ -403,4 +411,5 @@ class WalletProfile(BaseModel):
     top_counterparties: list[Counterparty] = []
     recent_transfers: list[WalletTransfer] = []
     linked_wallets: list[LinkedWallet] = []
+    token_holdings: list[TokenHolding] = []
     balance_unavailable: bool = False

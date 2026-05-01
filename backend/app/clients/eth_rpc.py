@@ -53,6 +53,46 @@ class EthRpcClient:
             raise RpcError(f"block {block} not found")
         return int(result["timestamp"], 16)
 
+    async def batch_eth_call(
+        self, calls: list[tuple[str, str]], block: int | str = "latest"
+    ) -> list[str | None]:
+        """Issue N eth_calls in a single JSON-RPC batch POST.
+
+        Each entry in `calls` is `(to_address, data_hex)`. Returns the raw
+        hex result per call (in input order), or None for per-call errors.
+        Used by the token-holdings lookup to fetch ~25 ERC-20 `balanceOf`
+        values in one round-trip.
+        """
+        if not calls:
+            return []
+        block_param = block if isinstance(block, str) else hex(block)
+        first_id = self._id + 1
+        payload = []
+        for to, data in calls:
+            self._id += 1
+            payload.append(
+                {
+                    "jsonrpc": "2.0",
+                    "id": self._id,
+                    "method": "eth_call",
+                    "params": [{"to": to, "data": data}, block_param],
+                }
+            )
+        r = await self._http.post(self._url, json=payload, timeout=15.0)
+        r.raise_for_status()
+        body = r.json()
+        if isinstance(body, dict):
+            raise RpcError(f"batch_eth_call: expected array, got {body!r}")
+        by_id = {item["id"]: item for item in body}
+        out: list[str | None] = []
+        for i in range(len(calls)):
+            item = by_id.get(first_id + i)
+            if item is None or "error" in item:
+                out.append(None)
+            else:
+                out.append(item.get("result"))
+        return out
+
 
 async def gather_balances(
     client: EthRpcClient,
