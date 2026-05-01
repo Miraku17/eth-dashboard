@@ -368,3 +368,56 @@ export async function fetchSmartMoneyLeaderboard(
   if (!r.ok) throw new Error(`smart-money leaderboard ${r.status}`);
   return r.json();
 }
+
+// ---- Wallet clustering --------------------------------------------------
+
+export type ClusterConfidence = "strong" | "weak";
+
+export type LinkedWallet = {
+  address: string;
+  label: string | null;
+  confidence: ClusterConfidence;
+  reasons: string[];
+};
+
+export type GasFunderInfo = {
+  address: string;
+  label: string | null;
+  is_public: boolean;
+  tx_hash: string;
+  block_number: number;
+};
+
+export type CexDepositInfo = {
+  address: string;
+  exchange: string;
+};
+
+export type ClusterStats = {
+  first_seen: string | null;
+  last_seen: string | null;
+  tx_count: number;
+};
+
+export type ClusterResult = {
+  address: string;
+  computed_at: string;
+  stale: boolean;
+  labels: string[];
+  gas_funder: GasFunderInfo | null;
+  cex_deposits: CexDepositInfo[];
+  linked_wallets: LinkedWallet[];
+  stats: ClusterStats;
+};
+
+export async function fetchCluster(address: string): Promise<ClusterResult> {
+  const r = await apiFetch(`/api/clusters/${address}`);
+  if (!r.ok) throw new Error(`fetchCluster failed: ${r.status}`);
+  return r.json();
+}
+
+export async function refreshCluster(address: string): Promise<ClusterResult> {
+  const r = await apiFetch(`/api/clusters/${address}/refresh`, { method: "POST" });
+  if (!r.ok) throw new Error(`refreshCluster failed: ${r.status}`);
+  return r.json();
+}
