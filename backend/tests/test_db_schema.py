@@ -31,3 +31,12 @@ def test_smart_money_leaderboard_table_exists(migrated_engine):
     }
     idx = {i["name"] for i in insp.get_indexes("smart_money_leaderboard")}
     assert "ix_leaderboard_latest" in idx
+
+
+def test_wallet_clusters_table_exists(migrated_engine):
+    insp = inspect(migrated_engine)
+    assert "wallet_clusters" in insp.get_table_names()
+    cols = {c["name"] for c in insp.get_columns("wallet_clusters")}
+    assert cols == {"address", "computed_at", "ttl_expires_at", "payload"}
+    idx = {i["name"] for i in insp.get_indexes("wallet_clusters")}
+    assert "ix_wallet_clusters_ttl_expires_at" in idx

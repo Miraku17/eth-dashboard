@@ -18,6 +18,7 @@ import VolumeStructurePanel from "./components/VolumeStructurePanel";
 import WhaleTransfersPanel from "./components/WhaleTransfersPanel";
 import AuthGate from "./components/AuthGate";
 import ErrorBoundary from "./components/ui/ErrorBoundary";
+import WalletDrawer from "./components/WalletDrawer";
 
 function Guarded({
   label,
@@ -99,6 +100,7 @@ export default function App() {
         </footer>
       </main>
     </div>
+      <WalletDrawer />
     </AuthGate>
   );
 }

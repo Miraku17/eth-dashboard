@@ -2,18 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 
 import { fetchSmartMoneyLeaderboard, type SmartMoneyEntry } from "../api";
 import { formatUsdCompact } from "../lib/format";
+import AddressLink from "./AddressLink";
 import Card from "./ui/Card";
 
 const STALE_HOURS = 36;
-
-function truncWallet(w: string): string {
-  if (w.length <= 12) return w;
-  return `${w.slice(0, 6)}…${w.slice(-4)}`;
-}
-
-function etherscanUrl(w: string): string {
-  return `https://etherscan.io/address/${w}`;
-}
 
 function fmtPnl(v: number): string {
   const sign = v >= 0 ? "+" : "-";
@@ -84,14 +76,10 @@ export default function SmartMoneyLeaderboard() {
                     {e.rank}
                   </td>
                   <td className="px-4 py-3">
-                    <a
-                      href={etherscanUrl(e.wallet)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="font-mono text-slate-200 hover:text-white"
-                    >
-                      {truncWallet(e.wallet)}
-                    </a>
+                    <AddressLink
+                      address={e.wallet}
+                      className="text-slate-200 hover:text-white no-underline"
+                    />
                     {e.label && (
                       <span className="ml-2 inline-block rounded-sm bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-300">
                         {e.label}

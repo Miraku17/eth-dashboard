@@ -43,6 +43,13 @@ class Settings(BaseSettings):
     whale_eth_threshold: float = 100.0
     whale_stable_threshold_usd: float = 250_000.0
 
+    # Wallet clustering (v2-final). Cache TTL is days because clustering signals
+    # are stable over time (a wallet's funding history is fixed).
+    cluster_cache_ttl_days: int = 7
+    cluster_max_linked_wallets: int = 50
+    cluster_max_deposit_candidates: int = 10
+    cluster_funder_strong_threshold: int = 50
+
     # Alerts (M4). Evaluator runs on a cron; Telegram delivery is optional.
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""

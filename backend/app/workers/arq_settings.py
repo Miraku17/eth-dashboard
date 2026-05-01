@@ -5,6 +5,7 @@ from arq.cron import cron
 from app.clients.binance import BINANCE_BASE_URL
 from app.core.config import get_settings
 from app.workers.alert_jobs import evaluate_alerts
+from app.workers.cluster_jobs import purge_expired_clusters
 from app.workers.derivatives_jobs import sync_derivatives
 from app.workers.flow_jobs import sync_dune_flows, sync_order_flow, sync_volume_buckets
 from app.workers.leaderboard_jobs import sync_smart_money_leaderboard
@@ -68,6 +69,7 @@ class WorkerSettings:
         sync_volume_buckets,
         sync_smart_money_leaderboard,
         cleanup_pending_transfers,
+        purge_expired_clusters,
     ]
     cron_jobs = [
         cron(sync_price_latest, minute=set(range(0, 60)), run_at_startup=False),
@@ -87,6 +89,8 @@ class WorkerSettings:
         cron(sync_smart_money_leaderboard, hour={3}, minute={0}, run_at_startup=False),
         # Pending whale cleanup: every minute, drops rows >30 min old or now-confirmed.
         cron(cleanup_pending_transfers, minute=set(range(0, 60)), run_at_startup=False),
+        # Wallet-cluster cache: drop rows past the 7-day grace window.
+        cron(purge_expired_clusters, hour={3}, minute={11}, run_at_startup=False),
     ]
     on_startup = startup
     on_shutdown = shutdown
