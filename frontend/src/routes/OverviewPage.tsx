@@ -10,7 +10,7 @@ import {
 import {
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
+  rectSortingStrategy,
 } from "@dnd-kit/sortable";
 
 import type { Timeframe } from "../api";
@@ -21,7 +21,7 @@ import AddPanelTile from "../components/ui/AddPanelTile";
 import SortablePanel from "../components/ui/SortablePanel";
 
 export default function OverviewPage() {
-  const panelIds = useOverviewLayout((s) => s.panelIds);
+  const panels = useOverviewLayout((s) => s.panels);
   const reorder = useOverviewLayout((s) => s.reorder);
   const editing = useCustomizeMode((s) => s.editing);
   const exit = useCustomizeMode((s) => s.exit);
@@ -32,7 +32,7 @@ export default function OverviewPage() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  // Escape key exits customize mode.
+  // Escape exits customize mode.
   useEffect(() => {
     if (!editing) return;
     function onKey(e: KeyboardEvent) {
@@ -48,9 +48,9 @@ export default function OverviewPage() {
     }
   }
 
-  // Empty overview placeholder, but only when NOT in edit mode — in edit mode
-  // we still want the AddPanelTile visible so the user can add their first panel.
-  if (panelIds.length === 0 && !editing) {
+  // Empty placeholder, but only when NOT editing — in edit mode the
+  // AddPanelTile must remain visible so the user can add the first panel.
+  if (panels.length === 0 && !editing) {
     return (
       <div className="text-center text-sm text-slate-500 py-20">
         Click <span className="text-slate-300">Customize</span> to add panels to your overview.
@@ -58,20 +58,22 @@ export default function OverviewPage() {
     );
   }
 
+  const items = panels.map((p) => p.id);
+
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-      <SortableContext items={panelIds} strategy={verticalListSortingStrategy}>
-        <div className="space-y-6">
-          {panelIds.map((id) => {
-            const def = PANELS_BY_ID[id];
+      <SortableContext items={items} strategy={rectSortingStrategy}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {panels.map((p) => {
+            const def = PANELS_BY_ID[p.id];
             if (!def) return null;
             const Component = def.component;
             const props =
-              id === "price-chart"
+              p.id === "price-chart"
                 ? { timeframe, onTimeframeChange: setTimeframe }
                 : {};
             return (
-              <SortablePanel key={id} id={id} label={def.label}>
+              <SortablePanel key={p.id} id={p.id} label={def.label} width={p.width}>
                 <Component {...props} />
               </SortablePanel>
             );

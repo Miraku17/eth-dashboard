@@ -4,7 +4,7 @@ import { PANELS } from "../../lib/panelRegistry";
 import { useOverviewLayout } from "../../state/overviewLayout";
 
 export default function AddPanelTile() {
-  const panelIds = useOverviewLayout((s) => s.panelIds);
+  const panels = useOverviewLayout((s) => s.panels);
   const add = useOverviewLayout((s) => s.add);
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -24,10 +24,11 @@ export default function AddPanelTile() {
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [open]);
 
-  const available = PANELS.filter((p) => !panelIds.includes(p.id));
+  const presentIds = new Set(panels.map((p) => p.id));
+  const available = PANELS.filter((p) => !presentIds.has(p.id));
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <div ref={wrapperRef} className="relative col-span-1 md:col-span-2 lg:col-span-3 xl:col-span-4">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
