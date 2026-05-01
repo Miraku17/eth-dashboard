@@ -60,10 +60,10 @@ export default function SmartMoneyLeaderboard() {
                 <th className="text-left px-4 py-3 font-medium">#</th>
                 <th className="text-left px-4 py-3 font-medium">Wallet</th>
                 <th className="text-right px-4 py-3 font-medium">Realized PnL</th>
-                <th className="text-right px-4 py-3 font-medium">Unrealized</th>
-                <th className="text-right px-4 py-3 font-medium">Win rate</th>
+                <th className="hidden @md:table-cell text-right px-4 py-3 font-medium">Unrealized</th>
+                <th className="hidden @md:table-cell text-right px-4 py-3 font-medium">Win rate</th>
                 <th className="text-right px-4 py-3 font-medium">Trades</th>
-                <th className="text-right px-4 py-3 font-medium">Volume</th>
+                <th className="hidden @md:table-cell text-right px-4 py-3 font-medium">Volume</th>
               </tr>
             </thead>
             <tbody>
@@ -96,7 +96,7 @@ export default function SmartMoneyLeaderboard() {
                   </td>
                   <td
                     className={
-                      "px-4 py-3 text-right font-mono tabular-nums " +
+                      "hidden @md:table-cell px-4 py-3 text-right font-mono tabular-nums " +
                       (e.unrealized_pnl_usd === null
                         ? "text-slate-600"
                         : e.unrealized_pnl_usd >= 0
@@ -108,13 +108,13 @@ export default function SmartMoneyLeaderboard() {
                       ? "—"
                       : fmtPnl(e.unrealized_pnl_usd)}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono text-slate-300 tabular-nums">
+                  <td className="hidden @md:table-cell px-4 py-3 text-right font-mono text-slate-300 tabular-nums">
                     {fmtPct(e.win_rate)}
                   </td>
                   <td className="px-4 py-3 text-right font-mono text-slate-400 tabular-nums">
                     {e.trade_count}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono text-slate-300 tabular-nums">
+                  <td className="hidden @md:table-cell px-4 py-3 text-right font-mono text-slate-300 tabular-nums">
                     {formatUsdCompact(e.volume_usd)}
                   </td>
                 </tr>
