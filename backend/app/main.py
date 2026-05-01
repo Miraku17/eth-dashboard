@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.alerts import router as alerts_router
 from app.api.auth import router as auth_router
+from app.api.clusters import router as clusters_router
 from app.api.derivatives import router as derivatives_router
 from app.api.flows import router as flows_router
 from app.api.health import router as health_router
@@ -46,3 +47,4 @@ app.include_router(alerts_router, prefix="/api", dependencies=[AuthDep])
 app.include_router(network_router, prefix="/api", dependencies=[AuthDep])
 app.include_router(derivatives_router, prefix="/api", dependencies=[AuthDep])
 app.include_router(leaderboard_router, prefix="/api", dependencies=[AuthDep])
+app.include_router(clusters_router, prefix="/api", dependencies=[AuthDep])
