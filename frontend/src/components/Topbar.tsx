@@ -5,6 +5,7 @@ import { logout } from "../auth";
 import { useAuthUser } from "./AuthGate";
 import { NavLink, useLocation } from "react-router-dom";
 import { useCustomizeMode } from "../state/customizeMode";
+import { useOverviewLayout } from "../state/overviewLayout";
 
 const NAV: readonly { label: string; to: string }[] = [
   { label: "Overview", to: "/" },
@@ -73,6 +74,25 @@ function CustomizeButton() {
       className="hidden md:inline-flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200 px-2 py-1 rounded-md border border-transparent hover:border-surface-border"
     >
       {editing ? "Done" : "Customize"}
+    </button>
+  );
+}
+
+function ResetButton() {
+  const location = useLocation();
+  const editing = useCustomizeMode((s) => s.editing);
+  const reset = useOverviewLayout((s) => s.reset);
+  if (location.pathname !== "/" || !editing) return null;
+  function onClick() {
+    if (window.confirm("Reset overview to default layout?")) reset();
+  }
+  return (
+    <button
+      onClick={onClick}
+      className="hidden md:inline-flex items-center text-xs text-slate-500 hover:text-down px-2 py-1 rounded-md border border-transparent hover:border-surface-border"
+      title="Restore the default panel selection, order, and sizes"
+    >
+      Reset
     </button>
   );
 }
@@ -188,6 +208,7 @@ export default function Topbar() {
               </div>
             </>
           )}
+          <ResetButton />
           <CustomizeButton />
           <UserMenu />
         </div>
