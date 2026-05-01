@@ -22,13 +22,14 @@ async def test_txlist_asc_returns_rows():
              "blockNumber": "100", "timeStamp": "1714000000"}]
 
     def handler(req: httpx.Request) -> httpx.Response:
-        assert req.url.path == "/api"
+        assert req.url.path == "/v2/api"
         params = dict(req.url.params)
         assert params["module"] == "account"
         assert params["action"] == "txlist"
         assert params["address"] == "0xtarget"
         assert params["sort"] == "asc"
         assert params["page"] == "1"
+        assert params["chainid"] == "1"
         return _ok(rows)
 
     transport = httpx.MockTransport(handler)
