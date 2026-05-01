@@ -107,7 +107,7 @@ export default function NetworkActivityPanel() {
       bodyClassName="p-0"
     >
       {/* Stat strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-surface-divider border-b border-surface-divider">
+      <div className="grid grid-cols-1 @md:grid-cols-4 divide-y @md:divide-y-0 @md:divide-x divide-surface-divider border-b border-surface-divider">
         <Stat
           label="Gas price"
           value={fmtGwei(summary.data?.gas_price_gwei ?? null)}
