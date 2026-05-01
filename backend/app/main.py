@@ -12,6 +12,7 @@ from app.api.health import router as health_router
 from app.api.leaderboard import router as leaderboard_router
 from app.api.network import router as network_router
 from app.api.price import router as price_router
+from app.api.wallets import router as wallets_router
 from app.api.whales import router as whales_router
 from app.core.auth import AuthDep
 
@@ -48,3 +49,4 @@ app.include_router(network_router, prefix="/api", dependencies=[AuthDep])
 app.include_router(derivatives_router, prefix="/api", dependencies=[AuthDep])
 app.include_router(leaderboard_router, prefix="/api", dependencies=[AuthDep])
 app.include_router(clusters_router, prefix="/api", dependencies=[AuthDep])
+app.include_router(wallets_router, prefix="/api", dependencies=[AuthDep])

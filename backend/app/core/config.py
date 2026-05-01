@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     # When set, the realtime listener connects here instead of Alchemy
     # (e.g. ws://172.17.0.1:8546 for a self-hosted node).
     alchemy_ws_url: str = ""
+    # HTTP JSON-RPC endpoint. Used by the wallet-profile balance lookups.
+    # Self-hosted Geth: http://172.17.0.1:8545. If unset and ALCHEMY_API_KEY
+    # is set, falls back to Alchemy's HTTPS endpoint.
+    alchemy_http_url: str = ""
     dune_api_key: str = ""
     etherscan_api_key: str = ""
     coingecko_api_key: str = ""
@@ -74,6 +78,14 @@ class Settings(BaseSettings):
         if not self.alchemy_api_key:
             return ""
         return f"wss://eth-mainnet.g.alchemy.com/v2/{self.alchemy_api_key}"
+
+    @property
+    def effective_http_url(self) -> str:
+        if self.alchemy_http_url:
+            return self.alchemy_http_url
+        if not self.alchemy_api_key:
+            return ""
+        return f"https://eth-mainnet.g.alchemy.com/v2/{self.alchemy_api_key}"
 
     @property
     def database_url(self) -> str:

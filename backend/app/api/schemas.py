@@ -356,3 +356,51 @@ class ClusterResult(BaseModel):
     cex_deposits: list[CexDepositInfo] = []
     linked_wallets: list[LinkedWallet] = []
     stats: ClusterStats = ClusterStats()
+
+
+# ---------- Wallet profile (v2) ----------
+
+
+class BalancePoint(BaseModel):
+    date: str  # YYYY-MM-DD (UTC)
+    balance_eth: float
+
+
+class Counterparty(BaseModel):
+    address: str
+    label: str | None = None
+    total_usd: float
+    tx_count: int
+
+
+class WalletTransfer(BaseModel):
+    tx_hash: str
+    ts: datetime
+    direction: Literal["in", "out"]
+    counterparty: str
+    counterparty_label: str | None = None
+    asset: str
+    amount: float
+    usd_value: float | None = None
+
+
+class NetFlowPoint(BaseModel):
+    date: str  # YYYY-MM-DD (UTC)
+    net_usd: float
+
+
+class WalletProfile(BaseModel):
+    address: str
+    labels: list[str] = []
+    current_balance_eth: float | None = None
+    current_balance_usd: float | None = None
+    balance_change_30d_pct: float | None = None
+    first_seen: datetime | None = None
+    last_seen: datetime | None = None
+    tx_count: int = 0
+    balance_history: list[BalancePoint] = []
+    net_flow_7d: list[NetFlowPoint] = []
+    top_counterparties: list[Counterparty] = []
+    recent_transfers: list[WalletTransfer] = []
+    linked_wallets: list[LinkedWallet] = []
+    balance_unavailable: bool = False
