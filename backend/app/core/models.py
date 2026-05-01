@@ -166,3 +166,18 @@ class SmartMoneyLeaderboard(Base):
     volume_usd: Mapped[float] = mapped_column(Numeric(24, 2), nullable=False)
     weth_bought: Mapped[float] = mapped_column(Numeric(36, 18), nullable=False)
     weth_sold: Mapped[float] = mapped_column(Numeric(36, 18), nullable=False)
+
+
+class WalletCluster(Base):
+    """Cached wallet-clustering result. One row per queried address.
+
+    `payload` is the full serialized ClusterResult (Pydantic) so the engine
+    can evolve without schema migrations.
+    """
+    __tablename__ = "wallet_clusters"
+    address: Mapped[str] = mapped_column(String(42), primary_key=True)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ttl_expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), index=True
+    )
+    payload: Mapped[dict] = mapped_column(JSONB)
