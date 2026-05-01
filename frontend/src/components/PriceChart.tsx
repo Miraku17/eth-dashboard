@@ -1,5 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   createChart,
   type IChartApi,
@@ -10,6 +10,8 @@ import {
 
 import { fetchCandles, type Candle, type Timeframe } from "../api";
 import { formatUsdCompact, formatUsdFull } from "../lib/format";
+import { binanceWS } from "../lib/binanceWS";
+import { useBinanceStatus } from "../hooks/useBinanceStatus";
 import Card from "./ui/Card";
 import TimeframeSelector from "./TimeframeSelector";
 
@@ -78,10 +80,15 @@ export default function PriceChart({ timeframe, onTimeframeChange }: Props) {
 
   const [hover, setHover] = useState<Hover>(null);
 
+  const queryClient = useQueryClient();
+  const wsConnected = useBinanceStatus();
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["candles", timeframe],
     queryFn: () => fetchCandles(timeframe, 500),
-    refetchInterval: 30_000,
+    // No refetchInterval — the live WS handles freshness. We re-fetch only
+    // on timeframe change (queryKey change) and on WS reconnect.
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
@@ -197,6 +204,64 @@ export default function PriceChart({ timeframe, onTimeframeChange }: Props) {
     }
   }, [data]);
 
+  // Live-tick the last candle in place. Lightweight Charts' series.update()
+  // recognises matching `time` as the last bar and updates without flicker.
+  const handleTick = useCallback(
+    (m: {
+      openTime: number;
+      open: number;
+      high: number;
+      low: number;
+      close: number;
+      volume: number;
+      closed: boolean;
+    }) => {
+      const candleSeries = candleSeriesRef.current;
+      const volumeSeries = volumeSeriesRef.current;
+      if (!candleSeries || !volumeSeries) return;
+      const t = m.openTime as UTCTimestamp;
+      candleSeries.update({
+        time: t,
+        open: m.open,
+        high: m.high,
+        low: m.low,
+        close: m.close,
+      });
+      volumeSeries.update({
+        time: t,
+        value: m.volume,
+        color:
+          m.close >= m.open ? "rgba(25,195,125,0.45)" : "rgba(255,92,98,0.45)",
+      });
+      // When a bar closes, also update the local candleMap so the hover legend
+      // sees the sealed values.
+      if (m.closed) {
+        candleMapRef.current.set(m.openTime, {
+          time: m.openTime,
+          open: m.open,
+          high: m.high,
+          low: m.low,
+          close: m.close,
+          volume: m.volume,
+        });
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    return binanceWS.subscribeKline(timeframe, handleTick);
+  }, [timeframe, handleTick]);
+
+  // After a WS reconnect, refetch historical bars so any gap during the
+  // disconnect is filled. The Redis cache (60s) on the backend keeps this
+  // cheap.
+  useEffect(() => {
+    return binanceWS.onReconnect(() => {
+      queryClient.invalidateQueries({ queryKey: ["candles", timeframe] });
+    });
+  }, [timeframe, queryClient]);
+
   return (
     <Card
       title="ETH / USDT"
@@ -205,7 +270,9 @@ export default function PriceChart({ timeframe, onTimeframeChange }: Props) {
           ? "loading…"
           : error
             ? "chart unavailable"
-            : `${data?.candles.length ?? 0} ${timeframe} candles · Binance`
+            : !wsConnected
+              ? `${data?.candles.length ?? 0} ${timeframe} candles · live disconnected — retrying`
+              : `${data?.candles.length ?? 0} ${timeframe} candles · Binance live`
       }
       live
       actions={<TimeframeSelector value={timeframe} onChange={onTimeframeChange} />}
