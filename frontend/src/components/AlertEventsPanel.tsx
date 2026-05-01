@@ -191,7 +191,7 @@ export default function AlertEventsPanel() {
         }
         live={tab === "events"}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 @sm:flex-row @sm:items-center @sm:justify-between @sm:gap-0">
             <div className="inline-flex rounded-md border border-surface-border bg-surface-sunken p-0.5">
               {(["events", "rules"] as Tab[]).map((t) => (
                 <button
@@ -280,7 +280,7 @@ export default function AlertEventsPanel() {
                           <td className="px-3 py-2.5 border-b border-surface-divider/60">
                             <TypeBadge type={ruleType || "unknown"} />
                           </td>
-                          <td className="px-3 py-2.5 font-mono text-xs text-slate-300 border-b border-surface-divider/60">
+                          <td className="px-3 py-2.5 font-mono text-xs text-slate-300 border-b border-surface-divider/60 line-clamp-1 @sm:line-clamp-none">
                             {summarizePayload(ruleType, e.payload)}
                           </td>
                           <td className="px-5 py-2.5 text-center border-b border-surface-divider/60">
