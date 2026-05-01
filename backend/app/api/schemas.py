@@ -316,3 +316,43 @@ class PendingTransferOut(BaseModel):
 
 class PendingTransfersResponse(BaseModel):
     pending: list[PendingTransferOut]
+
+
+# ---------- Wallet clustering (v2) ----------
+
+
+class GasFunderInfo(BaseModel):
+    address: str
+    label: str | None = None
+    is_public: bool
+    tx_hash: str
+    block_number: int
+
+
+class CexDepositInfo(BaseModel):
+    address: str
+    exchange: str
+
+
+class LinkedWallet(BaseModel):
+    address: str
+    label: str | None = None
+    confidence: Literal["strong", "weak"]
+    reasons: list[str]
+
+
+class ClusterStats(BaseModel):
+    first_seen: datetime | None = None
+    last_seen: datetime | None = None
+    tx_count: int = 0
+
+
+class ClusterResult(BaseModel):
+    address: str
+    computed_at: datetime
+    stale: bool = False
+    labels: list[str] = []
+    gas_funder: GasFunderInfo | None = None
+    cex_deposits: list[CexDepositInfo] = []
+    linked_wallets: list[LinkedWallet] = []
+    stats: ClusterStats = ClusterStats()
