@@ -122,7 +122,8 @@ export async function fetchOnchainVolume(
 export type WhaleAsset =
   | "ETH"
   | "USDT" | "USDC" | "DAI"
-  | "PYUSD" | "FDUSD" | "USDS" | "GHO" | "EUROC" | "ZCHF";
+  | "PYUSD" | "FDUSD" | "USDS" | "GHO" | "EUROC" | "ZCHF"
+  | "EURCV" | "EURe" | "tGBP";
 
 export type WhaleTransfer = {
   tx_hash: string;
