@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchDexPoolTvlLatest, type DexPoolTvlPoint } from "../api";
 import { formatUsdCompact } from "../lib/format";
 import Card from "./ui/Card";
+import DataAge from "./ui/DataAge";
 import { SimpleSelect } from "./ui/Select";
 
 const TOP_N_DISPLAY = 20;
@@ -71,6 +72,7 @@ export default function DexPoolTvlPanel() {
               {formatUsdCompact(totalView)} combined
             </span>
           </div>
+          <DataAge ts={data?.ts_bucket ?? null} />
           <ul className="space-y-2">
             {filtered.map((p) => {
               const barPct = (p.tvl_usd / max) * 100;

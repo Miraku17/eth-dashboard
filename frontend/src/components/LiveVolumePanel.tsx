@@ -9,8 +9,10 @@ import {
   YAxis,
 } from "recharts";
 import { fetchRealtimeVolume, type RealtimeVolumePoint } from "../api";
+import { rgbOf } from "../lib/assetColors";
 import { formatUsdCompact } from "../lib/format";
 import Card from "./ui/Card";
+import DataAge from "./ui/DataAge";
 import { SimpleSelect } from "./ui/Select";
 
 type RangeOpt = { value: number; label: string };
@@ -21,28 +23,6 @@ const RANGE_OPTIONS: RangeOpt[] = [
   { value: 240, label: "4h" },
   { value: 1440, label: "24h" },
 ];
-
-// Stable color palette — top USD-volume tokens get the brightest colors so
-// the eye finds them first in a multi-line chart.
-const COLORS: Record<string, string> = {
-  USDT: "rgb(34 197 94)",     // green
-  USDC: "rgb(56 189 248)",    // sky
-  DAI: "rgb(251 191 36)",     // amber
-  PYUSD: "rgb(168 85 247)",   // purple
-  USDe: "rgb(244 114 182)",   // pink
-  USDS: "rgb(99 102 241)",    // indigo
-  GHO: "rgb(20 184 166)",     // teal
-  FDUSD: "rgb(250 204 21)",   // yellow
-  EUROC: "rgb(96 165 250)",   // blue
-  ZCHF: "rgb(248 113 113)",   // red
-  EURCV: "rgb(167 139 250)",  // violet
-  EURe: "rgb(52 211 153)",    // emerald
-  tGBP: "rgb(251 146 60)",    // orange
-  XSGD: "rgb(232 121 249)",   // fuchsia
-  BRZ: "rgb(132 204 22)",     // lime
-};
-
-const FALLBACK_COLOR = "rgb(148 163 184)";
 
 type StackRow = {
   ts: string;
@@ -97,6 +77,7 @@ export default function LiveVolumePanel() {
               {formatUsdCompact(totalUsd)} window total
             </span>
           </div>
+          <DataAge ts={(stacked.at(-1)?.ts as string | undefined) ?? null} label="latest" />
 
           <div className="h-44">
             <ResponsiveContainer width="100%" height="100%">
@@ -135,8 +116,8 @@ export default function LiveVolumePanel() {
                     type="monotone"
                     dataKey={a}
                     stackId="vol"
-                    stroke={COLORS[a] ?? FALLBACK_COLOR}
-                    fill={COLORS[a] ?? FALLBACK_COLOR}
+                    stroke={rgbOf(a)}
+                    fill={rgbOf(a)}
                     fillOpacity={0.65}
                   />
                 ))}
@@ -150,7 +131,7 @@ export default function LiveVolumePanel() {
                 <span className="flex items-center gap-2 min-w-0 truncate">
                   <span
                     className="inline-block w-2 h-2 rounded-sm shrink-0"
-                    style={{ backgroundColor: COLORS[a] ?? FALLBACK_COLOR }}
+                    style={{ backgroundColor: rgbOf(a) }}
                   />
                   <span className="text-slate-300">{a}</span>
                 </span>

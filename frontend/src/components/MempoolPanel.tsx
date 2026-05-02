@@ -1,24 +1,17 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchPendingWhales, type PendingWhale, type WhaleAsset } from "../api";
+import { badgeOf } from "../lib/assetColors";
 import { formatUsdCompact, shortAddr } from "../lib/format";
 import Card from "./ui/Card";
 import Pill from "./ui/Pill";
 
-const ASSET_COLORS: Record<string, string> = {
-  ETH: "bg-brand/15 text-brand-soft ring-brand/20",
-  USDT: "bg-up/10 text-up ring-up/20",
-  USDC: "bg-sky-500/10 text-sky-300 ring-sky-400/20",
-  DAI: "bg-amber-500/10 text-amber-300 ring-amber-400/20",
-};
-
 function AssetBadge({ asset }: { asset: string }) {
-  const cls = ASSET_COLORS[asset] ?? "bg-surface-raised text-slate-300 ring-surface-border";
   return (
     <span
       className={
         "inline-flex items-center justify-center text-[10px] font-semibold tracking-wider rounded px-1.5 py-0.5 ring-1 " +
-        cls
+        badgeOf(asset)
       }
     >
       {asset}
