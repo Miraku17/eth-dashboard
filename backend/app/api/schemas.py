@@ -302,6 +302,9 @@ class StakingFlowsResponse(BaseModel):
 
 class StakingSummary(BaseModel):
     active_validator_count: int | None
+    # Total ETH currently staked = sum of active validator balances at head.
+    # Null when BEACON_HTTP_URL isn't configured (panel hides the tile).
+    total_eth_staked: float | None
     total_eth_staked_30d: float
     net_eth_staked_30d: float
 

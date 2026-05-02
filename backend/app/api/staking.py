@@ -67,13 +67,18 @@ async def staking_summary(
 
     settings = get_settings()
     active_count: int | None = None
+    total_eth_staked: float | None = None
     if settings.beacon_http_url:
         async with httpx.AsyncClient(base_url=settings.beacon_http_url) as http:
             client = BeaconClient(http)
-            active_count = await client.active_validator_count()
+            summary = await client.active_validator_summary()
+            if summary is not None:
+                active_count = summary.count
+                total_eth_staked = summary.total_eth
 
     return StakingSummary(
         active_validator_count=active_count,
+        total_eth_staked=total_eth_staked,
         total_eth_staked_30d=deposits,
         net_eth_staked_30d=deposits - full_w,
     )
