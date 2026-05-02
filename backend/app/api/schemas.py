@@ -304,6 +304,16 @@ class StakingSummary(BaseModel):
     net_eth_staked_30d: float
 
 
+class LstSupplyPoint(BaseModel):
+    ts_bucket: datetime
+    token: str
+    supply: float
+
+
+class LstSupplyResponse(BaseModel):
+    points: list[LstSupplyPoint]
+
+
 # ---------- Smart-money leaderboard (v2) ----------
 
 

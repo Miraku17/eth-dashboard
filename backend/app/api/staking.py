@@ -9,6 +9,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
+    LstSupplyPoint,
+    LstSupplyResponse,
     StakingFlowPoint,
     StakingFlowsResponse,
     StakingSummary,
@@ -16,7 +18,7 @@ from app.api.schemas import (
 from app.clients.beacon import BeaconClient
 from app.core.config import get_settings
 from app.core.db import get_session
-from app.core.models import StakingFlow
+from app.core.models import LstSupply, StakingFlow
 
 router = APIRouter(prefix="/staking", tags=["staking"])
 
@@ -72,4 +74,29 @@ async def staking_summary(
         active_validator_count=active_count,
         total_eth_staked_30d=deposits,
         net_eth_staked_30d=deposits - full_w,
+    )
+
+
+@router.get("/lst-supply", response_model=LstSupplyResponse)
+def lst_supply(
+    session: Annotated[Session, Depends(get_session)],
+    hours: HoursParam = 720,  # default 30 days for the panel
+    limit: int = Query(20000, ge=1, le=200000),
+) -> LstSupplyResponse:
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
+    rows = session.execute(
+        select(LstSupply)
+        .where(LstSupply.ts_bucket >= cutoff)
+        .order_by(LstSupply.ts_bucket.asc(), LstSupply.token.asc())
+        .limit(limit)
+    ).scalars().all()
+    return LstSupplyResponse(
+        points=[
+            LstSupplyPoint(
+                ts_bucket=r.ts_bucket,
+                token=r.token,
+                supply=float(r.supply),
+            )
+            for r in rows
+        ]
     )
