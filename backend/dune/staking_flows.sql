@@ -15,10 +15,13 @@ with hourly as (
   group by 1
 ),
 eth_price as (
+  -- Native ETH is keyed with blockchain=null, contract_address=null, symbol='ETH'
+  -- in prices.usd. (blockchain='ethereum' rows are for ERC-20s, not native ETH.)
   select date_trunc('hour', minute) as ts_bucket, avg(price) as price_usd
   from prices.usd
-  where blockchain = 'ethereum'
-    and symbol = 'ETH'
+  where symbol = 'ETH'
+    and blockchain is null
+    and contract_address is null
     and minute > now() - interval '30' day
   group by 1
 ),
@@ -30,7 +33,7 @@ priced as (
     h.full_eth,
     coalesce(p.price_usd, 0) as price_usd
   from hourly h
-  left join eth_price p using (ts_bucket)
+  left join eth_price p on h.ts_bucket = p.ts_bucket
 )
 select ts_bucket, 'deposit' as kind,
        deposit_eth as amount_eth,
