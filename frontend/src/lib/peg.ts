@@ -13,6 +13,7 @@ export const PEG_BY_ASSET: Record<string, PegCurrency> = {
   EURe: "EUR",
   ZCHF: "CHF",
   tGBP: "GBP",
+  USDe: "USD",
 };
 
 export const PEG_ORDER: PegCurrency[] = ["USD", "EUR", "GBP", "CHF", "OTHER"];

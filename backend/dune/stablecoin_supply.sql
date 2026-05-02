@@ -23,7 +23,8 @@ with asset_alias as (
     (0xb58e61c3098d85632df34eecfb899a1ed80921cb, 'ZCHF',  1.10),
     (0x5f7827fdeb7c20b443265fc2f40845b715385ff2, 'EURCV', 1.08),
     (0x39b8b6385416f4ca36a20319f70d28621895279d, 'EURe',  1.08),
-    (0x27f6c8289550fce67f6b50bed1f519966afe5287, 'tGBP',  1.27)
+    (0x27f6c8289550fce67f6b50bed1f519966afe5287, 'tGBP',  1.27),
+    (0x4c9edd5852cd905f086c759e8383e09bff1e68b3, 'USDe',  1.00)
   ) as t(contract_address, asset, price_usd_approx)
 ),
 mints as (
