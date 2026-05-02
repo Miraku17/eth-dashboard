@@ -172,6 +172,16 @@ class LstSupply(Base):
     supply: Mapped[float] = mapped_column(Numeric(38, 18))
 
 
+class ProtocolTvl(Base):
+    """Hourly per-protocol per-asset locked TVL snapshot on Ethereum mainnet.
+    Source: DefiLlama public API. (v3-defi-tvl)"""
+    __tablename__ = "protocol_tvl"
+    ts_bucket: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    protocol: Mapped[str] = mapped_column(String(32), primary_key=True)
+    asset: Mapped[str] = mapped_column(String(20), primary_key=True)
+    tvl_usd: Mapped[float] = mapped_column(Numeric(38, 6))
+
+
 class SmartMoneyLeaderboard(Base):
     """Per-wallet realized-PnL ranking snapshot. One `run_id` per daily refresh. (v2)"""
     __tablename__ = "smart_money_leaderboard"
