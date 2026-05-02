@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
+import { ExternalLink } from "lucide-react";
 import {
   fetchPendingWhales,
   fetchWhaleTransfers,
@@ -73,9 +75,36 @@ const HOUR_OPTIONS = [
   { value: 24 * 7, label: "7d" },
 ] as const;
 
+const VALID_ASSETS = new Set(ASSET_OPTIONS.map((o) => String(o.value)));
+const VALID_HOURS = new Set(HOUR_OPTIONS.map((o) => o.value));
+
 export default function WhaleTransfersPanel() {
-  const [asset, setAsset] = useState<WhaleAsset | "ALL">("ALL");
-  const [hours, setHours] = useState<number>(24);
+  // Filter state persists in the URL so refresh / share-link preserve view.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawAsset = searchParams.get("whaleAsset");
+  const asset: WhaleAsset | "ALL" = (rawAsset && VALID_ASSETS.has(rawAsset)
+    ? (rawAsset as WhaleAsset | "ALL")
+    : "ALL");
+  const rawHours = Number(searchParams.get("whaleHours"));
+  const hours: number = VALID_HOURS.has(rawHours) ? rawHours : 24;
+
+  const updateParam = useCallback(
+    (key: string, value: string | null) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (value === null || value === "") next.delete(key);
+          else next.set(key, value);
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+
+  const setAsset = (v: WhaleAsset | "ALL") => updateParam("whaleAsset", v === "ALL" ? null : v);
+  const setHours = (v: number) => updateParam("whaleHours", v === 24 ? null : String(v));
 
   const { data, isLoading, error } = useQuery<WhaleTransfer[]>({
     queryKey: ["whale-transfers", hours, asset],
@@ -153,9 +182,11 @@ export default function WhaleTransfersPanel() {
                       href={`https://etherscan.io/tx/${p.tx_hash}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="font-mono text-xs text-slate-500 hover:text-brand-soft transition"
+                      className="inline-flex items-center gap-1 font-mono text-xs text-slate-500 hover:text-brand-soft transition"
+                      title="Open in Etherscan"
                     >
                       {p.tx_hash.slice(0, 8)}…
+                      <ExternalLink size={10} className="opacity-60" />
                     </a>
                   </div>
                 </li>
@@ -235,9 +266,11 @@ export default function WhaleTransfersPanel() {
                       href={`https://etherscan.io/tx/${t.tx_hash}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="font-mono text-xs text-slate-500 hover:text-brand-soft transition"
+                      className="inline-flex items-center gap-1 font-mono text-xs text-slate-500 hover:text-brand-soft transition"
+                      title="Open in Etherscan"
                     >
                       {t.tx_hash.slice(0, 8)}…
+                      <ExternalLink size={10} className="opacity-60" />
                     </a>
                   </td>
                 </tr>
