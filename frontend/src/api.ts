@@ -145,6 +145,29 @@ export async function fetchLstSupply(hours: number): Promise<LstSupplyPoint[]> {
   return (await r.json()).points;
 }
 
+export type DefiTvlAsset = {
+  asset: string;
+  tvl_usd: number;
+};
+
+export type DefiTvlProtocolSnapshot = {
+  protocol: string;
+  display_name: string;
+  total_usd: number;
+  assets: DefiTvlAsset[];
+};
+
+export type DefiTvlLatestResponse = {
+  ts_bucket: string | null;
+  protocols: DefiTvlProtocolSnapshot[];
+};
+
+export async function fetchDefiTvlLatest(): Promise<DefiTvlLatestResponse> {
+  const r = await apiFetch(`/api/defi/tvl/latest`);
+  if (!r.ok) throw new Error(`defi tvl latest ${r.status}`);
+  return r.json();
+}
+
 export type OnchainVolumePoint = {
   ts_bucket: string;
   asset: string;
