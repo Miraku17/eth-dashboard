@@ -51,7 +51,7 @@ async def sync_lst_supply(ctx: dict) -> dict:
     """Read totalSupply() for each LST in a single batch call, upsert one row
     per token at the current top-of-hour bucket. No-op if ALCHEMY_HTTP_URL unset."""
     settings = get_settings()
-    url = settings.effective_http_url()
+    url = settings.effective_http_url
     if not url:
         log.info("ALCHEMY_HTTP_URL not set — skipping lst supply sync")
         return {"skipped": "no rpc url"}
