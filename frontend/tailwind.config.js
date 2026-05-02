@@ -1,4 +1,5 @@
 import containerQueries from "@tailwindcss/container-queries";
+import animate from "tailwindcss-animate";
 
 export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
@@ -38,5 +39,5 @@ export default {
       },
     },
   },
-  plugins: [containerQueries],
+  plugins: [containerQueries, animate],
 };

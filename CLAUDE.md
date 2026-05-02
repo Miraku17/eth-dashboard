@@ -47,6 +47,7 @@ docker-compose.yml
 - Frontend: ESLint + Prettier, functional components, hooks over classes
 - Never commit secrets — use `.env` (gitignored); `.env.example` documents required keys
 - Prefer existing patterns in the codebase over introducing new ones
+- **shadcn/ui dropdowns**: `frontend/src/components/ui/Select.tsx` wraps `@radix-ui/react-select` in shadcn-style components (`Select`/`SelectTrigger`/`SelectContent`/`SelectItem`) plus a convenience `SimpleSelect` (default export) with the same `(value, onChange, options)` API as the existing `Pill`. Use `SimpleSelect` when an option list is too long for an inline pill row (e.g. the 14-asset filter on `WhaleTransfersPanel`). Class joiner helper at `frontend/src/lib/cn.ts` (`clsx` + `tailwind-merge`). The `tailwindcss-animate` plugin is registered for shadcn's enter/exit animations.
 
 ## Auth
 
