@@ -178,7 +178,7 @@ class ProtocolTvl(Base):
     __tablename__ = "protocol_tvl"
     ts_bucket: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
     protocol: Mapped[str] = mapped_column(String(32), primary_key=True)
-    asset: Mapped[str] = mapped_column(String(20), primary_key=True)
+    asset: Mapped[str] = mapped_column(String(64), primary_key=True)
     tvl_usd: Mapped[float] = mapped_column(Numeric(38, 6))
 
 
