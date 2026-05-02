@@ -133,6 +133,18 @@ export async function fetchStakingSummary(): Promise<StakingSummary> {
   return r.json();
 }
 
+export type LstSupplyPoint = {
+  ts_bucket: string;
+  token: string;
+  supply: number;
+};
+
+export async function fetchLstSupply(hours: number): Promise<LstSupplyPoint[]> {
+  const r = await apiFetch(`/api/staking/lst-supply?hours=${hours}`);
+  if (!r.ok) throw new Error(`lst supply ${r.status}`);
+  return (await r.json()).points;
+}
+
 export type OnchainVolumePoint = {
   ts_bucket: string;
   asset: string;
