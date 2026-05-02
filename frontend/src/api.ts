@@ -165,7 +165,8 @@ export type WhaleAsset =
   | "ETH"
   | "USDT" | "USDC" | "DAI"
   | "PYUSD" | "FDUSD" | "USDS" | "GHO" | "EUROC" | "ZCHF"
-  | "EURCV" | "EURe" | "tGBP";
+  | "EURCV" | "EURe" | "tGBP"
+  | "USDe";
 
 export type WhaleTransfer = {
   tx_hash: string;

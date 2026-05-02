@@ -267,3 +267,24 @@ def test_parse_erc20_log_tgbp_uses_fx_threshold():
     assert row.amount == 200_000.0
     # 200000 × 1.27 = 254k
     assert abs(row.usd_value - 254_000.0) < 1.0
+
+
+def test_parse_erc20_log_usde_usd_pegged_sanity():
+    """Ethena USDe is USD-pegged at 1.00; amount == usd_value."""
+    log = {
+        "address": "0x4c9edd5852cd905f086c759e8383e09bff1e68b3",
+        "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "0x000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        ],
+        "data": hex(2_000_000 * 10**18),  # 2M USDe (18 decimals)
+        "blockNumber": "0x30",
+        "transactionHash": "0xusde1",
+        "logIndex": "0x1",
+    }
+    row = parse_erc20_log(log, block_ts=BLOCK_TS, threshold_usd=1_000_000.0)
+    assert row is not None
+    assert row.asset == "USDe"
+    assert row.amount == 2_000_000.0
+    assert row.usd_value == 2_000_000.0
