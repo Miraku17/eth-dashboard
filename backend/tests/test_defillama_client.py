@@ -49,3 +49,34 @@ async def test_fetch_protocol_tvl_returns_empty_when_no_ethereum_chain():
         client = DefiLlamaClient(http)
         out = await client.fetch_protocol_tvl("aave-v3")
     assert out == {}
+
+
+@pytest.mark.asyncio
+async def test_fetch_yield_pools_success():
+    """Returns the 'data' array from /yields/pools."""
+    fake = {
+        "status": "success",
+        "data": [
+            {"chain": "Ethereum", "project": "uniswap-v3", "symbol": "USDC-WETH",
+             "pool": "0xpool1", "tvlUsd": 312_000_000.0},
+            {"chain": "Ethereum", "project": "curve-dex", "symbol": "3pool",
+             "pool": "0xpool2", "tvlUsd": 64_000_000.0},
+        ],
+    }
+    transport = httpx.MockTransport(lambda req: httpx.Response(200, json=fake))
+    async with httpx.AsyncClient(transport=transport, base_url="http://llama.test") as http:
+        client = DefiLlamaClient(http)
+        out = await client.fetch_yield_pools()
+    assert len(out) == 2
+    assert out[0]["symbol"] == "USDC-WETH"
+
+
+@pytest.mark.asyncio
+async def test_fetch_yield_pools_returns_empty_on_error():
+    def boom(req):
+        raise httpx.ConnectError("refused")
+    transport = httpx.MockTransport(boom)
+    async with httpx.AsyncClient(transport=transport, base_url="http://llama.test") as http:
+        client = DefiLlamaClient(http)
+        out = await client.fetch_yield_pools()
+    assert out == []

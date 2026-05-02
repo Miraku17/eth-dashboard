@@ -182,6 +182,17 @@ class ProtocolTvl(Base):
     tvl_usd: Mapped[float] = mapped_column(Numeric(38, 6))
 
 
+class DexPoolTvl(Base):
+    """Hourly top-N DEX-pool TVL snapshot. Source: DefiLlama /yields/pools.
+    Filtered to Ethereum mainnet + Uniswap V2/V3 + Curve + Balancer. (v3-dex-pool-tvl)"""
+    __tablename__ = "dex_pool_tvl"
+    ts_bucket: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    pool_id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    dex: Mapped[str] = mapped_column(String(32))
+    symbol: Mapped[str] = mapped_column(String(80))
+    tvl_usd: Mapped[float] = mapped_column(Numeric(38, 6))
+
+
 class SmartMoneyLeaderboard(Base):
     """Per-wallet realized-PnL ranking snapshot. One `run_id` per daily refresh. (v2)"""
     __tablename__ = "smart_money_leaderboard"

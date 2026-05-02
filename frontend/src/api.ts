@@ -168,6 +168,24 @@ export async function fetchDefiTvlLatest(): Promise<DefiTvlLatestResponse> {
   return r.json();
 }
 
+export type DexPoolTvlPoint = {
+  pool_id: string;
+  dex: string;
+  symbol: string;
+  tvl_usd: number;
+};
+
+export type DexPoolTvlLatestResponse = {
+  ts_bucket: string | null;
+  pools: DexPoolTvlPoint[];
+};
+
+export async function fetchDexPoolTvlLatest(): Promise<DexPoolTvlLatestResponse> {
+  const r = await apiFetch(`/api/defi/dex-pools/latest`);
+  if (!r.ok) throw new Error(`dex pool tvl latest ${r.status}`);
+  return r.json();
+}
+
 export type OnchainVolumePoint = {
   ts_bucket: string;
   asset: string;

@@ -7,6 +7,7 @@ from app.core.config import get_settings
 from app.workers.alert_jobs import evaluate_alerts
 from app.workers.cluster_jobs import purge_expired_clusters
 from app.workers.defi_jobs import sync_defi_tvl
+from app.workers.dex_pool_jobs import sync_dex_pool_tvl
 from app.workers.derivatives_jobs import sync_derivatives
 from app.workers.flow_jobs import sync_dune_flows, sync_order_flow, sync_volume_buckets
 from app.workers.leaderboard_jobs import sync_smart_money_leaderboard
@@ -72,6 +73,7 @@ class WorkerSettings:
         sync_smart_money_leaderboard,
         sync_lst_supply,
         sync_defi_tvl,
+        sync_dex_pool_tvl,
         cleanup_pending_transfers,
         purge_expired_clusters,
     ]
@@ -101,6 +103,9 @@ class WorkerSettings:
         # DeFi protocol TVL: hourly DefiLlama snapshot, offset to minute 17
         # so we don't collide with price (0), derivatives (5), or LST (7).
         cron(sync_defi_tvl, minute={17}, run_at_startup=False),
+        # DEX-pool TVL: hourly DefiLlama /yields/pools snapshot, offset to
+        # minute 27 so we don't collide with defi_tvl (17) or lst_supply (7).
+        cron(sync_dex_pool_tvl, minute={27}, run_at_startup=False),
     ]
     on_startup = startup
     on_shutdown = shutdown
