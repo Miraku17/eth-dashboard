@@ -315,6 +315,37 @@ class LstSupplyResponse(BaseModel):
     points: list[LstSupplyPoint]
 
 
+# ---------- DeFi protocol TVL (v3) ----------
+
+
+class DefiTvlPoint(BaseModel):
+    ts_bucket: datetime
+    protocol: str
+    asset: str
+    tvl_usd: float
+
+
+class DefiTvlPointsResponse(BaseModel):
+    points: list[DefiTvlPoint]
+
+
+class DefiTvlAsset(BaseModel):
+    asset: str
+    tvl_usd: float
+
+
+class DefiTvlProtocolSnapshot(BaseModel):
+    protocol: str
+    display_name: str
+    total_usd: float
+    assets: list[DefiTvlAsset]
+
+
+class DefiTvlLatestResponse(BaseModel):
+    ts_bucket: datetime | None
+    protocols: list[DefiTvlProtocolSnapshot]
+
+
 # ---------- Smart-money leaderboard (v2) ----------
 
 
