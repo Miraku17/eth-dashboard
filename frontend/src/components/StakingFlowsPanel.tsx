@@ -67,6 +67,17 @@ export default function StakingFlowsPanel() {
       )}
       {(flows.data ?? []).length > 0 && (
         <div className="space-y-3">
+          {summary.data?.total_eth_staked != null && (
+            <div className="rounded-md border border-surface-border bg-surface-raised/40 px-3 py-2 flex items-baseline justify-between gap-3 @xs:flex-col @xs:items-start @xs:gap-0.5">
+              <span className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
+                Total ETH staked
+              </span>
+              <span className="font-mono tabular-nums text-base text-slate-100">
+                {formatStakedEth(summary.data.total_eth_staked)}
+                <span className="text-slate-500 ml-1.5 text-xs">ETH</span>
+              </span>
+            </div>
+          )}
           <div className="flex justify-between items-baseline @xs:flex-col @xs:gap-1">
             <span className="text-xs text-slate-500">
               {summary.data?.active_validator_count != null
@@ -249,4 +260,11 @@ function aggregateByEntity(points: StakingFlowByEntityPoint[]): EntityAgg[] {
       net: v.deposits - v.exits,
     }))
     .sort((a, b) => b.deposits + b.exits - (a.deposits + a.exits));
+}
+
+/** Format total staked ETH compactly: 13.7M / 832k / 12,345. */
+function formatStakedEth(eth: number): string {
+  if (eth >= 1e6) return `${(eth / 1e6).toFixed(2)}M`;
+  if (eth >= 1e3) return `${(eth / 1e3).toFixed(0)}k`;
+  return eth.toLocaleString(undefined, { maximumFractionDigits: 0 });
 }

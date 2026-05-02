@@ -140,6 +140,7 @@ export async function fetchStakingFlowsByEntity(
 
 export type StakingSummary = {
   active_validator_count: number | null;
+  total_eth_staked: number | null;
   total_eth_staked_30d: number;
   net_eth_staked_30d: number;
 };
