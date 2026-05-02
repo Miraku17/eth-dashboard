@@ -3,6 +3,7 @@ import type { ComponentType } from "react";
 import AlertEventsPanel from "../components/AlertEventsPanel";
 import DerivativesPanel from "../components/DerivativesPanel";
 import ExchangeFlowsPanel from "../components/ExchangeFlowsPanel";
+import LstMarketSharePanel from "../components/LstMarketSharePanel";
 import MempoolPanel from "../components/MempoolPanel";
 import NetworkActivityPanel from "../components/NetworkActivityPanel";
 import OnchainVolumePanel from "../components/OnchainVolumePanel";
@@ -44,6 +45,7 @@ export const PANELS: PanelDef[] = [
   { id: "exchange-flows", label: "Exchange flows", component: ExchangeFlowsPanel, defaultPage: "onchain", defaultWidth: 1 },
   { id: "stablecoin-supply", label: "Stablecoin supply", component: StablecoinSupplyPanel, defaultPage: "onchain", defaultWidth: 1 },
   { id: "staking-flows", label: "Beacon flows", component: StakingFlowsPanel, defaultPage: "onchain", defaultWidth: 1 },
+  { id: "lst-market-share", label: "LST market share", component: LstMarketSharePanel, defaultPage: "onchain", defaultWidth: 2 },
   { id: "onchain-volume", label: "On-chain volume", component: OnchainVolumePanel, defaultPage: "onchain", defaultWidth: 2 },
   { id: "network-activity", label: "Network activity", component: NetworkActivityPanel, defaultPage: "onchain", defaultWidth: 2 },
   { id: "whale-transfers", label: "Whale transfers", component: WhaleTransfersPanel, defaultPage: "onchain", defaultWidth: 2 },
