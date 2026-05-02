@@ -13,9 +13,11 @@ from app.api.schemas import (
     DefiTvlPoint,
     DefiTvlPointsResponse,
     DefiTvlProtocolSnapshot,
+    DexPoolTvlLatestResponse,
+    DexPoolTvlPoint,
 )
 from app.core.db import get_session
-from app.core.models import ProtocolTvl
+from app.core.models import DexPoolTvl, ProtocolTvl
 from app.services.defi_protocols import DEFI_PROTOCOLS_BY_SLUG
 
 router = APIRouter(prefix="/defi", tags=["defi"])
@@ -80,3 +82,32 @@ def defi_tvl_latest(
         )
     snapshots.sort(key=lambda s: s.total_usd, reverse=True)
     return DefiTvlLatestResponse(ts_bucket=latest_ts, protocols=snapshots)
+
+
+@router.get("/dex-pools/latest", response_model=DexPoolTvlLatestResponse)
+def dex_pools_latest(
+    session: Annotated[Session, Depends(get_session)],
+) -> DexPoolTvlLatestResponse:
+    """Latest hourly snapshot of top-N DEX pools, sorted desc by tvl_usd."""
+    latest_ts = session.execute(
+        select(DexPoolTvl.ts_bucket).order_by(DexPoolTvl.ts_bucket.desc()).limit(1)
+    ).scalar()
+    if latest_ts is None:
+        return DexPoolTvlLatestResponse(ts_bucket=None, pools=[])
+    rows = session.execute(
+        select(DexPoolTvl)
+        .where(DexPoolTvl.ts_bucket == latest_ts)
+        .order_by(DexPoolTvl.tvl_usd.desc())
+    ).scalars().all()
+    return DexPoolTvlLatestResponse(
+        ts_bucket=latest_ts,
+        pools=[
+            DexPoolTvlPoint(
+                pool_id=r.pool_id,
+                dex=r.dex,
+                symbol=r.symbol,
+                tvl_usd=float(r.tvl_usd),
+            )
+            for r in rows
+        ],
+    )

@@ -346,6 +346,18 @@ class DefiTvlLatestResponse(BaseModel):
     protocols: list[DefiTvlProtocolSnapshot]
 
 
+class DexPoolTvlPoint(BaseModel):
+    pool_id: str
+    dex: str
+    symbol: str
+    tvl_usd: float
+
+
+class DexPoolTvlLatestResponse(BaseModel):
+    ts_bucket: datetime | None
+    pools: list[DexPoolTvlPoint]
+
+
 # ---------- Smart-money leaderboard (v2) ----------
 
 
