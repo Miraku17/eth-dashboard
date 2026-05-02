@@ -112,4 +112,5 @@ Local ISP (dev machine) DNS-intercepts `api.binance.com` and other crypto-exchan
 
 - Backend Python 3.12 venv at `backend/.venv` (managed via `uv`). Activate with `source backend/.venv/bin/activate` or use `.venv/bin/python` directly.
 - Frontend Node 20; deps installed under `frontend/node_modules`.
+- **Adding a frontend npm package:** `docker-compose.yml` uses an anonymous volume for `/app/node_modules` so host bind-mount perf is decent on macOS. That means a host-side `npm install` doesn't propagate into the running frontend container. After `npm install <pkg>` on the host, also run `docker compose exec frontend npm install <pkg>` (or `docker compose up -d --build frontend` to rebuild from scratch).
 - Host: `http://localhost:8000/api/health` (API), `http://localhost:5173` (frontend).
