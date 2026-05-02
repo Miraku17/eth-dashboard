@@ -12,6 +12,7 @@ from app.services.flow_sync import (
     upsert_onchain_volume,
     upsert_order_flow,
     upsert_stablecoin_flows,
+    upsert_staking_flows,
     upsert_volume_buckets,
 )
 
@@ -39,6 +40,7 @@ async def sync_dune_flows(ctx: dict) -> dict:
             ("exchange_flows", settings.dune_query_id_exchange_flows, upsert_exchange_flows),
             ("stablecoin_flows", settings.dune_query_id_stablecoin_supply, upsert_stablecoin_flows),
             ("onchain_volume", settings.dune_query_id_onchain_volume, upsert_onchain_volume),
+            ("staking_flows", settings.dune_query_id_staking_flows, upsert_staking_flows),
         ]
 
         for name, query_id, upsert_fn in jobs:
