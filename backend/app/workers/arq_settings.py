@@ -6,6 +6,7 @@ from app.clients.binance import BINANCE_BASE_URL
 from app.core.config import get_settings
 from app.workers.alert_jobs import evaluate_alerts
 from app.workers.cluster_jobs import purge_expired_clusters
+from app.workers.defi_jobs import sync_defi_tvl
 from app.workers.derivatives_jobs import sync_derivatives
 from app.workers.flow_jobs import sync_dune_flows, sync_order_flow, sync_volume_buckets
 from app.workers.leaderboard_jobs import sync_smart_money_leaderboard
@@ -70,6 +71,7 @@ class WorkerSettings:
         sync_volume_buckets,
         sync_smart_money_leaderboard,
         sync_lst_supply,
+        sync_defi_tvl,
         cleanup_pending_transfers,
         purge_expired_clusters,
     ]
@@ -96,6 +98,9 @@ class WorkerSettings:
         # LST market share: hourly totalSupply() reads, offset to minute 7
         # so we don't collide with the on-the-hour syncs (price, alerts).
         cron(sync_lst_supply, minute={7}, run_at_startup=False),
+        # DeFi protocol TVL: hourly DefiLlama snapshot, offset to minute 17
+        # so we don't collide with price (0), derivatives (5), or LST (7).
+        cron(sync_defi_tvl, minute={17}, run_at_startup=False),
     ]
     on_startup = startup
     on_shutdown = shutdown
