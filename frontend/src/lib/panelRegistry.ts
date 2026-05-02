@@ -23,6 +23,21 @@ export type PageId = "overview" | "markets" | "onchain" | "mempool";
 
 export type PanelWidth = 1 | 2 | 3 | 4;
 
+/**
+ * Sub-section within the Onchain page. Pages with too many panels (Onchain
+ * now has 10+) get visual H2 dividers between sections so the eye can
+ * scan. `OnchainPage` iterates ONCHAIN_SECTIONS in order and groups
+ * panels by their `section` field.
+ */
+export type OnchainSection = "stablecoins" | "staking" | "defi" | "network";
+
+export const ONCHAIN_SECTIONS: { id: OnchainSection; label: string }[] = [
+  { id: "stablecoins", label: "Stablecoins" },
+  { id: "staking", label: "Staking" },
+  { id: "defi", label: "DeFi" },
+  { id: "network", label: "Network" },
+];
+
 export type PanelDef = {
   /** Stable kebab-case id; persisted to LocalStorage and used as drag id. */
   id: string;
@@ -36,6 +51,8 @@ export type PanelDef = {
   defaultWidth: PanelWidth;
   /** True for panels that only make sense on overview (PriceHero). */
   homeOnly?: boolean;
+  /** Sub-section within the Onchain page. Ignored on other pages. */
+  section?: OnchainSection;
 };
 
 export const PANELS: PanelDef[] = [
@@ -45,16 +62,16 @@ export const PANELS: PanelDef[] = [
   { id: "smart-money", label: "Smart money", component: SmartMoneyLeaderboard, defaultPage: "markets", defaultWidth: 2 },
   { id: "order-flow", label: "Order flow", component: OrderFlowPanel, defaultPage: "markets", defaultWidth: 2 },
   { id: "volume-structure", label: "Volume structure", component: VolumeStructurePanel, defaultPage: "markets", defaultWidth: 2 },
-  { id: "exchange-flows", label: "Exchange flows", component: ExchangeFlowsPanel, defaultPage: "onchain", defaultWidth: 1 },
-  { id: "stablecoin-supply", label: "Stablecoin supply", component: StablecoinSupplyPanel, defaultPage: "onchain", defaultWidth: 1 },
-  { id: "staking-flows", label: "Beacon flows", component: StakingFlowsPanel, defaultPage: "onchain", defaultWidth: 1 },
-  { id: "lst-market-share", label: "LST market share", component: LstMarketSharePanel, defaultPage: "onchain", defaultWidth: 2 },
-  { id: "defi-tvl", label: "DeFi TVL", component: DefiTvlPanel, defaultPage: "onchain", defaultWidth: 2 },
-  { id: "dex-pool-tvl", label: "DEX pool TVL", component: DexPoolTvlPanel, defaultPage: "onchain", defaultWidth: 2 },
-  { id: "live-volume", label: "Live volume", component: LiveVolumePanel, defaultPage: "onchain", defaultWidth: 2 },
-  { id: "onchain-volume", label: "On-chain volume", component: OnchainVolumePanel, defaultPage: "onchain", defaultWidth: 2 },
-  { id: "network-activity", label: "Network activity", component: NetworkActivityPanel, defaultPage: "onchain", defaultWidth: 2 },
-  { id: "whale-transfers", label: "Whale transfers", component: WhaleTransfersPanel, defaultPage: "onchain", defaultWidth: 2 },
+  { id: "stablecoin-supply", label: "Stablecoin supply", component: StablecoinSupplyPanel, defaultPage: "onchain", defaultWidth: 1, section: "stablecoins" },
+  { id: "live-volume", label: "Live volume", component: LiveVolumePanel, defaultPage: "onchain", defaultWidth: 2, section: "stablecoins" },
+  { id: "whale-transfers", label: "Whale transfers", component: WhaleTransfersPanel, defaultPage: "onchain", defaultWidth: 2, section: "stablecoins" },
+  { id: "exchange-flows", label: "Exchange flows", component: ExchangeFlowsPanel, defaultPage: "onchain", defaultWidth: 1, section: "stablecoins" },
+  { id: "staking-flows", label: "Beacon flows", component: StakingFlowsPanel, defaultPage: "onchain", defaultWidth: 1, section: "staking" },
+  { id: "lst-market-share", label: "LST market share", component: LstMarketSharePanel, defaultPage: "onchain", defaultWidth: 2, section: "staking" },
+  { id: "defi-tvl", label: "DeFi TVL", component: DefiTvlPanel, defaultPage: "onchain", defaultWidth: 2, section: "defi" },
+  { id: "dex-pool-tvl", label: "DEX pool TVL", component: DexPoolTvlPanel, defaultPage: "onchain", defaultWidth: 2, section: "defi" },
+  { id: "onchain-volume", label: "On-chain volume", component: OnchainVolumePanel, defaultPage: "onchain", defaultWidth: 2, section: "network" },
+  { id: "network-activity", label: "Network activity", component: NetworkActivityPanel, defaultPage: "onchain", defaultWidth: 2, section: "network" },
   { id: "mempool", label: "Mempool", component: MempoolPanel, defaultPage: "mempool", defaultWidth: 2 },
   { id: "alerts", label: "Alerts", component: AlertEventsPanel, defaultPage: "mempool", defaultWidth: 2 },
 ];
