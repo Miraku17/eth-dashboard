@@ -223,3 +223,47 @@ def test_parse_erc20_log_pyusd_usd_pegged_sanity():
     assert row.asset == "PYUSD"
     assert row.amount == 1_500_000.0
     assert row.usd_value == 1_500_000.0
+
+
+def test_parse_erc20_log_eurcv_uses_fx_threshold():
+    """250k EURCV ≈ $270k notional; passes a $250k USD threshold."""
+    log = {
+        "address": "0x5f7827fdeb7c20b443265fc2f40845b715385ff2",
+        "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "0x000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        ],
+        "data": hex(250_000 * 10**18),  # 250k EURCV (18 decimals)
+        "blockNumber": "0x20",
+        "transactionHash": "0xeurcv1",
+        "logIndex": "0x1",
+    }
+    row = parse_erc20_log(log, block_ts=BLOCK_TS, threshold_usd=250_000.0)
+    assert row is not None
+    assert row.asset == "EURCV"
+    assert row.amount == 250_000.0
+    # 250000 × 1.08 = 270k
+    assert abs(row.usd_value - 270_000.0) < 1.0
+
+
+def test_parse_erc20_log_tgbp_uses_fx_threshold():
+    """200k tGBP ≈ $254k notional; passes a $250k USD threshold."""
+    log = {
+        "address": "0x27f6c8289550fce67f6b50bed1f519966afe5287",
+        "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "0x000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "0x000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        ],
+        "data": hex(200_000 * 10**18),  # 200k tGBP (18 decimals)
+        "blockNumber": "0x21",
+        "transactionHash": "0xgbp1",
+        "logIndex": "0x2",
+    }
+    row = parse_erc20_log(log, block_ts=BLOCK_TS, threshold_usd=250_000.0)
+    assert row is not None
+    assert row.asset == "tGBP"
+    assert row.amount == 200_000.0
+    # 200000 × 1.27 = 254k
+    assert abs(row.usd_value - 254_000.0) < 1.0

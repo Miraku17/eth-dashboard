@@ -65,6 +65,9 @@ const ASSET_OPTIONS: readonly { value: WhaleAsset | "ALL"; label: string }[] = [
   { value: "GHO", label: "GHO" },
   { value: "EUROC", label: "EUROC" },
   { value: "ZCHF", label: "ZCHF" },
+  { value: "EURCV", label: "EURCV" },
+  { value: "EURe", label: "EURe" },
+  { value: "tGBP", label: "tGBP" },
 ] as const;
 
 const HOUR_OPTIONS = [

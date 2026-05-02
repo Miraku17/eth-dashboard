@@ -44,6 +44,9 @@ STABLES: tuple[StableToken, ...] = (
     StableToken("GHO",   "0x40d16fc0246ad3160ccc09b8d0d3a2cd28ae6c2f", 18, "USD", 1.00),
     StableToken("EUROC", "0x1abaea1f7c830bd89acc67ec4af516284b1bc33c", 6,  "EUR", 1.08),
     StableToken("ZCHF",  "0xb58e61c3098d85632df34eecfb899a1ed80921cb", 18, "CHF", 1.10),
+    StableToken("EURCV", "0x5f7827fdeb7c20b443265fc2f40845b715385ff2", 18, "EUR", 1.08),
+    StableToken("EURe",  "0x39b8b6385416f4ca36a20319f70d28621895279d", 18, "EUR", 1.08),
+    StableToken("tGBP",  "0x27f6c8289550fce67f6b50bed1f519966afe5287", 18, "GBP", 1.27),
 )
 
 STABLES_BY_ADDRESS: dict[str, StableToken] = {t.address: t for t in STABLES}

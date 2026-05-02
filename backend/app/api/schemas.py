@@ -79,6 +79,7 @@ WhaleAsset = Literal[
     "ETH",
     "USDT", "USDC", "DAI",
     "PYUSD", "FDUSD", "USDS", "GHO", "EUROC", "ZCHF",
+    "EURCV", "EURe", "tGBP",
     "ANY",
 ]
 
