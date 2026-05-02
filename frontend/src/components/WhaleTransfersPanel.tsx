@@ -11,6 +11,7 @@ import { formatUsdCompact, relativeTime } from "../lib/format";
 import AddressLink from "./AddressLink";
 import Card from "./ui/Card";
 import Pill from "./ui/Pill";
+import Select from "./ui/Select";
 
 const ASSET_COLORS: Record<string, string> = {
   ETH: "bg-brand/15 text-brand-soft ring-brand/20",
@@ -104,8 +105,14 @@ export default function WhaleTransfersPanel() {
       }
       live
       actions={
-        <div className="flex gap-2">
-          <Pill size="xs" value={asset} onChange={setAsset} options={ASSET_OPTIONS} />
+        <div className="flex flex-wrap gap-2 justify-end">
+          <Select
+            size="xs"
+            value={asset}
+            onChange={setAsset}
+            options={ASSET_OPTIONS}
+            ariaLabel="Filter by asset"
+          />
           <Pill size="xs" value={hours} onChange={setHours} options={HOUR_OPTIONS} />
         </div>
       }
