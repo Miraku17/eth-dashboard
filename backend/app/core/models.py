@@ -162,6 +162,19 @@ class StakingFlow(Base):
     amount_usd: Mapped[float | None] = mapped_column(Numeric(38, 6), nullable=True)
 
 
+class StakingFlowByEntity(Base):
+    """Same as StakingFlow but additionally grouped by issuer entity
+    (Lido / Coinbase / Rocket Pool / StakeWise / Figment / 'Solo stakers' /
+    'Unattributed' etc.). Used by the per-entity table in StakingFlowsPanel.
+    (v3-staking)"""
+    __tablename__ = "staking_flows_by_entity"
+    ts_bucket: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(20), primary_key=True)
+    entity: Mapped[str] = mapped_column(String(64), primary_key=True)
+    amount_eth: Mapped[float] = mapped_column(Numeric(38, 18))
+    amount_usd: Mapped[float | None] = mapped_column(Numeric(38, 6), nullable=True)
+
+
 class LstSupply(Base):
     """Hourly totalSupply() snapshot per liquid-staking token. Source:
     JSON-RPC eth_call against each LST contract on the self-hosted Geth

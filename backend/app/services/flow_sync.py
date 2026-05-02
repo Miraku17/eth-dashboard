@@ -10,6 +10,7 @@ from app.core.models import (
     OrderFlow,
     StablecoinFlow,
     StakingFlow,
+    StakingFlowByEntity,
     VolumeBucket,
 )
 
@@ -177,5 +178,27 @@ def upsert_staking_flows(session: Session, rows: list[dict]) -> int:
         StakingFlow,
         values,
         index_elements=["ts_bucket", "kind"],
+        update_cols=["amount_eth", "amount_usd"],
+    )
+
+
+def upsert_staking_flows_by_entity(session: Session, rows: list[dict]) -> int:
+    """Upsert one row per (ts_bucket, kind, entity)."""
+    values = [
+        {
+            "ts_bucket": _parse_ts(r["ts_bucket"]),
+            "kind": r["kind"],
+            "entity": (r.get("entity") or "Unattributed")[:64],
+            "amount_eth": r["amount_eth"],
+            "amount_usd": r.get("amount_usd"),
+        }
+        for r in rows
+        if r.get("kind") in _STAKING_KINDS
+    ]
+    return _upsert_chunked(
+        session,
+        StakingFlowByEntity,
+        values,
+        index_elements=["ts_bucket", "kind", "entity"],
         update_cols=["amount_eth", "amount_usd"],
     )
