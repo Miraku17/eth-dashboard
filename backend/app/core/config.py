@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     # Self-hosted Geth: http://172.17.0.1:8545. If unset and ALCHEMY_API_KEY
     # is set, falls back to Alchemy's HTTPS endpoint.
     alchemy_http_url: str = ""
+    beacon_http_url: str | None = None
     dune_api_key: str = ""
     etherscan_api_key: str = ""
     coingecko_api_key: str = ""
@@ -32,6 +33,7 @@ class Settings(BaseSettings):
     dune_query_id_order_flow: int = 0
     dune_query_id_smart_money_leaderboard: int = 0
     dune_query_id_volume_buckets: int = 0
+    dune_query_id_staking_flows: int = 0
 
     # Minutes between Dune syncs. Free tier ≈ 500 executions/month total.
     dune_sync_interval_min: int = 240
