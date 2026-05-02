@@ -11,6 +11,7 @@ import PriceChart from "../components/PriceChart";
 import PriceHero from "../components/PriceHero";
 import SmartMoneyLeaderboard from "../components/SmartMoneyLeaderboard";
 import StablecoinSupplyPanel from "../components/StablecoinSupplyPanel";
+import StakingFlowsPanel from "../components/StakingFlowsPanel";
 import VolumeStructurePanel from "../components/VolumeStructurePanel";
 import WhaleTransfersPanel from "../components/WhaleTransfersPanel";
 
@@ -42,6 +43,7 @@ export const PANELS: PanelDef[] = [
   { id: "volume-structure", label: "Volume structure", component: VolumeStructurePanel, defaultPage: "markets", defaultWidth: 2 },
   { id: "exchange-flows", label: "Exchange flows", component: ExchangeFlowsPanel, defaultPage: "onchain", defaultWidth: 1 },
   { id: "stablecoin-supply", label: "Stablecoin supply", component: StablecoinSupplyPanel, defaultPage: "onchain", defaultWidth: 1 },
+  { id: "staking-flows", label: "Beacon flows", component: StakingFlowsPanel, defaultPage: "onchain", defaultWidth: 1 },
   { id: "onchain-volume", label: "On-chain volume", component: OnchainVolumePanel, defaultPage: "onchain", defaultWidth: 2 },
   { id: "network-activity", label: "Network activity", component: NetworkActivityPanel, defaultPage: "onchain", defaultWidth: 2 },
   { id: "whale-transfers", label: "Whale transfers", component: WhaleTransfersPanel, defaultPage: "onchain", defaultWidth: 2 },

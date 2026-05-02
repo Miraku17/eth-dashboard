@@ -284,6 +284,26 @@ class VolumeBucketsResponse(BaseModel):
     points: list[VolumeBucketPoint]
 
 
+# ---------- Staking flows (v3) ----------
+
+
+class StakingFlowPoint(BaseModel):
+    ts_bucket: datetime
+    kind: Literal["deposit", "withdrawal_partial", "withdrawal_full"]
+    amount_eth: float
+    amount_usd: float | None
+
+
+class StakingFlowsResponse(BaseModel):
+    points: list[StakingFlowPoint]
+
+
+class StakingSummary(BaseModel):
+    active_validator_count: int | None
+    total_eth_staked_30d: float
+    net_eth_staked_30d: float
+
+
 # ---------- Smart-money leaderboard (v2) ----------
 
 

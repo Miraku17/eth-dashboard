@@ -82,6 +82,10 @@ The design doc's v1 scope is fixed. Do **not** implement v2/v3 features (DEX lea
 
 **v2 complete.**
 
+## v3 status
+
+- v3-staking ⚠️ ETH staking flows — Dune `staking_ethereum.flows` spell aggregates beacon-chain deposits + partial-withdrawal rewards + full validator exits hourly into `staking_flows`; `/api/staking/flows` and `/api/staking/summary` endpoints; `StakingFlowsPanel` renders divergent leg bars + sparklines + active-validator-count tile (when `BEACON_HTTP_URL` set). Requires `DUNE_QUERY_ID_STAKING_FLOWS` in `.env` (SQL at `backend/dune/staking_flows.sql`); `BEACON_HTTP_URL=http://172.17.0.1:5052` enables the live tile (Lighthouse default port). Spec: `docs/superpowers/specs/2026-05-02-eth-staking-flows-design.md`. (LST market share is a follow-up sub-project.)
+
 ## UI polish
 
 - Live chart ✅ Direct browser-to-Binance WebSocket (combined `@trade` + `@kline_<tf>` streams) drives the price-hero ticker and in-place candle updates via `series.update()`; backend wraps `/api/price/candles` in a 60s Redis cache for the bootstrap path. Spec: `docs/superpowers/specs/2026-05-01-live-chart-ws-design.md`.

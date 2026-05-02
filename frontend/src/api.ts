@@ -103,6 +103,36 @@ export async function fetchStablecoinFlows(
   return (await r.json()).points;
 }
 
+export type StakingFlowKind = "deposit" | "withdrawal_partial" | "withdrawal_full";
+
+export type StakingFlowPoint = {
+  ts_bucket: string;
+  kind: StakingFlowKind;
+  amount_eth: number;
+  amount_usd: number | null;
+};
+
+export async function fetchStakingFlows(
+  hours: number,
+  limit = 5000,
+): Promise<StakingFlowPoint[]> {
+  const r = await apiFetch(`/api/staking/flows?hours=${hours}&limit=${limit}`);
+  if (!r.ok) throw new Error(`staking flows ${r.status}`);
+  return (await r.json()).points;
+}
+
+export type StakingSummary = {
+  active_validator_count: number | null;
+  total_eth_staked_30d: number;
+  net_eth_staked_30d: number;
+};
+
+export async function fetchStakingSummary(): Promise<StakingSummary> {
+  const r = await apiFetch(`/api/staking/summary`);
+  if (!r.ok) throw new Error(`staking summary ${r.status}`);
+  return r.json();
+}
+
 export type OnchainVolumePoint = {
   ts_bucket: string;
   asset: string;

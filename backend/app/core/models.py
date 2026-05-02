@@ -151,6 +151,17 @@ class VolumeBucket(Base):
     trade_count: Mapped[int] = mapped_column(BigInteger)
 
 
+class StakingFlow(Base):
+    """Hourly beacon-chain flow leg: deposits, partial withdrawals (rewards
+    skim), full withdrawals (validator exits). Sourced from Dune's curated
+    staking_ethereum.flows spell. (v3)"""
+    __tablename__ = "staking_flows"
+    ts_bucket: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(20), primary_key=True)
+    amount_eth: Mapped[float] = mapped_column(Numeric(38, 18))
+    amount_usd: Mapped[float | None] = mapped_column(Numeric(38, 6), nullable=True)
+
+
 class SmartMoneyLeaderboard(Base):
     """Per-wallet realized-PnL ranking snapshot. One `run_id` per daily refresh. (v2)"""
     __tablename__ = "smart_money_leaderboard"
