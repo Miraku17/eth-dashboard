@@ -5,6 +5,7 @@ import DefiTvlPanel from "../components/DefiTvlPanel";
 import DexPoolTvlPanel from "../components/DexPoolTvlPanel";
 import DerivativesPanel from "../components/DerivativesPanel";
 import ExchangeFlowsPanel from "../components/ExchangeFlowsPanel";
+import LiveVolumePanel from "../components/LiveVolumePanel";
 import LstMarketSharePanel from "../components/LstMarketSharePanel";
 import MempoolPanel from "../components/MempoolPanel";
 import NetworkActivityPanel from "../components/NetworkActivityPanel";
@@ -50,6 +51,7 @@ export const PANELS: PanelDef[] = [
   { id: "lst-market-share", label: "LST market share", component: LstMarketSharePanel, defaultPage: "onchain", defaultWidth: 2 },
   { id: "defi-tvl", label: "DeFi TVL", component: DefiTvlPanel, defaultPage: "onchain", defaultWidth: 2 },
   { id: "dex-pool-tvl", label: "DEX pool TVL", component: DexPoolTvlPanel, defaultPage: "onchain", defaultWidth: 2 },
+  { id: "live-volume", label: "Live volume", component: LiveVolumePanel, defaultPage: "onchain", defaultWidth: 2 },
   { id: "onchain-volume", label: "On-chain volume", component: OnchainVolumePanel, defaultPage: "onchain", defaultWidth: 2 },
   { id: "network-activity", label: "Network activity", component: NetworkActivityPanel, defaultPage: "onchain", defaultWidth: 2 },
   { id: "whale-transfers", label: "Whale transfers", component: WhaleTransfersPanel, defaultPage: "onchain", defaultWidth: 2 },

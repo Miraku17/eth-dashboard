@@ -186,6 +186,19 @@ export async function fetchDexPoolTvlLatest(): Promise<DexPoolTvlLatestResponse>
   return r.json();
 }
 
+export type RealtimeVolumePoint = {
+  ts_minute: string;
+  asset: string;
+  transfer_count: number;
+  usd_volume: number;
+};
+
+export async function fetchRealtimeVolume(minutes: number): Promise<RealtimeVolumePoint[]> {
+  const r = await apiFetch(`/api/volume/realtime?minutes=${minutes}`);
+  if (!r.ok) throw new Error(`realtime volume ${r.status}`);
+  return (await r.json()).points;
+}
+
 export type OnchainVolumePoint = {
   ts_bucket: string;
   asset: string;

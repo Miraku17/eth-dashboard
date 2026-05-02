@@ -26,10 +26,12 @@ from app.realtime.parser import (
     WhaleTransfer,
     block_timestamp,
     extract_network_activity,
+    extract_stable_volume,
     parse_erc20_log,
     parse_native_tx,
 )
 from app.realtime.tokens import ALL_TRACKED_ADDRESSES, TRANSFER_TOPIC
+from app.realtime.volume_agg import MinuteAggregator
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("realtime")
@@ -177,6 +179,7 @@ async def _process_block(
     block_number: int,
     sessionmaker,
     thresholds: tuple[float, float],
+    volume_agg: MinuteAggregator | None = None,
 ) -> None:
     threshold_eth, threshold_usd = thresholds
     hex_bn = hex(block_number)
@@ -224,6 +227,12 @@ async def _process_block(
         row = parse_erc20_log(lg, block_ts=ts, threshold_usd=threshold_usd)
         if row:
             rows.append(row)
+        # Feed every Stable transfer (threshold-free) to the volume aggregator.
+        if volume_agg is not None:
+            sv = extract_stable_volume(lg)
+            if sv is not None:
+                asset, usd = sv
+                volume_agg.add(asset, usd, ts)
 
     if rows:
         with sessionmaker() as session:
@@ -238,6 +247,7 @@ async def run_once(ws_url: str, sessionmaker, thresholds: tuple[float, float]) -
     async with websockets.connect(ws_url, ping_interval=20, ping_timeout=20) as ws:
         client = AlchemyClient(ws)
         pump_task = asyncio.create_task(client.pump())
+        volume_agg = MinuteAggregator(sessionmaker)
 
         def eth_usd_provider() -> float | None:
             with sessionmaker() as session:
@@ -260,7 +270,7 @@ async def run_once(ws_url: str, sessionmaker, thresholds: tuple[float, float]) -
                         return  # outer main() loop recreates the WS
                     bn = int(head["number"], 16)
                     try:
-                        await _process_block(client, bn, sessionmaker, thresholds)
+                        await _process_block(client, bn, sessionmaker, thresholds, volume_agg)
                     except (asyncio.TimeoutError, ConnectionError):
                         # WS went silent or died mid-block; bail out so the
                         # outer loop reconnects rather than spinning on a
@@ -274,6 +284,8 @@ async def run_once(ws_url: str, sessionmaker, thresholds: tuple[float, float]) -
                 with contextlib.suppress(asyncio.CancelledError, Exception):
                     await mempool_task
         finally:
+            with contextlib.suppress(Exception):
+                volume_agg.flush()
             pump_task.cancel()
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await pump_task

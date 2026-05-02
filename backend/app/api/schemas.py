@@ -359,6 +359,17 @@ class DexPoolTvlLatestResponse(BaseModel):
     pools: list[DexPoolTvlPoint]
 
 
+class RealtimeVolumePoint(BaseModel):
+    ts_minute: datetime
+    asset: str
+    transfer_count: int
+    usd_volume: float
+
+
+class RealtimeVolumeResponse(BaseModel):
+    points: list[RealtimeVolumePoint]
+
+
 # ---------- Smart-money leaderboard (v2) ----------
 
 
