@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   fetchStakingFlows,
+  fetchStakingFlowsByEntity,
   fetchStakingSummary,
   rangeToHours,
   type FlowRange,
+  type StakingFlowByEntityPoint,
   type StakingFlowKind,
   type StakingFlowPoint,
 } from "../api";
@@ -33,6 +35,16 @@ export default function StakingFlowsPanel() {
     queryFn: fetchStakingSummary,
     refetchInterval: 5 * 60_000,
   });
+  const byEntity = useQuery({
+    queryKey: ["staking-flows-by-entity", hours],
+    queryFn: () => fetchStakingFlowsByEntity(hours),
+    refetchInterval: 5 * 60_000,
+  });
+
+  const entityRows = useMemo(
+    () => aggregateByEntity(byEntity.data ?? []),
+    [byEntity.data],
+  );
 
   const legs = aggregate(flows.data ?? []);
   const netEth = legs.deposit.totalEth - legs.withdrawal_full.totalEth;
@@ -93,6 +105,44 @@ export default function StakingFlowsPanel() {
             ETH (
             {formatUsdCompact(legs.withdrawal_partial.totalUsd)})
           </div>
+
+          {entityRows.length > 0 && (
+            <div className="border-t border-surface-raised pt-3 @xs:hidden">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500 mb-2">
+                By issuer ({range})
+              </div>
+              <ul className="space-y-1.5">
+                {entityRows.slice(0, 8).map((row) => (
+                  <li
+                    key={row.entity}
+                    className="grid grid-cols-[1fr_auto_auto_auto] gap-3 items-baseline text-xs font-mono tabular-nums"
+                  >
+                    <span className="text-slate-300 truncate">{row.entity}</span>
+                    <span className="text-up">
+                      +{row.deposits.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
+                    <span className="text-down">
+                      −{row.exits.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </span>
+                    <span
+                      className={
+                        row.net >= 0 ? "text-up" : "text-down"
+                      }
+                    >
+                      {row.net >= 0 ? "+" : ""}
+                      {row.net.toLocaleString(undefined, { maximumFractionDigits: 0 })} ETH
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-1.5 grid grid-cols-[1fr_auto_auto_auto] gap-3 text-[10px] text-slate-500 uppercase tracking-wider">
+                <span></span>
+                <span className="text-right">deposits</span>
+                <span className="text-right">exits</span>
+                <span className="text-right">net</span>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </Card>
@@ -171,4 +221,32 @@ function aggregate(points: StakingFlowPoint[]): Record<StakingFlowKind, LegAgg> 
     result[k].hourlyEth = sorted.map(([, v]) => v);
   }
   return result;
+}
+
+type EntityAgg = {
+  entity: string;
+  deposits: number;
+  exits: number;
+  net: number;
+};
+
+function aggregateByEntity(points: StakingFlowByEntityPoint[]): EntityAgg[] {
+  const byEntity = new Map<string, { deposits: number; exits: number }>();
+  for (const p of points) {
+    const slot = byEntity.get(p.entity) ?? { deposits: 0, exits: 0 };
+    if (p.kind === "deposit") slot.deposits += p.amount_eth;
+    else if (p.kind === "withdrawal_full") slot.exits += p.amount_eth;
+    // partial withdrawals are rewards skim; folded into the aggregate
+    // panel's footer line, not the per-entity table.
+    byEntity.set(p.entity, slot);
+  }
+  // Activity = deposits + exits; sort desc so the busiest issuers float to top.
+  return [...byEntity.entries()]
+    .map(([entity, v]) => ({
+      entity,
+      deposits: v.deposits,
+      exits: v.exits,
+      net: v.deposits - v.exits,
+    }))
+    .sort((a, b) => b.deposits + b.exits - (a.deposits + a.exits));
 }

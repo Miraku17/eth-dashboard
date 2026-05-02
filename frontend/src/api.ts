@@ -121,6 +121,23 @@ export async function fetchStakingFlows(
   return (await r.json()).points;
 }
 
+export type StakingFlowByEntityPoint = {
+  ts_bucket: string;
+  kind: StakingFlowKind;
+  entity: string;
+  amount_eth: number;
+  amount_usd: number | null;
+};
+
+export async function fetchStakingFlowsByEntity(
+  hours: number,
+  limit = 20000,
+): Promise<StakingFlowByEntityPoint[]> {
+  const r = await apiFetch(`/api/staking/flows/by-entity?hours=${hours}&limit=${limit}`);
+  if (!r.ok) throw new Error(`staking flows by entity ${r.status}`);
+  return (await r.json()).points;
+}
+
 export type StakingSummary = {
   active_validator_count: number | null;
   total_eth_staked_30d: number;

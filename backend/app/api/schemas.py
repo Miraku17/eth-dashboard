@@ -306,6 +306,18 @@ class StakingSummary(BaseModel):
     net_eth_staked_30d: float
 
 
+class StakingFlowByEntityPoint(BaseModel):
+    ts_bucket: datetime
+    kind: Literal["deposit", "withdrawal_partial", "withdrawal_full"]
+    entity: str
+    amount_eth: float
+    amount_usd: float | None
+
+
+class StakingFlowsByEntityResponse(BaseModel):
+    points: list[StakingFlowByEntityPoint]
+
+
 class LstSupplyPoint(BaseModel):
     ts_bucket: datetime
     token: str

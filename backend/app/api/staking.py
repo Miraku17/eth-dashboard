@@ -11,14 +11,16 @@ from sqlalchemy.orm import Session
 from app.api.schemas import (
     LstSupplyPoint,
     LstSupplyResponse,
+    StakingFlowByEntityPoint,
     StakingFlowPoint,
+    StakingFlowsByEntityResponse,
     StakingFlowsResponse,
     StakingSummary,
 )
 from app.clients.beacon import BeaconClient
 from app.core.config import get_settings
 from app.core.db import get_session
-from app.core.models import LstSupply, StakingFlow
+from app.core.models import LstSupply, StakingFlow, StakingFlowByEntity
 
 router = APIRouter(prefix="/staking", tags=["staking"])
 
@@ -96,6 +98,33 @@ def lst_supply(
                 ts_bucket=r.ts_bucket,
                 token=r.token,
                 supply=float(r.supply),
+            )
+            for r in rows
+        ]
+    )
+
+
+@router.get("/flows/by-entity", response_model=StakingFlowsByEntityResponse)
+def staking_flows_by_entity(
+    session: Annotated[Session, Depends(get_session)],
+    hours: HoursParam = 720,  # default 30 days for the per-entity table
+    limit: int = Query(20000, ge=1, le=200000),
+) -> StakingFlowsByEntityResponse:
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
+    rows = session.execute(
+        select(StakingFlowByEntity)
+        .where(StakingFlowByEntity.ts_bucket >= cutoff)
+        .order_by(StakingFlowByEntity.ts_bucket.desc())
+        .limit(limit)
+    ).scalars().all()
+    return StakingFlowsByEntityResponse(
+        points=[
+            StakingFlowByEntityPoint(
+                ts_bucket=r.ts_bucket,
+                kind=r.kind,
+                entity=r.entity,
+                amount_eth=float(r.amount_eth),
+                amount_usd=float(r.amount_usd) if r.amount_usd is not None else None,
             )
             for r in rows
         ]
