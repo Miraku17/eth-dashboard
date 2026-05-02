@@ -193,6 +193,18 @@ class DexPoolTvl(Base):
     tvl_usd: Mapped[float] = mapped_column(Numeric(38, 6))
 
 
+class RealtimeVolume(Base):
+    """Per-minute on-chain volume bucket for stablecoin Transfer logs.
+    Populated by the realtime listener's MinuteAggregator — every Stable
+    Transfer log contributes its USD-equivalent value to the active minute,
+    flushed to this table when the minute boundary changes. (v3-live-volume)"""
+    __tablename__ = "realtime_volume"
+    ts_minute: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    asset: Mapped[str] = mapped_column(String(16), primary_key=True)
+    transfer_count: Mapped[int] = mapped_column(Integer)
+    usd_volume: Mapped[float] = mapped_column(Numeric(38, 6))
+
+
 class SmartMoneyLeaderboard(Base):
     """Per-wallet realized-PnL ranking snapshot. One `run_id` per daily refresh. (v2)"""
     __tablename__ = "smart_money_leaderboard"

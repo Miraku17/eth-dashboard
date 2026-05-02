@@ -276,3 +276,24 @@ def decode_pending_tx(
             )
 
     return None
+
+
+def extract_stable_volume(log: dict) -> tuple[str, float] | None:
+    """Decode a Transfer log and return (asset_symbol, usd_value) if it's a
+    Stable transfer. Threshold-free — every Stable transfer counts.
+
+    Used by the realtime listener's MinuteAggregator to compute on-chain
+    volume regardless of whale threshold. Returns None for non-Stables and
+    malformed logs.
+    """
+    addr = (log.get("address") or "").lower()
+    stable = STABLES_BY_ADDRESS.get(addr)
+    if stable is None:
+        return None
+    data = log.get("data") or "0x0"
+    try:
+        raw = int(data, 16) if data != "0x" else 0
+    except (TypeError, ValueError):
+        return None
+    amount = raw / (10**stable.decimals)
+    return stable.symbol, amount * stable.price_usd_approx

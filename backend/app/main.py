@@ -14,6 +14,7 @@ from app.api.leaderboard import router as leaderboard_router
 from app.api.network import router as network_router
 from app.api.price import router as price_router
 from app.api.staking import router as staking_router
+from app.api.volume import router as volume_router
 from app.api.wallets import router as wallets_router
 from app.api.whales import router as whales_router
 from app.core.auth import AuthDep
@@ -53,4 +54,5 @@ app.include_router(leaderboard_router, prefix="/api", dependencies=[AuthDep])
 app.include_router(clusters_router, prefix="/api", dependencies=[AuthDep])
 app.include_router(staking_router, prefix="/api", dependencies=[AuthDep])
 app.include_router(defi_router, prefix="/api", dependencies=[AuthDep])
+app.include_router(volume_router, prefix="/api", dependencies=[AuthDep])
 app.include_router(wallets_router, prefix="/api", dependencies=[AuthDep])
