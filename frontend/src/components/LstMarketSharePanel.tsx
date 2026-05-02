@@ -1,0 +1,162 @@
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Area,
+  AreaChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  fetchLstSupply,
+  rangeToHours,
+  type FlowRange,
+  type LstSupplyPoint,
+} from "../api";
+import Card from "./ui/Card";
+import FlowRangeSelector from "./FlowRangeSelector";
+
+// Stable per-token color so the eye can track each band over time.
+// Order matches typical market-share rank desc.
+const TOKEN_ORDER = ["stETH", "rETH", "cbETH", "sfrxETH", "mETH", "swETH", "ETHx"] as const;
+type LstSymbol = (typeof TOKEN_ORDER)[number];
+
+const COLORS: Record<LstSymbol, string> = {
+  stETH: "rgb(56 189 248)",   // sky-400
+  rETH: "rgb(244 114 182)",   // pink-400
+  cbETH: "rgb(96 165 250)",   // blue-400
+  sfrxETH: "rgb(251 146 60)", // orange-400
+  mETH: "rgb(52 211 153)",    // emerald-400
+  swETH: "rgb(167 139 250)",  // violet-400
+  ETHx: "rgb(250 204 21)",    // yellow-400
+};
+
+type StackRow = {
+  ts: string;
+  // Each token symbol -> supply at that bucket. Missing tokens absent.
+  [k: string]: string | number | undefined;
+};
+
+export default function LstMarketSharePanel() {
+  const [range, setRange] = useState<FlowRange>("30d");
+  const hours = rangeToHours(range);
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["lst-supply", hours],
+    queryFn: () => fetchLstSupply(hours),
+    refetchInterval: 5 * 60_000,
+  });
+
+  const stacked = pivot(data ?? []);
+  const latest = stacked.at(-1);
+  const totalLatest = latest
+    ? TOKEN_ORDER.reduce((acc, t) => acc + ((latest[t] as number) ?? 0), 0)
+    : 0;
+
+  return (
+    <Card
+      title="LST market share"
+      subtitle={`last ${range} · totalSupply per token (raw, not ETH-normalized)`}
+      actions={<FlowRangeSelector value={range} onChange={setRange} />}
+    >
+      {isLoading && <p className="text-sm text-slate-500">loading…</p>}
+      {error && <p className="text-sm text-down">unavailable</p>}
+      {!isLoading && !error && stacked.length === 0 && (
+        <p className="text-sm text-slate-500">
+          no data yet — waiting for first hourly sync
+        </p>
+      )}
+      {stacked.length > 0 && (
+        <div className="space-y-3">
+          <ul className="space-y-1.5">
+            {TOKEN_ORDER.map((t) => {
+              const cur = latest ? ((latest[t] as number) ?? 0) : 0;
+              const pct = totalLatest > 0 ? (cur / totalLatest) * 100 : 0;
+              return (
+                <li
+                  key={t}
+                  className="flex items-center justify-between text-xs font-mono tabular-nums"
+                >
+                  <span className="flex items-center gap-2">
+                    <span
+                      className="inline-block w-2.5 h-2.5 rounded-sm"
+                      style={{ backgroundColor: COLORS[t] }}
+                    />
+                    <span className="text-slate-300">{t}</span>
+                  </span>
+                  <span className="text-slate-400">
+                    {pct.toFixed(1)}%
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="h-44">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={stacked} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <XAxis
+                  dataKey="ts"
+                  tickFormatter={(v: string) => v.slice(5, 10)}
+                  tick={{ fill: "rgb(148 163 184)", fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                  minTickGap={32}
+                />
+                <YAxis
+                  tick={{ fill: "rgb(148 163 184)", fontSize: 10 }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={48}
+                  tickFormatter={(v: number) =>
+                    v >= 1e6
+                      ? `${(v / 1e6).toFixed(1)}M`
+                      : v >= 1e3
+                        ? `${(v / 1e3).toFixed(0)}k`
+                        : v.toString()
+                  }
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "rgb(15 23 42)",
+                    border: "1px solid rgb(51 65 85)",
+                    fontSize: 12,
+                  }}
+                  labelStyle={{ color: "rgb(148 163 184)" }}
+                />
+                {TOKEN_ORDER.map((t) => (
+                  <Area
+                    key={t}
+                    type="monotone"
+                    dataKey={t}
+                    stackId="lst"
+                    stroke={COLORS[t]}
+                    fill={COLORS[t]}
+                    fillOpacity={0.7}
+                  />
+                ))}
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function pivot(points: LstSupplyPoint[]): StackRow[] {
+  // Group by ts_bucket → { ts, stETH: ..., rETH: ..., ... }.
+  const byTs = new Map<string, StackRow>();
+  for (const p of points) {
+    let row = byTs.get(p.ts_bucket);
+    if (!row) {
+      row = { ts: p.ts_bucket };
+      byTs.set(p.ts_bucket, row);
+    }
+    row[p.token] = p.supply;
+  }
+  return [...byTs.values()].sort((a, b) =>
+    (a.ts as string).localeCompare(b.ts as string),
+  );
+}

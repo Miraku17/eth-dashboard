@@ -162,6 +162,16 @@ class StakingFlow(Base):
     amount_usd: Mapped[float | None] = mapped_column(Numeric(38, 6), nullable=True)
 
 
+class LstSupply(Base):
+    """Hourly totalSupply() snapshot per liquid-staking token. Source:
+    JSON-RPC eth_call against each LST contract on the self-hosted Geth
+    node. (v3-lst)"""
+    __tablename__ = "lst_supply"
+    ts_bucket: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    token: Mapped[str] = mapped_column(String(10), primary_key=True)
+    supply: Mapped[float] = mapped_column(Numeric(38, 18))
+
+
 class SmartMoneyLeaderboard(Base):
     """Per-wallet realized-PnL ranking snapshot. One `run_id` per daily refresh. (v2)"""
     __tablename__ = "smart_money_leaderboard"

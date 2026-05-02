@@ -9,6 +9,7 @@ from app.workers.cluster_jobs import purge_expired_clusters
 from app.workers.derivatives_jobs import sync_derivatives
 from app.workers.flow_jobs import sync_dune_flows, sync_order_flow, sync_volume_buckets
 from app.workers.leaderboard_jobs import sync_smart_money_leaderboard
+from app.workers.lst_jobs import sync_lst_supply
 from app.workers.pending_cleanup import cleanup_pending_transfers
 from app.workers.price_jobs import backfill_price_history, sync_price_latest
 
@@ -68,6 +69,7 @@ class WorkerSettings:
         sync_order_flow,
         sync_volume_buckets,
         sync_smart_money_leaderboard,
+        sync_lst_supply,
         cleanup_pending_transfers,
         purge_expired_clusters,
     ]
@@ -91,6 +93,9 @@ class WorkerSettings:
         cron(cleanup_pending_transfers, minute=set(range(0, 60)), run_at_startup=False),
         # Wallet-cluster cache: drop rows past the 7-day grace window.
         cron(purge_expired_clusters, hour={3}, minute={11}, run_at_startup=False),
+        # LST market share: hourly totalSupply() reads, offset to minute 7
+        # so we don't collide with the on-the-hour syncs (price, alerts).
+        cron(sync_lst_supply, minute={7}, run_at_startup=False),
     ]
     on_startup = startup
     on_shutdown = shutdown
