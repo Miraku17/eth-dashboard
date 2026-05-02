@@ -14,23 +14,14 @@ import {
   type FlowRange,
   type LstSupplyPoint,
 } from "../api";
+import { rgbOf } from "../lib/assetColors";
 import Card from "./ui/Card";
+import DataAge from "./ui/DataAge";
 import FlowRangeSelector from "./FlowRangeSelector";
 
-// Stable per-token color so the eye can track each band over time.
-// Order matches typical market-share rank desc.
+// Order matches typical market-share rank desc; colors come from the
+// shared per-asset palette in lib/assetColors.ts.
 const TOKEN_ORDER = ["stETH", "rETH", "cbETH", "sfrxETH", "mETH", "swETH", "ETHx"] as const;
-type LstSymbol = (typeof TOKEN_ORDER)[number];
-
-const COLORS: Record<LstSymbol, string> = {
-  stETH: "rgb(56 189 248)",   // sky-400
-  rETH: "rgb(244 114 182)",   // pink-400
-  cbETH: "rgb(96 165 250)",   // blue-400
-  sfrxETH: "rgb(251 146 60)", // orange-400
-  mETH: "rgb(52 211 153)",    // emerald-400
-  swETH: "rgb(167 139 250)",  // violet-400
-  ETHx: "rgb(250 204 21)",    // yellow-400
-};
 
 type StackRow = {
   ts: string;
@@ -69,6 +60,7 @@ export default function LstMarketSharePanel() {
       )}
       {stacked.length > 0 && (
         <div className="space-y-3">
+          <DataAge ts={(latest?.ts as string | undefined) ?? null} />
           <ul className="space-y-1.5">
             {TOKEN_ORDER.map((t) => {
               const cur = latest ? ((latest[t] as number) ?? 0) : 0;
@@ -81,7 +73,7 @@ export default function LstMarketSharePanel() {
                   <span className="flex items-center gap-2">
                     <span
                       className="inline-block w-2.5 h-2.5 rounded-sm"
-                      style={{ backgroundColor: COLORS[t] }}
+                      style={{ backgroundColor: rgbOf(t) }}
                     />
                     <span className="text-slate-300">{t}</span>
                   </span>
@@ -131,8 +123,8 @@ export default function LstMarketSharePanel() {
                     type="monotone"
                     dataKey={t}
                     stackId="lst"
-                    stroke={COLORS[t]}
-                    fill={COLORS[t]}
+                    stroke={rgbOf(t)}
+                    fill={rgbOf(t)}
                     fillOpacity={0.7}
                   />
                 ))}

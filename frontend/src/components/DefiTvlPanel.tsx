@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchDefiTvlLatest, type DefiTvlProtocolSnapshot } from "../api";
 import { formatUsdCompact } from "../lib/format";
 import Card from "./ui/Card";
+import DataAge from "./ui/DataAge";
 import { SimpleSelect } from "./ui/Select";
 
 const TOP_N_ASSETS = 12;
@@ -55,7 +56,12 @@ export default function DefiTvlPanel() {
           no data yet — first hourly sync pending
         </p>
       )}
-      {current && <ProtocolBreakdown snapshot={current} />}
+      {current && (
+        <div className="space-y-3">
+          <DataAge ts={data?.ts_bucket ?? null} />
+          <ProtocolBreakdown snapshot={current} />
+        </div>
+      )}
     </Card>
   );
 }
