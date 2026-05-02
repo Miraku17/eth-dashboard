@@ -1,4 +1,4 @@
-export type PegCurrency = "USD" | "EUR" | "GBP" | "CHF" | "OTHER";
+export type PegCurrency = "USD" | "EUR" | "GBP" | "CHF" | "SGD" | "BRL" | "OTHER";
 
 export const PEG_BY_ASSET: Record<string, PegCurrency> = {
   USDT: "USD",
@@ -14,9 +14,11 @@ export const PEG_BY_ASSET: Record<string, PegCurrency> = {
   ZCHF: "CHF",
   tGBP: "GBP",
   USDe: "USD",
+  XSGD: "SGD",
+  BRZ: "BRL",
 };
 
-export const PEG_ORDER: PegCurrency[] = ["USD", "EUR", "GBP", "CHF", "OTHER"];
+export const PEG_ORDER: PegCurrency[] = ["USD", "EUR", "GBP", "CHF", "SGD", "BRL", "OTHER"];
 
 export function pegOf(asset: string): PegCurrency {
   return PEG_BY_ASSET[asset] ?? "OTHER";
