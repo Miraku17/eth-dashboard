@@ -36,6 +36,6 @@ def test_build_rows_handles_no_data():
 def test_defi_protocols_registry_intact():
     """Defensive: assert the curated registry has all expected slugs."""
     slugs = {p.slug for p in DEFI_PROTOCOLS}
-    expected = {"aave-v3", "sky-lending", "morpho", "compound-v3", "compound-v2",
-                "spark", "lido", "eigenlayer", "pendle", "uniswap-v3"}
+    expected = {"aave-v3", "sky-lending", "morpho-blue", "compound-v3", "compound-v2",
+                "sparklend", "lido", "eigenlayer", "pendle"}
     assert slugs == expected

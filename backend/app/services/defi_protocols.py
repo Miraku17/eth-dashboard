@@ -18,14 +18,15 @@ class DefiProtocol:
 DEFI_PROTOCOLS: tuple[DefiProtocol, ...] = (
     DefiProtocol("aave-v3",      "Aave v3"),
     DefiProtocol("sky-lending",  "Sky (Lending)"),
-    DefiProtocol("morpho",       "Morpho"),
+    DefiProtocol("morpho-blue",  "Morpho"),       # slug: morpho-blue (not "morpho")
     DefiProtocol("compound-v3",  "Compound v3"),
     DefiProtocol("compound-v2",  "Compound v2"),
-    DefiProtocol("spark",        "Spark"),
+    DefiProtocol("sparklend",    "Spark"),        # slug: sparklend (not "spark")
     DefiProtocol("lido",         "Lido"),
     DefiProtocol("eigenlayer",   "EigenLayer"),
     DefiProtocol("pendle",       "Pendle"),
-    DefiProtocol("uniswap-v3",   "Uniswap v3"),
+    # Uniswap v3 omitted — DefiLlama doesn't expose per-asset Ethereum-mainnet
+    # tokensInUsd for it (DEX LP TVL needs a different ingestion shape).
 )
 
 DEFI_PROTOCOLS_BY_SLUG: dict[str, DefiProtocol] = {p.slug: p for p in DEFI_PROTOCOLS}
