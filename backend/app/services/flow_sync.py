@@ -114,22 +114,34 @@ def upsert_onchain_volume(session: Session, rows: list[dict]) -> int:
     )
 
 
+_ALLOWED_DEXES = ("uniswap_v2", "uniswap_v3", "curve", "balancer", "other")
+
+
 def upsert_order_flow(session: Session, rows: list[dict]) -> int:
-    values = [
-        {
-            "ts_bucket": _parse_ts(r["ts_bucket"]),
-            "side": r["side"],
-            "usd_value": r["usd_value"],
-            "trade_count": r["trade_count"],
-        }
-        for r in rows
-        if r.get("side") in ("buy", "sell")
-    ]
+    """Upsert per-(ts_bucket, dex, side) rows. Skips malformed entries
+    (unknown side, unknown dex, missing usd_value)."""
+    values = []
+    for r in rows:
+        if r.get("side") not in ("buy", "sell"):
+            continue
+        dex = r.get("dex") or "other"
+        # Defensive: any unknown dex string from the Dune query falls into 'other'.
+        if dex not in _ALLOWED_DEXES:
+            dex = "other"
+        values.append(
+            {
+                "ts_bucket": _parse_ts(r["ts_bucket"]),
+                "dex": dex,
+                "side": r["side"],
+                "usd_value": r["usd_value"],
+                "trade_count": r["trade_count"],
+            }
+        )
     return _upsert_chunked(
         session,
         OrderFlow,
         values,
-        index_elements=["ts_bucket", "side"],
+        index_elements=["ts_bucket", "dex", "side"],
         update_cols=["usd_value", "trade_count"],
     )
 

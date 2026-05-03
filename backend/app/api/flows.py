@@ -126,6 +126,7 @@ def order_flow(
     points = [
         OrderFlowPoint(
             ts_bucket=r.ts_bucket,
+            dex=r.dex,
             side=r.side,  # type: ignore[arg-type]
             usd_value=float(r.usd_value),
             trade_count=r.trade_count,

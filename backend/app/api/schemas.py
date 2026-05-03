@@ -275,6 +275,7 @@ class DerivativesSeriesResponse(BaseModel):
 
 class OrderFlowPoint(BaseModel):
     ts_bucket: datetime
+    dex: str  # "uniswap_v2" | "uniswap_v3" | "curve" | "balancer" | "other" | "aggregate"
     side: Literal["buy", "sell"]
     usd_value: float
     trade_count: int

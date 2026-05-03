@@ -12,7 +12,13 @@ import {
   YAxis,
 } from "recharts";
 
-import { fetchOrderFlow, rangeToHours, type FlowRange, type OrderFlowPoint } from "../api";
+import {
+  fetchOrderFlow,
+  rangeToHours,
+  type FlowRange,
+  type OrderFlowDex,
+  type OrderFlowPoint,
+} from "../api";
 import { formatUsdCompact } from "../lib/format";
 import Card from "./ui/Card";
 import FlowRangeSelector from "./FlowRangeSelector";
@@ -27,6 +33,26 @@ type Row = {
   trades: number;
 };
 
+const DEX_LABEL: Record<OrderFlowDex, string> = {
+  uniswap_v2: "Uniswap V2",
+  uniswap_v3: "Uniswap V3",
+  curve: "Curve",
+  balancer: "Balancer",
+  other: "Other",
+  aggregate: "All DEXes (legacy)",
+};
+
+const DEX_ORDER: OrderFlowDex[] = [
+  "uniswap_v3",
+  "uniswap_v2",
+  "curve",
+  "balancer",
+  "other",
+  "aggregate",
+];
+
+type DexTotals = { buy: number; sell: number; trades: number };
+
 function pivot(points: OrderFlowPoint[]): Row[] {
   const byTs = new Map<number, Row>();
   for (const p of points) {
@@ -40,6 +66,18 @@ function pivot(points: OrderFlowPoint[]): Row[] {
   const rows = Array.from(byTs.values());
   for (const r of rows) r.net = r.buy - r.sell;
   return rows.sort((a, b) => a.t - b.t);
+}
+
+function totalsByDex(points: OrderFlowPoint[]): Map<OrderFlowDex, DexTotals> {
+  const out = new Map<OrderFlowDex, DexTotals>();
+  for (const p of points) {
+    const cur = out.get(p.dex) ?? { buy: 0, sell: 0, trades: 0 };
+    if (p.side === "buy") cur.buy += p.usd_value;
+    else cur.sell += p.usd_value;
+    cur.trades += p.trade_count;
+    out.set(p.dex, cur);
+  }
+  return out;
 }
 
 export default function OrderFlowPanel() {
@@ -59,6 +97,24 @@ export default function OrderFlowPanel() {
     const trades = rows.reduce((s, r) => s + r.trades, 0);
     return { buy, sell, net: buy - sell, trades };
   }, [rows]);
+  const perDex = useMemo(() => totalsByDex(data ?? []), [data]);
+  const dexEntries = useMemo(() => {
+    const total = totals.buy + totals.sell;
+    return DEX_ORDER.map((dex) => {
+      const t = perDex.get(dex);
+      if (!t || (t.buy === 0 && t.sell === 0)) return null;
+      const vol = t.buy + t.sell;
+      const net = t.buy - t.sell;
+      return {
+        dex,
+        label: DEX_LABEL[dex],
+        buy: t.buy,
+        sell: t.sell,
+        net,
+        share: total > 0 ? (vol / total) * 100 : 0,
+      };
+    }).filter((x): x is NonNullable<typeof x> => x !== null);
+  }, [perDex, totals]);
 
   const bullish = totals.net >= 0;
 
@@ -209,6 +265,45 @@ export default function OrderFlowPanel() {
               </ResponsiveContainer>
             </div>
           </div>
+
+          {dexEntries.length > 0 && (
+            <div className="border-t border-surface-divider p-5 pt-4">
+              <div className="text-[11px] tracking-wider uppercase text-slate-500 font-medium mb-2">
+                By DEX · last {range}
+              </div>
+              <ul className="space-y-1.5">
+                {dexEntries.map((d) => {
+                  const bullish = d.net >= 0;
+                  return (
+                    <li
+                      key={d.dex}
+                      className="grid grid-cols-[1fr_auto_auto_auto_auto] items-center gap-x-4 text-xs font-mono tabular-nums"
+                    >
+                      <span className="text-slate-300">{d.label}</span>
+                      <span className="text-slate-500 w-12 text-right">
+                        {d.share.toFixed(1)}%
+                      </span>
+                      <span className="text-up w-20 text-right">
+                        {formatUsdCompact(d.buy)}
+                      </span>
+                      <span className="text-down w-20 text-right">
+                        {formatUsdCompact(d.sell)}
+                      </span>
+                      <span
+                        className={
+                          (bullish ? "text-up" : "text-down") +
+                          " w-20 text-right font-semibold"
+                        }
+                      >
+                        {bullish ? "+" : ""}
+                        {formatUsdCompact(d.net)}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
         </>
       )}
     </Card>
