@@ -24,13 +24,17 @@ def upsert_lst_supply(session: Session, rows: list[dict]) -> int:
             "ts_bucket": _parse_ts(r["ts_bucket"]),
             "token": r["token"],
             "supply": r["supply"],
+            "eth_supply": r.get("eth_supply"),
         }
         for r in rows
     ]
     stmt = pg_insert(LstSupply).values(values)
     stmt = stmt.on_conflict_do_update(
         index_elements=["ts_bucket", "token"],
-        set_={"supply": stmt.excluded.supply},
+        set_={
+            "supply": stmt.excluded.supply,
+            "eth_supply": stmt.excluded.eth_supply,
+        },
     )
     session.execute(stmt)
     return len(values)

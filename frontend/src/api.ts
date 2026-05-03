@@ -155,6 +155,9 @@ export type LstSupplyPoint = {
   ts_bucket: string;
   token: string;
   supply: number;
+  /** ETH-equivalent (supply × exchange rate). Null when normalization is
+   * unavailable for that row — callers should fall back to `supply`. */
+  eth_supply: number | null;
 };
 
 export async function fetchLstSupply(hours: number): Promise<LstSupplyPoint[]> {

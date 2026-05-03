@@ -337,6 +337,7 @@ class LstSupplyPoint(BaseModel):
     ts_bucket: datetime
     token: str
     supply: float
+    eth_supply: float | None = None
 
 
 class LstSupplyResponse(BaseModel):

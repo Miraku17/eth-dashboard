@@ -103,6 +103,7 @@ def lst_supply(
                 ts_bucket=r.ts_bucket,
                 token=r.token,
                 supply=float(r.supply),
+                eth_supply=float(r.eth_supply) if r.eth_supply is not None else None,
             )
             for r in rows
         ]
