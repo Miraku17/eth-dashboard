@@ -48,7 +48,7 @@ export default function LstMarketSharePanel() {
   return (
     <Card
       title="LST market share"
-      subtitle={`last ${range} · totalSupply per token (raw, not ETH-normalized)`}
+      subtitle={`last ${range} · ETH-equivalent supply per token`}
       actions={<FlowRangeSelector value={range} onChange={setRange} />}
     >
       {isLoading && <p className="text-sm text-slate-500">loading…</p>}
@@ -146,7 +146,9 @@ function pivot(points: LstSupplyPoint[]): StackRow[] {
       row = { ts: p.ts_bucket };
       byTs.set(p.ts_bucket, row);
     }
-    row[p.token] = p.supply;
+    // Prefer ETH-equivalent (supply × current exchange rate); fall back to
+    // raw supply for legacy rows where the normalization wasn't computed.
+    row[p.token] = p.eth_supply ?? p.supply;
   }
   return [...byTs.values()].sort((a, b) =>
     (a.ts as string).localeCompare(b.ts as string),

@@ -191,11 +191,20 @@ class BridgeFlow(Base):
 class LstSupply(Base):
     """Hourly totalSupply() snapshot per liquid-staking token. Source:
     JSON-RPC eth_call against each LST contract on the self-hosted Geth
-    node. (v3-lst)"""
+    node. (v3-lst)
+
+    `supply` is the raw share-token totalSupply.
+    `eth_supply` is the ETH-equivalent (supply × current exchange rate),
+    populated for share-tokens like rETH / sfrxETH where raw supply
+    undercounts the actual ETH staked. Nullable: rows written before the
+    normalization shipped have NULL here, and any per-token rate-fetch
+    failure also leaves NULL so the panel can fall back to raw supply
+    rather than render nothing."""
     __tablename__ = "lst_supply"
     ts_bucket: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
     token: Mapped[str] = mapped_column(String(10), primary_key=True)
     supply: Mapped[float] = mapped_column(Numeric(38, 18))
+    eth_supply: Mapped[float | None] = mapped_column(Numeric(38, 18), nullable=True)
 
 
 class ProtocolTvl(Base):
