@@ -1,6 +1,7 @@
 import type { ComponentType } from "react";
 
 import AlertEventsPanel from "../components/AlertEventsPanel";
+import BridgeFlowsPanel from "../components/BridgeFlowsPanel";
 import DefiTvlPanel from "../components/DefiTvlPanel";
 import DexPoolTvlPanel from "../components/DexPoolTvlPanel";
 import DerivativesPanel from "../components/DerivativesPanel";
@@ -29,12 +30,13 @@ export type PanelWidth = 1 | 2 | 3 | 4;
  * scan. `OnchainPage` iterates ONCHAIN_SECTIONS in order and groups
  * panels by their `section` field.
  */
-export type OnchainSection = "stablecoins" | "staking" | "defi" | "network";
+export type OnchainSection = "stablecoins" | "staking" | "defi" | "bridges" | "network";
 
 export const ONCHAIN_SECTIONS: { id: OnchainSection; label: string }[] = [
   { id: "stablecoins", label: "Stablecoins" },
   { id: "staking", label: "Staking" },
   { id: "defi", label: "DeFi" },
+  { id: "bridges", label: "Bridges (L1↔L2)" },
   { id: "network", label: "Network" },
 ];
 
@@ -70,6 +72,7 @@ export const PANELS: PanelDef[] = [
   { id: "lst-market-share", label: "LST market share", component: LstMarketSharePanel, defaultPage: "onchain", defaultWidth: 2, section: "staking" },
   { id: "defi-tvl", label: "DeFi TVL", component: DefiTvlPanel, defaultPage: "onchain", defaultWidth: 2, section: "defi" },
   { id: "dex-pool-tvl", label: "DEX pool TVL", component: DexPoolTvlPanel, defaultPage: "onchain", defaultWidth: 2, section: "defi" },
+  { id: "bridge-flows", label: "Bridge flows", component: BridgeFlowsPanel, defaultPage: "onchain", defaultWidth: 2, section: "bridges" },
   { id: "onchain-volume", label: "On-chain volume", component: OnchainVolumePanel, defaultPage: "onchain", defaultWidth: 2, section: "network" },
   { id: "network-activity", label: "Network activity", component: NetworkActivityPanel, defaultPage: "onchain", defaultWidth: 2, section: "network" },
   { id: "mempool", label: "Mempool", component: MempoolPanel, defaultPage: "mempool", defaultWidth: 2 },

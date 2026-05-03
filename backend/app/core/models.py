@@ -175,6 +175,19 @@ class StakingFlowByEntity(Base):
     amount_usd: Mapped[float | None] = mapped_column(Numeric(38, 6), nullable=True)
 
 
+class BridgeFlow(Base):
+    """Hourly L1 ↔ L2 bridge flow per (bridge, direction, asset).
+    direction='in' = deposit (someone sends to bridge contract on L1, funds
+    leave mainnet for the L2). direction='out' = withdrawal (bridge sends
+    out, funds return to mainnet). Source: Dune. (v3-bridge)"""
+    __tablename__ = "bridge_flows"
+    ts_bucket: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    bridge: Mapped[str] = mapped_column(String(16), primary_key=True)
+    direction: Mapped[str] = mapped_column(String(8), primary_key=True)
+    asset: Mapped[str] = mapped_column(String(16), primary_key=True)
+    usd_value: Mapped[float] = mapped_column(Numeric(38, 6))
+
+
 class LstSupply(Base):
     """Hourly totalSupply() snapshot per liquid-staking token. Source:
     JSON-RPC eth_call against each LST contract on the self-hosted Geth

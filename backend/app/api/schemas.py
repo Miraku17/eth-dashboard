@@ -55,6 +55,18 @@ class OnchainVolumeResponse(BaseModel):
     points: list[OnchainVolumePoint]
 
 
+class BridgeFlowPoint(BaseModel):
+    ts_bucket: datetime
+    bridge: str
+    direction: Literal["in", "out"]
+    asset: str
+    usd_value: float
+
+
+class BridgeFlowsResponse(BaseModel):
+    points: list[BridgeFlowPoint]
+
+
 class WhaleTransfer(BaseModel):
     tx_hash: str
     log_index: int

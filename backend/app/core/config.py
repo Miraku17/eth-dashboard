@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     dune_query_id_volume_buckets: int = 0
     dune_query_id_staking_flows: int = 0
     dune_query_id_staking_flows_by_entity: int = 0
+    dune_query_id_bridge_flows: int = 0
 
     # Minutes between Dune syncs. Free tier ≈ 500 executions/month total.
     dune_sync_interval_min: int = 240
