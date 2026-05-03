@@ -16,11 +16,12 @@ from app.api.schemas import (
     StakingFlowsByEntityResponse,
     StakingFlowsResponse,
     StakingSummary,
+    StakingYieldsResponse,
 )
 from app.clients.beacon import BeaconClient
 from app.core.config import get_settings
 from app.core.db import get_session
-from app.core.models import LstSupply, StakingFlow, StakingFlowByEntity
+from app.core.models import LstSupply, StakingFlow, StakingFlowByEntity, StakingYield
 
 router = APIRouter(prefix="/staking", tags=["staking"])
 
@@ -108,6 +109,23 @@ def lst_supply(
             for r in rows
         ]
     )
+
+
+@router.get("/yields", response_model=StakingYieldsResponse)
+def staking_yields(
+    session: Annotated[Session, Depends(get_session)],
+) -> StakingYieldsResponse:
+    """Latest APY per LST symbol / LRT slug. Empty maps before first cron."""
+    rows = session.execute(select(StakingYield)).scalars().all()
+    lst: dict[str, float | None] = {}
+    lrt: dict[str, float | None] = {}
+    updated_at = None
+    for r in rows:
+        bucket = lst if r.kind == "lst" else lrt
+        bucket[r.key] = float(r.apy) if r.apy is not None else None
+        if updated_at is None or r.updated_at > updated_at:
+            updated_at = r.updated_at
+    return StakingYieldsResponse(lst=lst, lrt=lrt, updated_at=updated_at)
 
 
 @router.get("/flows/by-entity", response_model=StakingFlowsByEntityResponse)

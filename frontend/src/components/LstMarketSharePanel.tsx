@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import {
   fetchLstSupply,
+  fetchStakingYields,
   rangeToHours,
   type FlowRange,
   type LstSupplyPoint,
@@ -39,6 +40,12 @@ export default function LstMarketSharePanel() {
     refetchInterval: 5 * 60_000,
   });
 
+  const { data: yields } = useQuery({
+    queryKey: ["staking-yields"],
+    queryFn: fetchStakingYields,
+    refetchInterval: 30 * 60_000,
+  });
+
   const stacked = pivot(data ?? []);
   const latest = stacked.at(-1);
   const totalLatest = latest
@@ -65,6 +72,7 @@ export default function LstMarketSharePanel() {
             {TOKEN_ORDER.map((t) => {
               const cur = latest ? ((latest[t] as number) ?? 0) : 0;
               const pct = totalLatest > 0 ? (cur / totalLatest) * 100 : 0;
+              const apy = yields?.lst[t] ?? null;
               return (
                 <li
                   key={t}
@@ -77,8 +85,16 @@ export default function LstMarketSharePanel() {
                     />
                     <span className="text-slate-300">{t}</span>
                   </span>
-                  <span className="text-slate-400">
-                    {pct.toFixed(1)}%
+                  <span className="flex items-center gap-3">
+                    <span className="text-slate-500 text-[10px] uppercase tracking-wide">
+                      APR
+                    </span>
+                    <span className="text-up tabular-nums w-12 text-right">
+                      {apy != null ? `${apy.toFixed(2)}%` : "—"}
+                    </span>
+                    <span className="text-slate-400 w-12 text-right">
+                      {pct.toFixed(1)}%
+                    </span>
                   </span>
                 </li>
               );
