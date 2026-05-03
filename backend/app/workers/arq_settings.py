@@ -11,6 +11,7 @@ from app.workers.dex_pool_jobs import sync_dex_pool_tvl
 from app.workers.derivatives_jobs import sync_derivatives
 from app.workers.flow_jobs import sync_dune_flows, sync_order_flow, sync_volume_buckets
 from app.workers.leaderboard_jobs import sync_smart_money_leaderboard
+from app.workers.lrt_jobs import sync_lrt_tvl
 from app.workers.lst_jobs import sync_lst_supply
 from app.workers.pending_cleanup import cleanup_pending_transfers
 from app.workers.price_jobs import backfill_price_history, sync_price_latest
@@ -74,6 +75,7 @@ class WorkerSettings:
         sync_lst_supply,
         sync_defi_tvl,
         sync_dex_pool_tvl,
+        sync_lrt_tvl,
         cleanup_pending_transfers,
         purge_expired_clusters,
     ]
@@ -106,6 +108,9 @@ class WorkerSettings:
         # DEX-pool TVL: hourly DefiLlama /yields/pools snapshot, offset to
         # minute 27 so we don't collide with defi_tvl (17) or lst_supply (7).
         cron(sync_dex_pool_tvl, minute={27}, run_at_startup=False),
+        # LRT issuer TVL: hourly DefiLlama snapshot, offset to minute 37 so
+        # we don't collide with the other DefiLlama crons (17, 27).
+        cron(sync_lrt_tvl, minute={37}, run_at_startup=False),
     ]
     on_startup = startup
     on_shutdown = shutdown

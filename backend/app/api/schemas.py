@@ -386,6 +386,22 @@ class DexPoolTvlLatestResponse(BaseModel):
     pools: list[DexPoolTvlPoint]
 
 
+# ---------- LRT TVL (v3) ----------
+
+
+class LrtTvlPoint(BaseModel):
+    protocol: str
+    display_name: str
+    token: str
+    tvl_usd: float
+
+
+class LrtTvlLatestResponse(BaseModel):
+    ts_bucket: datetime | None
+    total_usd: float
+    protocols: list[LrtTvlPoint]
+
+
 class RealtimeVolumePoint(BaseModel):
     ts_minute: datetime
     asset: str

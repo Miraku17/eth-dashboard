@@ -198,6 +198,25 @@ export type DexPoolTvlLatestResponse = {
   pools: DexPoolTvlPoint[];
 };
 
+export type LrtTvlPoint = {
+  protocol: string;
+  display_name: string;
+  token: string;
+  tvl_usd: number;
+};
+
+export type LrtTvlLatestResponse = {
+  ts_bucket: string | null;
+  total_usd: number;
+  protocols: LrtTvlPoint[];
+};
+
+export async function fetchLrtTvlLatest(): Promise<LrtTvlLatestResponse> {
+  const r = await apiFetch(`/api/restaking/lrt-tvl/latest`);
+  if (!r.ok) throw new Error(`lrt tvl latest ${r.status}`);
+  return r.json();
+}
+
 export async function fetchDexPoolTvlLatest(): Promise<DexPoolTvlLatestResponse> {
   const r = await apiFetch(`/api/defi/dex-pools/latest`);
   if (!r.ok) throw new Error(`dex pool tvl latest ${r.status}`);

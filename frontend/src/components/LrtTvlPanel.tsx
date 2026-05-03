@@ -1,0 +1,76 @@
+import { useQuery } from "@tanstack/react-query";
+import { fetchLrtTvlLatest } from "../api";
+import { formatUsdCompact } from "../lib/format";
+import Card from "./ui/Card";
+import DataAge from "./ui/DataAge";
+
+export default function LrtTvlPanel() {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["lrt-tvl-latest"],
+    queryFn: fetchLrtTvlLatest,
+    refetchInterval: 5 * 60_000,
+  });
+
+  const protocols = data?.protocols ?? [];
+  const totalUsd = data?.total_usd ?? 0;
+  const max = Math.max(1, ...protocols.map((p) => p.tvl_usd));
+
+  return (
+    <Card
+      title="LRT issuers"
+      subtitle="Liquid restaking · Ethereum mainnet · DefiLlama"
+    >
+      {isLoading && <p className="text-sm text-slate-500">loading…</p>}
+      {error && <p className="text-sm text-down">unavailable</p>}
+      {!isLoading && !error && protocols.length === 0 && (
+        <p className="text-sm text-slate-500">
+          no data yet — first hourly sync pending
+        </p>
+      )}
+      {protocols.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-baseline justify-between">
+            <DataAge ts={data?.ts_bucket ?? null} />
+            <span className="font-mono tabular-nums text-base text-slate-100">
+              {formatUsdCompact(totalUsd)} total
+            </span>
+          </div>
+
+          <ul className="space-y-2">
+            {protocols.map((p) => {
+              const pct = totalUsd > 0 ? (p.tvl_usd / totalUsd) * 100 : 0;
+              const barPct = (p.tvl_usd / max) * 100;
+              return (
+                <li key={p.protocol} className="text-sm">
+                  <div className="flex justify-between mb-1">
+                    <span className="text-slate-300 font-medium">
+                      {p.display_name}
+                      {p.token && (
+                        <span className="text-slate-500 font-mono ml-1.5 text-[11px]">
+                          {p.token}
+                        </span>
+                      )}
+                    </span>
+                    <span className="font-mono tabular-nums text-slate-200 @xs:hidden">
+                      {formatUsdCompact(p.tvl_usd)}{" "}
+                      <span className="text-slate-500">{pct.toFixed(1)}%</span>
+                    </span>
+                    <span className="font-mono tabular-nums text-slate-200 hidden @xs:inline">
+                      {formatUsdCompact(p.tvl_usd)}
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-surface-raised overflow-hidden">
+                    <div
+                      className="h-full bg-brand/70 rounded-full"
+                      style={{ width: `${barPct}%` }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </Card>
+  );
+}

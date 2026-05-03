@@ -219,6 +219,20 @@ class DexPoolTvl(Base):
     tvl_usd: Mapped[float] = mapped_column(Numeric(38, 6))
 
 
+class LrtTvl(Base):
+    """Hourly per-issuer Liquid Restaking Token TVL snapshot on Ethereum mainnet.
+    Source: DefiLlama public API (one row per LRT issuer per hour). (v3-lrt-tvl)
+
+    Distinct from ProtocolTvl: that table stores a per-asset breakdown for the
+    DeFi-TVL panel; this one stores a single aggregate USD figure per LRT
+    issuer because LRT issuers' assets are mostly ETH derivatives and the
+    per-asset shape isn't meaningful for the user-facing panel."""
+    __tablename__ = "lrt_tvl"
+    ts_bucket: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    protocol: Mapped[str] = mapped_column(String(40), primary_key=True)
+    tvl_usd: Mapped[float] = mapped_column(Numeric(38, 6))
+
+
 class RealtimeVolume(Base):
     """Per-minute on-chain volume bucket for stablecoin Transfer logs.
     Populated by the realtime listener's MinuteAggregator — every Stable
