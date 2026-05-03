@@ -104,18 +104,32 @@ jobs:
             # blank lines. Touches .env only if something was actually added,
             # so we can decide downstream whether to force-recreate worker+api
             # to pick up the new env.
+            #
+            # Robustness notes:
+            #   - We disable errexit (`set +e`) for the loop because grep -q
+            #     legitimately returns 1 when the key isn't found, and we
+            #     don't want that to abort the deploy.
+            #   - Whitespace trim uses sed (universal) rather than bash 4+
+            #     parameter-expansion tricks that have parsing edge cases.
+            #   - Lines come in via a here-doc + printf rather than `<<<`
+            #     so this works in plain sh too if the shell ever changes.
             ENV_CHANGED=false
             if [ -n "${EXTRA_ENV:-}" ]; then
               echo "→ syncing EXTRA_ENV secret into .env"
               touch .env
-              # IFS unset + read -r so we keep values like "X=Y=Z" intact.
+              ADDED_COUNT=0
+              # Write the secret to a temp file so we can redirect into the
+              # while-loop without depending on bash here-docs/here-strings
+              # (which interact badly with YAML's literal-block indentation).
+              EXTRA_ENV_FILE=$(mktemp)
+              printf '%s\n' "$EXTRA_ENV" > "$EXTRA_ENV_FILE"
+              set +e  # grep -q legitimately returns 1 when key is absent
               while IFS= read -r raw_line; do
-                # Strip CR (in case the secret was edited on Windows) + leading/trailing whitespace.
-                line="${raw_line%$'\r'}"
-                line="${line#"${line%%[![:space:]]*}"}"
-                line="${line%"${line##*[![:space:]]}"}"
+                line=$(printf '%s' "$raw_line" | tr -d '\r' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
                 [ -z "$line" ] && continue
-                case "$line" in \#*) continue ;; esac
+                case "$line" in
+                  \#*) continue ;;
+                esac
                 key="${line%%=*}"
                 if [ "$key" = "$line" ]; then
                   echo "  ⚠ skipping malformed EXTRA_ENV line (no '='): $line"
@@ -124,11 +138,15 @@ jobs:
                 if grep -q "^${key}=" .env; then
                   continue
                 fi
-                echo "$line" >> .env
+                printf '%s\n' "$line" >> .env
                 echo "  + appended $key"
+                ADDED_COUNT=$((ADDED_COUNT + 1))
+              done < "$EXTRA_ENV_FILE"
+              set -e
+              rm -f "$EXTRA_ENV_FILE"
+              if [ "$ADDED_COUNT" -gt 0 ]; then
                 ENV_CHANGED=true
-              done <<< "$EXTRA_ENV"
-              if [ "$ENV_CHANGED" = "false" ]; then
+              else
                 echo "  (nothing new — VPS .env already has every EXTRA_ENV key)"
               fi
             fi
