@@ -4,6 +4,8 @@ import {
   AreaChart,
   Bar,
   BarChart,
+  Cell,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -134,45 +136,118 @@ function BalanceChart({ data }: { data: WalletProfile["balance_history"] }) {
   );
 }
 
+type NetFlowRow = {
+  date: string;        // ISO yyyy-mm-dd
+  net_usd: number;
+  dayLabel: string;    // 3-letter weekday for the x-axis tick
+  isToday: boolean;
+};
+
+/** Pad sparse data to a fixed 7-day window ending today, so missing days
+ *  render as flat bars at zero rather than visual gaps. Recent on the right. */
+function buildNetFlowSeries(
+  data: WalletProfile["net_flow_7d"],
+): NetFlowRow[] {
+  const byDate = new Map(data.map((d) => [d.date, d.net_usd]));
+  const rows: NetFlowRow[] = [];
+  const today = new Date();
+  // Use UTC dates because the backend buckets are date_trunc('day', ts) on TZ-aware timestamps.
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setUTCDate(today.getUTCDate() - i);
+    const iso = d.toISOString().slice(0, 10);
+    rows.push({
+      date: iso,
+      net_usd: byDate.get(iso) ?? 0,
+      dayLabel: d.toLocaleDateString(undefined, {
+        weekday: "short",
+        timeZone: "UTC",
+      }),
+      isToday: i === 0,
+    });
+  }
+  return rows;
+}
+
 function NetFlowTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
-  const p = payload[0].payload as { date: string; net_usd: number };
+  const p = payload[0].payload as NetFlowRow;
+  const sign = p.net_usd >= 0 ? "+" : "";
   return (
     <div className="rounded-md border border-surface-border bg-surface-card/95 px-2.5 py-1.5 text-[11px] font-mono shadow-card">
-      <div className="text-slate-500">{p.date}</div>
+      <div className="text-slate-400">
+        {p.dayLabel}
+        <span className="text-slate-600"> · {p.date}</span>
+      </div>
       <div className={p.net_usd >= 0 ? "text-up" : "text-down"}>
-        {p.net_usd >= 0 ? "+" : ""}
-        {formatUsdCompact(p.net_usd)}
+        {p.net_usd === 0 ? "no whale moves" : `${sign}${formatUsdCompact(p.net_usd)}`}
       </div>
     </div>
   );
 }
 
 function NetFlowChart({ data }: { data: WalletProfile["net_flow_7d"] }) {
-  if (data.length === 0) {
-    return (
-      <div className="text-[12px] text-slate-500">
-        No whale-sized transfers in the last 7 days.
-      </div>
-    );
-  }
+  const series = buildNetFlowSeries(data);
+  const total7d = series.reduce((s, r) => s + r.net_usd, 0);
+  const activeDays = series.filter((r) => r.net_usd !== 0).length;
+  const hasAnyMoves = activeDays > 0;
+  const positiveColor = "#19c37d";
+  const negativeColor = "#ff5c62";
+
   return (
-    <div className="h-20 -mx-1">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
-          <YAxis hide />
-          <XAxis dataKey="date" hide />
-          <Tooltip cursor={{ fill: "rgba(255,255,255,0.03)" }} content={<NetFlowTooltip />} />
-          <Bar dataKey="net_usd" radius={[2, 2, 0, 0]} isAnimationActive={false}>
-            {data.map((d, i) => (
-              <rect
-                key={i}
-                fill={d.net_usd >= 0 ? "#19c37d" : "#ff5c62"}
-              />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+    <div className="space-y-2">
+      {/* Headline summary tile */}
+      <div className="flex items-baseline justify-between text-[11px]">
+        <span
+          className={
+            "font-mono tabular-nums " +
+            (total7d > 0 ? "text-up" : total7d < 0 ? "text-down" : "text-slate-500")
+          }
+        >
+          {hasAnyMoves
+            ? `${total7d >= 0 ? "+" : ""}${formatUsdCompact(total7d)} net`
+            : "no whale moves in 7d"}
+        </span>
+        {hasAnyMoves && (
+          <span className="text-slate-600 font-mono tabular-nums">
+            {activeDays} of 7 days active
+          </span>
+        )}
+      </div>
+
+      {/* Chart with zero baseline + weekday labels */}
+      <div className="h-24 -mx-1">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={series}
+            margin={{ top: 4, right: 4, bottom: 0, left: 4 }}
+          >
+            <YAxis hide domain={["dataMin", "dataMax"]} />
+            <XAxis
+              dataKey="dayLabel"
+              tick={{ fontSize: 10, fill: "#64748b" }}
+              tickLine={false}
+              axisLine={false}
+              interval={0}
+            />
+            <Tooltip
+              cursor={{ fill: "rgba(255,255,255,0.03)" }}
+              content={<NetFlowTooltip />}
+            />
+            {/* Zero line — visible only when we have both positive and negative values. */}
+            <ReferenceLine y={0} stroke="rgba(148,163,184,0.25)" strokeWidth={1} />
+            <Bar dataKey="net_usd" isAnimationActive={false}>
+              {series.map((r) => (
+                <Cell
+                  key={r.date}
+                  fill={r.net_usd >= 0 ? positiveColor : negativeColor}
+                  fillOpacity={r.net_usd === 0 ? 0 : r.isToday ? 1 : 0.75}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
