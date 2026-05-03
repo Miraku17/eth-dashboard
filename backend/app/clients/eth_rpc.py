@@ -8,6 +8,7 @@ eth_getBalance.
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any
 
 import httpx
@@ -100,18 +101,33 @@ async def gather_balances(
     blocks: list[int],
     *,
     batch_size: int = 5,
-) -> list[int]:
+) -> list[int | None]:
     """Fetch balances at each given block, capped to `batch_size` in flight.
 
-    The cap protects a self-hosted node from a 30-call thundering herd while
-    still being far faster than serial calls. Order matches `blocks`.
+    Returns a list parallel to `blocks` where each entry is either the
+    balance in wei (success) or None (per-block failure — most commonly
+    'historical state ... is not available' on snap-sync nodes that have
+    pruned the trie at older blocks). Caller skips None entries rather
+    than aborting the whole profile.
+
+    The cap protects a self-hosted node from a 30-call thundering herd
+    while still being far faster than serial calls. Order matches `blocks`.
     """
-    results: list[int] = [0] * len(blocks)
+    results: list[int | None] = [None] * len(blocks)
     sem = asyncio.Semaphore(batch_size)
 
     async def fetch_one(i: int, b: int) -> None:
         async with sem:
-            results[i] = await client.get_balance(address, b)
+            try:
+                results[i] = await client.get_balance(address, b)
+            except (RpcError, httpx.HTTPError, OSError) as exc:
+                # Snap-sync nodes prune older trie state; archive nodes
+                # may rate-limit. Either way, skip this block rather than
+                # poisoning the whole batch.
+                logging.getLogger(__name__).debug(
+                    "get_balance(%s, %d) failed: %s -- skipping", address, b, exc
+                )
+                results[i] = None
 
     await asyncio.gather(*[fetch_one(i, b) for i, b in enumerate(blocks)])
     return results

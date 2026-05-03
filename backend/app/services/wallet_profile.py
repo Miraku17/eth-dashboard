@@ -140,7 +140,15 @@ async def _ensure_balance_history(
                 )
 
         balances = await gather_balances(rpc, address, blocks)
+        # Snap-sync Geth (and rate-limited archive APIs) may return None for
+        # individual older blocks where state has been pruned/throttled.
+        # Persist only the days we got a real value back; the rest stay
+        # absent so the chart simply has fewer points rather than zeros.
+        # The "today" block is always "latest" and always succeeds against
+        # any healthy node, so current-balance always renders.
         for d, b, bal in zip(needed, blocks, balances, strict=True):
+            if bal is None:
+                continue
             new_rows.append((d, b, bal))
         _write_history(session, address, new_rows)
         # Refresh cache view with the new rows.
