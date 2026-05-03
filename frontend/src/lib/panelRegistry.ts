@@ -7,6 +7,7 @@ import DexPoolTvlPanel from "../components/DexPoolTvlPanel";
 import DerivativesPanel from "../components/DerivativesPanel";
 import ExchangeFlowsPanel from "../components/ExchangeFlowsPanel";
 import LiveVolumePanel from "../components/LiveVolumePanel";
+import LrtTvlPanel from "../components/LrtTvlPanel";
 import LstMarketSharePanel from "../components/LstMarketSharePanel";
 import MempoolPanel from "../components/MempoolPanel";
 import NetworkActivityPanel from "../components/NetworkActivityPanel";
@@ -70,6 +71,7 @@ export const PANELS: PanelDef[] = [
   { id: "exchange-flows", label: "Exchange flows", component: ExchangeFlowsPanel, defaultPage: "onchain", defaultWidth: 1, section: "stablecoins" },
   { id: "staking-flows", label: "Beacon flows", component: StakingFlowsPanel, defaultPage: "onchain", defaultWidth: 1, section: "staking" },
   { id: "lst-market-share", label: "LST market share", component: LstMarketSharePanel, defaultPage: "onchain", defaultWidth: 2, section: "staking" },
+  { id: "lrt-tvl", label: "LRT issuers", component: LrtTvlPanel, defaultPage: "onchain", defaultWidth: 2, section: "staking" },
   { id: "defi-tvl", label: "DeFi TVL", component: DefiTvlPanel, defaultPage: "onchain", defaultWidth: 2, section: "defi" },
   { id: "dex-pool-tvl", label: "DEX pool TVL", component: DexPoolTvlPanel, defaultPage: "onchain", defaultWidth: 2, section: "defi" },
   { id: "bridge-flows", label: "Bridge flows", component: BridgeFlowsPanel, defaultPage: "onchain", defaultWidth: 2, section: "bridges" },
