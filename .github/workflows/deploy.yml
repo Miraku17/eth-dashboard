@@ -94,11 +94,11 @@ jobs:
             # drops the dev bind mount + anonymous node_modules volume.
             DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
 
-            echo "→ git fetch && reset to origin/main"
+            echo "-> git fetch && reset to origin/main"
             git fetch --prune origin
             git reset --hard origin/main
 
-            # ── Sync EXTRA_ENV secret into the VPS .env (idempotent) ────────
+            # ---- Sync EXTRA_ENV secret into the VPS .env (idempotent) ----
             # Append any KEY= line from EXTRA_ENV that isn't already present
             # in .env. Never overwrites existing keys. Skips comments and
             # blank lines. Touches .env only if something was actually added,
@@ -115,7 +115,7 @@ jobs:
             #     so this works in plain sh too if the shell ever changes.
             ENV_CHANGED=false
             if [ -n "${EXTRA_ENV:-}" ]; then
-              echo "→ syncing EXTRA_ENV secret into .env"
+              echo "-> syncing EXTRA_ENV secret into .env"
               touch .env
               ADDED_COUNT=0
               # Write the secret to a temp file so we can redirect into the
@@ -132,7 +132,7 @@ jobs:
                 esac
                 key="${line%%=*}"
                 if [ "$key" = "$line" ]; then
-                  echo "  ⚠ skipping malformed EXTRA_ENV line (no '='): $line"
+                  echo "  WARN: skipping malformed EXTRA_ENV line (no '='): $line"
                   continue
                 fi
                 if grep -q "^${key}=" .env; then
@@ -147,7 +147,7 @@ jobs:
               if [ "$ADDED_COUNT" -gt 0 ]; then
                 ENV_CHANGED=true
               else
-                echo "  (nothing new — VPS .env already has every EXTRA_ENV key)"
+                echo "  (nothing new -- VPS .env already has every EXTRA_ENV key)"
               fi
             fi
 
@@ -169,7 +169,7 @@ jobs:
               RUN_MIGRATIONS=true
             fi
 
-            echo "→ plan: backend=$REBUILD_BACKEND frontend=$REBUILD_FRONTEND migrations=$RUN_MIGRATIONS full=$FULL"
+            echo "-> plan: backend=$REBUILD_BACKEND frontend=$REBUILD_FRONTEND migrations=$RUN_MIGRATIONS full=$FULL"
 
             if [ "$FULL" = "true" ]; then
               # rm -sfv on frontend wipes its anonymous volume so a fresh
@@ -192,7 +192,7 @@ jobs:
             fi
 
             if [ "$RUN_MIGRATIONS" = "true" ]; then
-              echo "→ alembic upgrade head"
+              echo "-> alembic upgrade head"
               $DC exec -T api alembic upgrade head
             fi
 
@@ -202,11 +202,11 @@ jobs:
             # plain `up -d` is a no-op when the image hash hasn't changed,
             # so we use --force-recreate.
             if [ "$ENV_CHANGED" = "true" ] && [ "$FULL" = "false" ]; then
-              echo "→ env changed: force-recreating worker + api"
+              echo "-> env changed: force-recreating worker + api"
               $DC up -d --force-recreate worker api
             fi
 
-            echo "→ post-deploy health"
+            echo "-> post-deploy health"
             sleep 3
             curl -fsS http://127.0.0.1:8000/api/health | head -c 400 || true
             echo
