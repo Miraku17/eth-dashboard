@@ -224,6 +224,25 @@ export type OnchainVolumePoint = {
   usd_value: number;
 };
 
+export type BridgeName = "arbitrum" | "base" | "optimism" | "zksync";
+
+export type BridgeFlowPoint = {
+  ts_bucket: string;
+  bridge: BridgeName;
+  direction: "in" | "out";
+  asset: string;
+  usd_value: number;
+};
+
+export async function fetchBridgeFlows(
+  hours: number,
+  limit = 20000,
+): Promise<BridgeFlowPoint[]> {
+  const r = await apiFetch(`/api/flows/bridge?hours=${hours}&limit=${limit}`);
+  if (!r.ok) throw new Error(`bridge flows ${r.status}`);
+  return (await r.json()).points;
+}
+
 export async function fetchOnchainVolume(
   hours: number,
   limit = 5000,

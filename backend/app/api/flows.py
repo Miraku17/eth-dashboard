@@ -6,6 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
+    BridgeFlowPoint,
+    BridgeFlowsResponse,
     ExchangeFlowPoint,
     ExchangeFlowsResponse,
     OnchainVolumePoint,
@@ -19,6 +21,7 @@ from app.api.schemas import (
 )
 from app.core.db import get_session
 from app.core.models import (
+    BridgeFlow,
     ExchangeFlow,
     OnchainVolume,
     OrderFlow,
@@ -155,3 +158,30 @@ def volume_buckets(
         for r in reversed(rows)
     ]
     return VolumeBucketsResponse(points=points)
+
+
+@router.get("/bridge", response_model=BridgeFlowsResponse)
+def bridge_flows(
+    session: Annotated[Session, Depends(get_session)],
+    hours: HoursParam = 48,
+    limit: int = Query(20000, ge=1, le=50000),
+) -> BridgeFlowsResponse:
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
+    rows = session.execute(
+        select(BridgeFlow)
+        .where(BridgeFlow.ts_bucket >= cutoff)
+        .order_by(BridgeFlow.ts_bucket.desc())
+        .limit(limit)
+    ).scalars().all()
+    return BridgeFlowsResponse(
+        points=[
+            BridgeFlowPoint(
+                ts_bucket=r.ts_bucket,
+                bridge=r.bridge,
+                direction=r.direction,  # type: ignore[arg-type]
+                asset=r.asset,
+                usd_value=float(r.usd_value),
+            )
+            for r in rows
+        ]
+    )

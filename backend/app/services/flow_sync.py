@@ -5,6 +5,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.core.models import (
+    BridgeFlow,
     ExchangeFlow,
     OnchainVolume,
     OrderFlow,
@@ -201,4 +202,30 @@ def upsert_staking_flows_by_entity(session: Session, rows: list[dict]) -> int:
         values,
         index_elements=["ts_bucket", "kind", "entity"],
         update_cols=["amount_eth", "amount_usd"],
+    )
+
+
+_BRIDGE_DIRECTIONS = ("in", "out")
+
+
+def upsert_bridge_flows(session: Session, rows: list[dict]) -> int:
+    """Upsert one row per (ts_bucket, bridge, direction, asset). Filters
+    out rows with bad direction values as a defensive guard."""
+    values = [
+        {
+            "ts_bucket": _parse_ts(r["ts_bucket"]),
+            "bridge": r["bridge"],
+            "direction": r["direction"],
+            "asset": (r.get("asset") or "OTHER")[:16],
+            "usd_value": r["usd_value"],
+        }
+        for r in rows
+        if r.get("direction") in _BRIDGE_DIRECTIONS
+    ]
+    return _upsert_chunked(
+        session,
+        BridgeFlow,
+        values,
+        index_elements=["ts_bucket", "bridge", "direction", "asset"],
+        update_cols=["usd_value"],
     )

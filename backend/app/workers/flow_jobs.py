@@ -8,6 +8,7 @@ from app.core.config import get_settings
 from app.core.db import get_sessionmaker
 from app.core.sync_status import record_sync_ok
 from app.services.flow_sync import (
+    upsert_bridge_flows,
     upsert_exchange_flows,
     upsert_onchain_volume,
     upsert_order_flow,
@@ -43,6 +44,7 @@ async def sync_dune_flows(ctx: dict) -> dict:
             ("onchain_volume", settings.dune_query_id_onchain_volume, upsert_onchain_volume),
             ("staking_flows", settings.dune_query_id_staking_flows, upsert_staking_flows),
             ("staking_flows_by_entity", settings.dune_query_id_staking_flows_by_entity, upsert_staking_flows_by_entity),
+            ("bridge_flows", settings.dune_query_id_bridge_flows, upsert_bridge_flows),
         ]
 
         for name, query_id, upsert_fn in jobs:
