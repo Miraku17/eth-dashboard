@@ -235,6 +235,28 @@ class DexPoolTvl(Base):
     tvl_usd: Mapped[float] = mapped_column(Numeric(38, 6))
 
 
+class PerpLiquidation(Base):
+    """One row per detected perp-futures liquidation event (ETH-USD).
+
+    Source: Binance USD-M Futures public WebSocket forceOrder stream
+    (`!forceOrder@arr`). Free, no auth. Single venue for v1; the `venue`
+    column allows adding Bybit / OKX / Deribit later without schema change.
+
+    Side semantics map venue-side to position-side:
+      Binance "SELL" -> position='long'  (long position force-closed)
+      Binance "BUY"  -> position='short' (short position force-closed)
+    """
+    __tablename__ = "perp_liquidation"
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    venue: Mapped[str] = mapped_column(String(16))
+    symbol: Mapped[str] = mapped_column(String(16))
+    side: Mapped[str] = mapped_column(String(8))  # 'long' or 'short' (position liquidated)
+    price: Mapped[float] = mapped_column(Numeric(18, 8))
+    qty: Mapped[float] = mapped_column(Numeric(38, 8))
+    notional_usd: Mapped[float] = mapped_column(Numeric(38, 6))
+
+
 class StakingYield(Base):
     """Latest APY (annualized %) per LST symbol / LRT slug. Source:
     DefiLlama /yields/pools, filtered to a curated (project, symbol) per
