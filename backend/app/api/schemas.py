@@ -285,6 +285,34 @@ class OrderFlowResponse(BaseModel):
     points: list[OrderFlowPoint]
 
 
+# ---------- Perp liquidations (v2) ----------
+
+
+class LiquidationBucket(BaseModel):
+    """Hourly aggregate liquidation notional + count, split by liquidated
+    position side."""
+    ts_bucket: datetime
+    long_usd: float    # USD notional of LONG positions liquidated this hour
+    short_usd: float   # USD notional of SHORT positions liquidated this hour
+    long_count: int
+    short_count: int
+
+
+class LiquidationSummary(BaseModel):
+    """24h headline numbers shown above the chart."""
+    long_usd: float
+    short_usd: float
+    long_count: int
+    short_count: int
+    largest_usd: float       # biggest single liquidation in the window
+    venue: str               # 'binance' for v1
+
+
+class LiquidationResponse(BaseModel):
+    summary: LiquidationSummary
+    buckets: list[LiquidationBucket]
+
+
 # ---------- Volume size buckets (v2) ----------
 
 

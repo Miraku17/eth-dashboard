@@ -6,6 +6,7 @@ import DefiTvlPanel from "../components/DefiTvlPanel";
 import DexPoolTvlPanel from "../components/DexPoolTvlPanel";
 import DerivativesPanel from "../components/DerivativesPanel";
 import ExchangeFlowsPanel from "../components/ExchangeFlowsPanel";
+import LiquidationsPanel from "../components/LiquidationsPanel";
 import LiveVolumePanel from "../components/LiveVolumePanel";
 import LrtTvlPanel from "../components/LrtTvlPanel";
 import LstMarketSharePanel from "../components/LstMarketSharePanel";
@@ -62,6 +63,7 @@ export const PANELS: PanelDef[] = [
   { id: "price-hero", label: "Price", component: PriceHero, defaultPage: "overview", defaultWidth: 4, homeOnly: true },
   { id: "price-chart", label: "Chart", component: PriceChart, defaultPage: "markets", defaultWidth: 3 },
   { id: "derivatives", label: "Derivatives", component: DerivativesPanel, defaultPage: "markets", defaultWidth: 2 },
+  { id: "liquidations", label: "Liquidations", component: LiquidationsPanel, defaultPage: "markets", defaultWidth: 2 },
   { id: "smart-money", label: "Smart money", component: SmartMoneyLeaderboard, defaultPage: "markets", defaultWidth: 2 },
   { id: "order-flow", label: "Order flow", component: OrderFlowPanel, defaultPage: "markets", defaultWidth: 2 },
   { id: "volume-structure", label: "Volume structure", component: VolumeStructurePanel, defaultPage: "markets", defaultWidth: 2 },

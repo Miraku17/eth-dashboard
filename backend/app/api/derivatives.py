@@ -10,9 +10,12 @@ from app.api.schemas import (
     DerivativesPoint,
     DerivativesSeriesResponse,
     DerivativesSummary,
+    LiquidationBucket,
+    LiquidationResponse,
+    LiquidationSummary,
 )
 from app.core.db import get_session
-from app.core.models import DerivativesSnapshot
+from app.core.models import DerivativesSnapshot, PerpLiquidation
 
 router = APIRouter(prefix="/derivatives", tags=["derivatives"])
 
@@ -87,3 +90,83 @@ def series(
         for r in rows
     ]
     return DerivativesSeriesResponse(points=points)
+
+
+@router.get("/liquidations", response_model=LiquidationResponse)
+def liquidations(
+    session: Annotated[Session, Depends(get_session)],
+    hours: int = Query(24, ge=1, le=24 * 7,
+                       description="look-back window in hours; default 24"),
+) -> LiquidationResponse:
+    """Hourly bucketed perp-futures liquidations + 24h-style summary headline.
+
+    For v1 we serve Binance ETHUSDT only; the schema carries `venue` so
+    additional venues slot in without API change. Buckets are computed
+    in SQL with date_trunc; empty hours are simply absent (frontend
+    fills gaps for the chart axis).
+    """
+    cutoff = datetime.now(UTC) - timedelta(hours=hours)
+
+    # Headline tile: 24h totals + largest single liquidation. Window matches
+    # `hours` rather than fixed 24h so the tile stays consistent with the chart.
+    summary_row = session.execute(
+        select(
+            func.coalesce(func.sum(
+                func.case((PerpLiquidation.side == "long", PerpLiquidation.notional_usd),
+                          else_=0)), 0).label("long_usd"),
+            func.coalesce(func.sum(
+                func.case((PerpLiquidation.side == "short", PerpLiquidation.notional_usd),
+                          else_=0)), 0).label("short_usd"),
+            func.coalesce(func.sum(
+                func.case((PerpLiquidation.side == "long", 1),
+                          else_=0)), 0).label("long_count"),
+            func.coalesce(func.sum(
+                func.case((PerpLiquidation.side == "short", 1),
+                          else_=0)), 0).label("short_count"),
+            func.coalesce(func.max(PerpLiquidation.notional_usd), 0).label("largest_usd"),
+        ).where(PerpLiquidation.ts >= cutoff)
+    ).one()
+
+    # Hourly buckets — pivot long/short into the same row via case-when.
+    bucket_ts = func.date_trunc("hour", PerpLiquidation.ts).label("ts_bucket")
+    bucket_rows = session.execute(
+        select(
+            bucket_ts,
+            func.coalesce(func.sum(
+                func.case((PerpLiquidation.side == "long", PerpLiquidation.notional_usd),
+                          else_=0)), 0).label("long_usd"),
+            func.coalesce(func.sum(
+                func.case((PerpLiquidation.side == "short", PerpLiquidation.notional_usd),
+                          else_=0)), 0).label("short_usd"),
+            func.coalesce(func.sum(
+                func.case((PerpLiquidation.side == "long", 1),
+                          else_=0)), 0).label("long_count"),
+            func.coalesce(func.sum(
+                func.case((PerpLiquidation.side == "short", 1),
+                          else_=0)), 0).label("short_count"),
+        )
+        .where(PerpLiquidation.ts >= cutoff)
+        .group_by(bucket_ts)
+        .order_by(bucket_ts.asc())
+    ).all()
+
+    return LiquidationResponse(
+        summary=LiquidationSummary(
+            long_usd=float(summary_row.long_usd),
+            short_usd=float(summary_row.short_usd),
+            long_count=int(summary_row.long_count),
+            short_count=int(summary_row.short_count),
+            largest_usd=float(summary_row.largest_usd),
+            venue="binance",
+        ),
+        buckets=[
+            LiquidationBucket(
+                ts_bucket=r.ts_bucket,
+                long_usd=float(r.long_usd),
+                short_usd=float(r.short_usd),
+                long_count=int(r.long_count),
+                short_count=int(r.short_count),
+            )
+            for r in bucket_rows
+        ],
+    )

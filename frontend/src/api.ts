@@ -487,6 +487,34 @@ export async function fetchDerivativesSeries(
   return (await r.json()).points;
 }
 
+export type LiquidationBucket = {
+  ts_bucket: string;
+  long_usd: number;
+  short_usd: number;
+  long_count: number;
+  short_count: number;
+};
+
+export type LiquidationSummary = {
+  long_usd: number;
+  short_usd: number;
+  long_count: number;
+  short_count: number;
+  largest_usd: number;
+  venue: string;
+};
+
+export type LiquidationResponse = {
+  summary: LiquidationSummary;
+  buckets: LiquidationBucket[];
+};
+
+export async function fetchLiquidations(hours = 24): Promise<LiquidationResponse> {
+  const r = await apiFetch(`/api/derivatives/liquidations?hours=${hours}`);
+  if (!r.ok) throw new Error(`liquidations ${r.status}`);
+  return r.json();
+}
+
 export type OrderFlowDex =
   | "uniswap_v2"
   | "uniswap_v3"
