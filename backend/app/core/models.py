@@ -228,6 +228,24 @@ class DexPoolTvl(Base):
     tvl_usd: Mapped[float] = mapped_column(Numeric(38, 6))
 
 
+class StakingYield(Base):
+    """Latest APY (annualized %) per LST symbol / LRT slug. Source:
+    DefiLlama /yields/pools, filtered to a curated (project, symbol) per
+    issuer. Single row per (kind, key) — overwritten in place each cron
+    tick. APY is nullable: a missing pool (e.g. Mantle Restaking has none
+    exposed today) leaves NULL so the panel can render "—" instead of 0.
+
+    `kind`: 'lst' or 'lrt'.
+    `key`:  for kind='lst' the LST symbol (rETH, sfrxETH, ...); for
+            kind='lrt' the LRT_PROTOCOLS slug (ether.fi-stake, kelp, ...).
+    """
+    __tablename__ = "staking_yield"
+    kind: Mapped[str] = mapped_column(String(8), primary_key=True)
+    key: Mapped[str] = mapped_column(String(40), primary_key=True)
+    apy: Mapped[float | None] = mapped_column(Numeric(10, 4), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class LrtTvl(Base):
     """Hourly per-issuer Liquid Restaking Token TVL snapshot on Ethereum mainnet.
     Source: DefiLlama public API (one row per LRT issuer per hour). (v3-lrt-tvl)

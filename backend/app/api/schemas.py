@@ -344,6 +344,15 @@ class LstSupplyResponse(BaseModel):
     points: list[LstSupplyPoint]
 
 
+class StakingYieldsResponse(BaseModel):
+    """Per-token APY (annualized %). Keys are LST symbols and LRT slugs.
+    Values are nullable because some issuers (e.g. Mantle Restaking)
+    don't have a DefiLlama yield pool exposed yet."""
+    lst: dict[str, float | None]
+    lrt: dict[str, float | None]
+    updated_at: datetime | None
+
+
 # ---------- DeFi protocol TVL (v3) ----------
 
 

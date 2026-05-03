@@ -166,6 +166,18 @@ export async function fetchLstSupply(hours: number): Promise<LstSupplyPoint[]> {
   return (await r.json()).points;
 }
 
+export type StakingYieldsResponse = {
+  lst: Record<string, number | null>;
+  lrt: Record<string, number | null>;
+  updated_at: string | null;
+};
+
+export async function fetchStakingYields(): Promise<StakingYieldsResponse> {
+  const r = await apiFetch(`/api/staking/yields`);
+  if (!r.ok) throw new Error(`staking yields ${r.status}`);
+  return r.json();
+}
+
 export type DefiTvlAsset = {
   asset: string;
   tvl_usd: number;

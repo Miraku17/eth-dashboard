@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchLrtTvlLatest } from "../api";
+import { fetchLrtTvlLatest, fetchStakingYields } from "../api";
 import { formatUsdCompact } from "../lib/format";
 import Card from "./ui/Card";
 import DataAge from "./ui/DataAge";
@@ -9,6 +9,12 @@ export default function LrtTvlPanel() {
     queryKey: ["lrt-tvl-latest"],
     queryFn: fetchLrtTvlLatest,
     refetchInterval: 5 * 60_000,
+  });
+
+  const { data: yields } = useQuery({
+    queryKey: ["staking-yields"],
+    queryFn: fetchStakingYields,
+    refetchInterval: 30 * 60_000,
   });
 
   const protocols = data?.protocols ?? [];
@@ -40,6 +46,7 @@ export default function LrtTvlPanel() {
             {protocols.map((p) => {
               const pct = totalUsd > 0 ? (p.tvl_usd / totalUsd) * 100 : 0;
               const barPct = (p.tvl_usd / max) * 100;
+              const apy = yields?.lrt[p.protocol] ?? null;
               return (
                 <li key={p.protocol} className="text-sm">
                   <div className="flex justify-between mb-1">
@@ -51,8 +58,11 @@ export default function LrtTvlPanel() {
                         </span>
                       )}
                     </span>
-                    <span className="font-mono tabular-nums text-slate-200 @xs:hidden">
-                      {formatUsdCompact(p.tvl_usd)}{" "}
+                    <span className="font-mono tabular-nums text-slate-200 @xs:hidden flex items-center gap-2">
+                      <span className="text-up text-[11px]">
+                        {apy != null ? `${apy.toFixed(2)}%` : "—"}
+                      </span>
+                      <span>{formatUsdCompact(p.tvl_usd)}</span>
                       <span className="text-slate-500">{pct.toFixed(1)}%</span>
                     </span>
                     <span className="font-mono tabular-nums text-slate-200 hidden @xs:inline">

@@ -15,6 +15,7 @@ from app.workers.lrt_jobs import sync_lrt_tvl
 from app.workers.lst_jobs import sync_lst_supply
 from app.workers.pending_cleanup import cleanup_pending_transfers
 from app.workers.price_jobs import backfill_price_history, sync_price_latest
+from app.workers.yields_jobs import sync_staking_yields
 
 
 async def startup(ctx: dict) -> None:
@@ -76,6 +77,7 @@ class WorkerSettings:
         sync_defi_tvl,
         sync_dex_pool_tvl,
         sync_lrt_tvl,
+        sync_staking_yields,
         cleanup_pending_transfers,
         purge_expired_clusters,
     ]
@@ -111,6 +113,10 @@ class WorkerSettings:
         # LRT issuer TVL: hourly DefiLlama snapshot, offset to minute 37 so
         # we don't collide with the other DefiLlama crons (17, 27).
         cron(sync_lrt_tvl, minute={37}, run_at_startup=False),
+        # Staking yields (LST + LRT APY): hourly DefiLlama /yields/pools
+        # snapshot, offset to minute 47 (after defi_tvl=17, dex_pool=27,
+        # lrt_tvl=37) so the four DefiLlama crons stagger evenly.
+        cron(sync_staking_yields, minute={47}, run_at_startup=False),
     ]
     on_startup = startup
     on_shutdown = shutdown
