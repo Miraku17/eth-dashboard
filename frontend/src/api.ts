@@ -487,8 +487,17 @@ export async function fetchDerivativesSeries(
   return (await r.json()).points;
 }
 
+export type OrderFlowDex =
+  | "uniswap_v2"
+  | "uniswap_v3"
+  | "curve"
+  | "balancer"
+  | "other"
+  | "aggregate";
+
 export type OrderFlowPoint = {
   ts_bucket: string;
+  dex: OrderFlowDex;
   side: "buy" | "sell";
   usd_value: number;
   trade_count: number;

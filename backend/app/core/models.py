@@ -131,9 +131,16 @@ class DerivativesSnapshot(Base):
 
 
 class OrderFlow(Base):
-    """Hourly DEX buy/sell pressure for ETH (WETH), from Dune dex.trades (v2)."""
+    """Hourly DEX buy/sell pressure for ETH (WETH), from Dune dex.trades (v2).
+
+    `dex` is the venue identifier — one of {uniswap_v2, uniswap_v3, curve,
+    balancer, other}. The ts_bucket+dex+side composite key lets a single
+    hour have one row per (dex, side) so the panel can stack per-DEX
+    contributions. Pre-`dex` rows (from when the table tracked aggregate
+    buy/sell only) carry `dex='aggregate'` after the migration."""
     __tablename__ = "order_flow"
     ts_bucket: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    dex: Mapped[str] = mapped_column(String(16), primary_key=True)
     side: Mapped[str] = mapped_column(String(8), primary_key=True)  # "buy" | "sell"
     usd_value: Mapped[float] = mapped_column(Numeric(32, 2))
     trade_count: Mapped[int] = mapped_column(BigInteger)
