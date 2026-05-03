@@ -70,7 +70,13 @@ async def get_wallet_profile(
             session, None, None, addr, eth_price, settings.coingecko_api_key
         )
 
-    async with httpx.AsyncClient(timeout=20.0) as http:
+    # Tight timeout (was 20s). The drawer is interactive — if the configured
+    # RPC node is unreachable (dev .env points at a host with nothing listening,
+    # or a self-hosted node is briefly down), we want to fail fast and degrade
+    # to "balance unavailable" rather than blocking the user for 20s+.
+    # 4s comfortably covers a healthy round-trip (~50-200ms typical) plus
+    # headroom for cold archive queries.
+    async with httpx.AsyncClient(timeout=4.0) as http:
         rpc = EthRpcClient(http, rpc_url)
         return await build_profile_async(
             session, rpc, http, addr, eth_price, settings.coingecko_api_key
