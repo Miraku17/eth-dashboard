@@ -7,6 +7,13 @@
 #   DEPLOY_PATH  — absolute path to the repo checkout on the VPS
 # Optional:
 #   SSH_PORT     — defaults to 22
+#   EXTRA_ENV    — multi-line `KEY=VALUE` block. On every deploy, any KEY
+#                  in this secret that's MISSING from the VPS .env gets
+#                  appended (idempotent; never overwrites). Used for new
+#                  Dune query IDs / API keys without SSH'ing in. Comments
+#                  (`# ...`) and blank lines are skipped. If anything was
+#                  appended, the worker + api containers are force-recreated
+#                  so they pick up the new env.
 #
 # Behaviour:
 #   • workflow_dispatch  → always runs, with optional "force full rebuild" toggle
@@ -76,7 +83,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          envs: DEPLOY_PATH,BACKEND,FRONTEND,MIGRATIONS,COMPOSE,CADDY,FORCE
+          envs: DEPLOY_PATH,BACKEND,FRONTEND,MIGRATIONS,COMPOSE,CADDY,FORCE,EXTRA_ENV
           script_stop: true
           script: |
             set -euo pipefail
@@ -90,6 +97,41 @@ jobs:
             echo "→ git fetch && reset to origin/main"
             git fetch --prune origin
             git reset --hard origin/main
+
+            # ── Sync EXTRA_ENV secret into the VPS .env (idempotent) ────────
+            # Append any KEY= line from EXTRA_ENV that isn't already present
+            # in .env. Never overwrites existing keys. Skips comments and
+            # blank lines. Touches .env only if something was actually added,
+            # so we can decide downstream whether to force-recreate worker+api
+            # to pick up the new env.
+            ENV_CHANGED=false
+            if [ -n "${EXTRA_ENV:-}" ]; then
+              echo "→ syncing EXTRA_ENV secret into .env"
+              touch .env
+              # IFS unset + read -r so we keep values like "X=Y=Z" intact.
+              while IFS= read -r raw_line; do
+                # Strip CR (in case the secret was edited on Windows) + leading/trailing whitespace.
+                line="${raw_line%$'\r'}"
+                line="${line#"${line%%[![:space:]]*}"}"
+                line="${line%"${line##*[![:space:]]}"}"
+                [ -z "$line" ] && continue
+                case "$line" in \#*) continue ;; esac
+                key="${line%%=*}"
+                if [ "$key" = "$line" ]; then
+                  echo "  ⚠ skipping malformed EXTRA_ENV line (no '='): $line"
+                  continue
+                fi
+                if grep -q "^${key}=" .env; then
+                  continue
+                fi
+                echo "$line" >> .env
+                echo "  + appended $key"
+                ENV_CHANGED=true
+              done <<< "$EXTRA_ENV"
+              if [ "$ENV_CHANGED" = "false" ]; then
+                echo "  (nothing new — VPS .env already has every EXTRA_ENV key)"
+              fi
+            fi
 
             REBUILD_BACKEND=false
             REBUILD_FRONTEND=false
@@ -136,6 +178,16 @@ jobs:
               $DC exec -T api alembic upgrade head
             fi
 
+            # If we appended any new keys to .env BUT didn't already do a
+            # full rebuild (which would have force-recreated everything),
+            # recreate worker + api specifically so they re-read .env. A
+            # plain `up -d` is a no-op when the image hash hasn't changed,
+            # so we use --force-recreate.
+            if [ "$ENV_CHANGED" = "true" ] && [ "$FULL" = "false" ]; then
+              echo "→ env changed: force-recreating worker + api"
+              $DC up -d --force-recreate worker api
+            fi
+
             echo "→ post-deploy health"
             sleep 3
             curl -fsS http://127.0.0.1:8000/api/health | head -c 400 || true
@@ -149,3 +201,4 @@ jobs:
           COMPOSE: ${{ needs.changes.outputs.compose }}
           CADDY: ${{ needs.changes.outputs.caddy }}
           FORCE: ${{ inputs.force_full_rebuild || 'false' }}
+          EXTRA_ENV: ${{ secrets.EXTRA_ENV }}
