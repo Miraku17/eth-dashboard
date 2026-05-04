@@ -297,3 +297,41 @@ def extract_stable_volume(log: dict) -> tuple[str, float] | None:
         return None
     amount = raw / (10**stable.decimals)
     return stable.symbol, amount * stable.price_usd_approx
+
+
+_ZERO_ADDR = "0x0000000000000000000000000000000000000000"
+
+
+def extract_mint_burn(log: dict) -> tuple[str, str, float] | None:
+    """Decode a Transfer log; if it's a Mint or Burn for a tracked stable,
+    return (asset_symbol, direction, usd_value).
+
+    Mint: from = 0x000…000 (token issued by the contract).
+    Burn: to   = 0x000…000 (token destroyed / redeemed).
+
+    Used by the realtime listener's SupplyAggregator (v4 — replaces the
+    Dune stablecoin_supply query). Returns None for non-Stables, normal
+    transfers (neither side zero), and malformed logs.
+    """
+    addr = (log.get("address") or "").lower()
+    stable = STABLES_BY_ADDRESS.get(addr)
+    if stable is None:
+        return None
+    topics = log.get("topics") or []
+    if len(topics) < 3:
+        return None
+    from_addr = "0x" + topics[1][-40:].lower()
+    to_addr = "0x" + topics[2][-40:].lower()
+    if from_addr == _ZERO_ADDR:
+        direction = "mint"
+    elif to_addr == _ZERO_ADDR:
+        direction = "burn"
+    else:
+        return None
+    data = log.get("data") or "0x0"
+    try:
+        raw = int(data, 16) if data != "0x" else 0
+    except (TypeError, ValueError):
+        return None
+    amount = raw / (10**stable.decimals)
+    return stable.symbol, direction, amount * stable.price_usd_approx

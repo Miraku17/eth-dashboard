@@ -40,7 +40,12 @@ async def sync_dune_flows(ctx: dict) -> dict:
 
         jobs = [
             ("exchange_flows", settings.dune_query_id_exchange_flows, upsert_exchange_flows),
-            ("stablecoin_flows", settings.dune_query_id_stablecoin_supply, upsert_stablecoin_flows),
+            # v4: stablecoin_flows migrated off Dune. The realtime listener's
+            # SupplyAggregator detects Mint (from=0x0) and Burn (to=0x0) Transfer
+            # events on the 15 tracked stables and flushes hourly to the same
+            # `stablecoin_flows` table. DUNE_QUERY_ID_STABLECOIN_SUPPLY preserved
+            # for rollback. Saves ~720 Dune executions/month.
+            # ("stablecoin_flows", settings.dune_query_id_stablecoin_supply, upsert_stablecoin_flows),
             # v4: onchain_volume migrated off Dune. The /api/flows/onchain-volume
             # endpoint now reads from `realtime_volume` (per-minute USD by asset,
             # populated by the realtime listener) rolled up to hourly buckets.
