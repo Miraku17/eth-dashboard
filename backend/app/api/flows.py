@@ -8,6 +8,9 @@ from sqlalchemy.orm import Session
 from app.api.schemas import (
     BridgeFlowPoint,
     BridgeFlowsResponse,
+    CategoryNetFlowResponse,
+    CategorySummary,
+    CategoryWindow,
     CexNetFlowResponse,
     CexNetFlowWindow,
     ExchangeFlowPoint,
@@ -312,3 +315,81 @@ def cex_net_flow(
         largest_inflow_usd=float(largest_in),
         largest_outflow_usd=float(largest_out),
     )
+
+
+# Category → (label, inflow_kind, outflow_kind). Order matches priority.
+_CATEGORY_KINDS: tuple[tuple[str, str, str, str], ...] = (
+    ("dex",     "DEX",     FlowKind.WALLET_TO_DEX,     FlowKind.DEX_TO_WALLET),
+    ("lending", "Lending", FlowKind.LENDING_DEPOSIT,   FlowKind.LENDING_WITHDRAW),
+    ("staking", "Staking", FlowKind.STAKING_DEPOSIT,   FlowKind.STAKING_UNSTAKE),
+    ("bridge",  "Bridge",  FlowKind.BRIDGE_L2_DEPOSIT, FlowKind.BRIDGE_L2_WITHDRAW),
+)
+
+
+@router.get("/category-net-flow", response_model=CategoryNetFlowResponse)
+def category_net_flow(
+    session: Annotated[Session, Depends(get_session)],
+    windows: Annotated[
+        list[int] | None,
+        Query(
+            description="Hour windows to compute. Default 1h + 24h.",
+        ),
+    ] = None,
+) -> CategoryNetFlowResponse:
+    """Live net-flow per category (DEX / Lending / Staking / Bridge),
+    computed from `transfers.flow_kind` (v4 classifier).
+
+    Mirrors /flows/cex-net-flow but covers the four non-CEX categories
+    in a single response so the frontend renders one panel with four
+    tiles. Same case-when pattern, executes in <50ms per window.
+    """
+    win_list = sorted(set(windows or _DEFAULT_CEX_WINDOWS))
+    now = datetime.now(UTC)
+
+    summaries: list[CategorySummary] = []
+    for cat, label, in_kind, out_kind in _CATEGORY_KINDS:
+        cat_windows: list[CategoryWindow] = []
+        for h in win_list:
+            cutoff = now - timedelta(hours=h)
+            agg = session.execute(
+                select(
+                    func.coalesce(
+                        func.sum(
+                            case((Transfer.flow_kind == in_kind, Transfer.usd_value), else_=0)
+                        ),
+                        0,
+                    ).label("inflow_usd"),
+                    func.coalesce(
+                        func.sum(
+                            case((Transfer.flow_kind == out_kind, Transfer.usd_value), else_=0)
+                        ),
+                        0,
+                    ).label("outflow_usd"),
+                    func.coalesce(
+                        func.sum(case((Transfer.flow_kind == in_kind, 1), else_=0)),
+                        0,
+                    ).label("inflow_count"),
+                    func.coalesce(
+                        func.sum(case((Transfer.flow_kind == out_kind, 1), else_=0)),
+                        0,
+                    ).label("outflow_count"),
+                ).where(
+                    Transfer.ts >= cutoff,
+                    Transfer.flow_kind.in_([in_kind, out_kind]),
+                )
+            ).one()
+            cat_windows.append(
+                CategoryWindow(
+                    hours=h,
+                    inflow_usd=float(agg.inflow_usd),
+                    outflow_usd=float(agg.outflow_usd),
+                    net_usd=float(agg.inflow_usd) - float(agg.outflow_usd),
+                    inflow_count=int(agg.inflow_count),
+                    outflow_count=int(agg.outflow_count),
+                )
+            )
+        summaries.append(
+            CategorySummary(category=cat, label=label, windows=cat_windows)
+        )
+
+    return CategoryNetFlowResponse(summaries=summaries)

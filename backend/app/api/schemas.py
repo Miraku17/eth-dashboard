@@ -337,6 +337,29 @@ class CexNetFlowResponse(BaseModel):
     largest_outflow_usd: float
 
 
+# ---------- DeFi/Staking/Bridge net-flow tiles (v4) ----------
+
+
+class CategoryWindow(BaseModel):
+    """One time-window summary for a flow category."""
+    hours: int
+    inflow_usd: float    # USD into the category contracts (deposit-direction)
+    outflow_usd: float   # USD out (withdraw-direction)
+    net_usd: float
+    inflow_count: int
+    outflow_count: int
+
+
+class CategorySummary(BaseModel):
+    category: str   # 'dex' | 'lending' | 'staking' | 'bridge'
+    label: str      # display name shown in the panel
+    windows: list[CategoryWindow]
+
+
+class CategoryNetFlowResponse(BaseModel):
+    summaries: list[CategorySummary]
+
+
 # ---------- Volume size buckets (v2) ----------
 
 

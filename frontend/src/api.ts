@@ -560,6 +560,31 @@ export async function fetchCexNetFlow(): Promise<CexNetFlowResponse> {
   return r.json();
 }
 
+export type CategoryWindow = {
+  hours: number;
+  inflow_usd: number;
+  outflow_usd: number;
+  net_usd: number;
+  inflow_count: number;
+  outflow_count: number;
+};
+
+export type CategorySummary = {
+  category: "dex" | "lending" | "staking" | "bridge";
+  label: string;
+  windows: CategoryWindow[];
+};
+
+export type CategoryNetFlowResponse = {
+  summaries: CategorySummary[];
+};
+
+export async function fetchCategoryNetFlow(): Promise<CategoryNetFlowResponse> {
+  const r = await apiFetch(`/api/flows/category-net-flow`);
+  if (!r.ok) throw new Error(`category net flow ${r.status}`);
+  return r.json();
+}
+
 export type OrderFlowDex =
   | "uniswap_v2"
   | "uniswap_v3"
