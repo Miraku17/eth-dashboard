@@ -4,6 +4,8 @@ from arq.cron import cron
 
 from app.clients.binance import BINANCE_BASE_URL
 from app.core.config import get_settings
+from app.core.db import get_sessionmaker
+from app.services.address_label_sync import seed_address_labels
 from app.workers.alert_jobs import evaluate_alerts
 from app.workers.cluster_jobs import purge_expired_clusters
 from app.workers.defi_jobs import sync_defi_tvl
@@ -20,6 +22,12 @@ from app.workers.yields_jobs import sync_staking_yields
 
 async def startup(ctx: dict) -> None:
     ctx["http"] = httpx.AsyncClient(base_url=BINANCE_BASE_URL, timeout=15.0)
+    # v4 foundation: keep the curated address_label registry up to date.
+    # Idempotent — only writes when the seed revision in code has bumped
+    # past what's stored in the DB. Cheap point lookup on every boot.
+    SessionLocal = get_sessionmaker()
+    with SessionLocal() as session:
+        seed_address_labels(session)
     await ctx["redis"].enqueue_job("backfill_price_history")
     await ctx["redis"].enqueue_job("sync_derivatives")
     # Dune-heavy jobs are staggered: free-tier serializes executions, and
