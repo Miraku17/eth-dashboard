@@ -59,7 +59,14 @@ async def sync_dune_flows(ctx: dict) -> dict:
             # rollups into the same staking_flows table. DUNE_QUERY_ID_STAKING_FLOWS
             # preserved for rollback. Saves ~720 Dune executions/month.
             # ("staking_flows", settings.dune_query_id_staking_flows, upsert_staking_flows),
-            ("staking_flows_by_entity", settings.dune_query_id_staking_flows_by_entity, upsert_staking_flows_by_entity),
+            # v4: staking_flows_by_entity migrated off Dune. The same
+            # sync_beacon_flows cron now also fan-outs each deposit /
+            # withdrawal by the destination ETH address, joining against
+            # the curated address_label registry to derive an issuer name
+            # ('Lido' / 'Coinbase' / 'Rocket Pool' / etc.). Unknown
+            # addresses bucket as 'Unattributed'. Saves another ~720
+            # Dune executions/month.
+            # ("staking_flows_by_entity", settings.dune_query_id_staking_flows_by_entity, upsert_staking_flows_by_entity),
             ("bridge_flows", settings.dune_query_id_bridge_flows, upsert_bridge_flows),
         ]
 

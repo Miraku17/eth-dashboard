@@ -104,9 +104,14 @@ class BeaconClient:
 
             {
                 "ts": <execution payload timestamp, unix seconds>,
-                "deposits_gwei": <sum of all deposit amounts in this block>,
-                "withdrawals": [(amount_gwei, validator_index), ...],
+                "deposits": [(amount_gwei, withdrawal_address | None), ...],
+                "withdrawals": [(amount_gwei, validator_index, address | None), ...],
             }
+
+        Each deposit / withdrawal carries the ETH address it ultimately
+        credits (deposit credential's last 20 bytes for type-01 creds;
+        withdrawal `address` field directly). The v4 entity-attribution
+        path joins those addresses against `address_label`.
 
         Skipped slots (no block proposed) return None. Caller handles None
         by advancing the cursor without writing.
@@ -128,25 +133,43 @@ class BeaconClient:
             log.warning("beacon block %d fetch failed: %s", slot, e)
             return None
 
-        deposits_gwei = 0
+        deposits: list[tuple[int, str | None]] = []
         for d in body.get("deposits") or []:
-            amount = (d.get("data") or {}).get("amount")
-            if amount is not None:
-                try:
-                    deposits_gwei += int(amount)
-                except (TypeError, ValueError):
-                    pass
+            data = d.get("data") or {}
+            amount = data.get("amount")
+            wc = data.get("withdrawal_credentials") or ""
+            if amount is None:
+                continue
+            try:
+                amt_gwei = int(amount)
+            except (TypeError, ValueError):
+                continue
+            if amt_gwei <= 0:
+                continue
+            # Type-01 credentials: 0x01 + 11 zero bytes + 20-byte address.
+            # Type-00 credentials (legacy BLS) carry no ETH address — we
+            # leave addr=None and the cron buckets those as "Unattributed".
+            addr: str | None = None
+            if isinstance(wc, str) and wc.startswith("0x") and len(wc) == 66:
+                if wc[2:4].lower() == "01":
+                    addr = "0x" + wc[26:].lower()
+            deposits.append((amt_gwei, addr))
 
         ep = body.get("execution_payload") or {}
-        withdrawals: list[tuple[int, int]] = []
+        withdrawals: list[tuple[int, int, str | None]] = []
         for w in ep.get("withdrawals") or []:
             try:
                 amt = int(w.get("amount") or 0)
                 vi = int(w.get("validator_index") or 0)
             except (TypeError, ValueError):
                 continue
-            if amt > 0:
-                withdrawals.append((amt, vi))
+            if amt <= 0:
+                continue
+            wa = w.get("address")
+            addr = (
+                wa.lower() if isinstance(wa, str) and wa.startswith("0x") else None
+            )
+            withdrawals.append((amt, vi, addr))
 
         ts = ep.get("timestamp")
         try:
@@ -156,6 +179,6 @@ class BeaconClient:
 
         return {
             "ts": ts_int,
-            "deposits_gwei": deposits_gwei,
+            "deposits": deposits,
             "withdrawals": withdrawals,
         }
