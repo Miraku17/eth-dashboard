@@ -5,6 +5,7 @@ import { ExternalLink } from "lucide-react";
 import {
   fetchPendingWhales,
   fetchWhaleTransfers,
+  type FlowKind,
   type PendingWhale,
   type WhaleAsset,
   type WhaleTransfer,
@@ -78,6 +79,52 @@ const HOUR_OPTIONS = [
 const VALID_ASSETS = new Set(ASSET_OPTIONS.map((o) => String(o.value)));
 const VALID_HOURS = new Set(HOUR_OPTIONS.map((o) => o.value));
 
+// Flow filter chips. Order matches the user's stated 20× priority — CEX
+// legs first so they're visually dominant. Each chip maps to one or two
+// flow_kind values; multi-select unions them.
+type FlowChip = {
+  id: string;
+  label: string;
+  kinds: FlowKind[];
+  /** Tailwind classes for chip + badge tone. */
+  tone: string;
+};
+
+const FLOW_CHIPS: readonly FlowChip[] = [
+  { id: "cex_in",  label: "→ Exchange",  kinds: ["wallet_to_cex"],  tone: "ring-down/30 text-down bg-down/10" },
+  { id: "cex_out", label: "← Exchange",  kinds: ["cex_to_wallet"],  tone: "ring-up/30 text-up bg-up/10" },
+  { id: "dex",     label: "DEX",         kinds: ["wallet_to_dex", "dex_to_wallet"], tone: "ring-fuchsia-400/30 text-fuchsia-300 bg-fuchsia-500/10" },
+  { id: "lending", label: "Lending",     kinds: ["lending_deposit", "lending_withdraw"], tone: "ring-sky-400/30 text-sky-300 bg-sky-500/10" },
+  { id: "staking", label: "Staking",     kinds: ["staking_deposit", "staking_unstake"], tone: "ring-emerald-400/30 text-emerald-300 bg-emerald-500/10" },
+  { id: "bridge",  label: "Bridge",      kinds: ["bridge_l2", "bridge_l2_withdraw"], tone: "ring-indigo-400/30 text-indigo-300 bg-indigo-500/10" },
+  { id: "hl",      label: "Hyperliquid", kinds: ["hyperliquid_in", "hyperliquid_out"], tone: "ring-amber-400/30 text-amber-300 bg-amber-500/10" },
+  { id: "wallet",  label: "Wallet ↔ Wallet", kinds: ["wallet_to_wallet"], tone: "ring-slate-500/30 text-slate-400 bg-slate-500/10" },
+] as const;
+
+const FLOW_CHIPS_BY_ID: Record<string, FlowChip> = Object.fromEntries(
+  FLOW_CHIPS.map((c) => [c.id, c]),
+);
+
+/** Display string + tone for an individual flow_kind value (per row badge). */
+function flowKindBadge(kind: FlowKind | null): { label: string; tone: string } | null {
+  if (!kind) return null;
+  switch (kind) {
+    case "wallet_to_cex":      return { label: "→ CEX",       tone: "text-down bg-down/10 ring-down/30" };
+    case "cex_to_wallet":      return { label: "← CEX",       tone: "text-up bg-up/10 ring-up/30" };
+    case "wallet_to_dex":      return { label: "→ DEX",       tone: "text-fuchsia-300 bg-fuchsia-500/10 ring-fuchsia-400/30" };
+    case "dex_to_wallet":      return { label: "← DEX",       tone: "text-fuchsia-300 bg-fuchsia-500/10 ring-fuchsia-400/30" };
+    case "lending_deposit":    return { label: "→ Lending",   tone: "text-sky-300 bg-sky-500/10 ring-sky-400/30" };
+    case "lending_withdraw":   return { label: "← Lending",   tone: "text-sky-300 bg-sky-500/10 ring-sky-400/30" };
+    case "staking_deposit":    return { label: "→ Staking",   tone: "text-emerald-300 bg-emerald-500/10 ring-emerald-400/30" };
+    case "staking_unstake":    return { label: "← Staking",   tone: "text-emerald-300 bg-emerald-500/10 ring-emerald-400/30" };
+    case "bridge_l2":          return { label: "→ L2",        tone: "text-indigo-300 bg-indigo-500/10 ring-indigo-400/30" };
+    case "bridge_l2_withdraw": return { label: "← L2",        tone: "text-indigo-300 bg-indigo-500/10 ring-indigo-400/30" };
+    case "hyperliquid_in":     return { label: "→ HL",        tone: "text-amber-300 bg-amber-500/10 ring-amber-400/30" };
+    case "hyperliquid_out":    return { label: "← HL",        tone: "text-amber-300 bg-amber-500/10 ring-amber-400/30" };
+    case "wallet_to_wallet":   return null; // default — don't render a badge
+  }
+}
+
 export default function WhaleTransfersPanel() {
   // Filter state persists in the URL so refresh / share-link preserve view.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -106,9 +153,44 @@ export default function WhaleTransfersPanel() {
   const setAsset = (v: WhaleAsset | "ALL") => updateParam("whaleAsset", v === "ALL" ? null : v);
   const setHours = (v: number) => updateParam("whaleHours", v === 24 ? null : String(v));
 
+  // Flow-kind chip state. URL param `whaleFlow` is a comma-separated list
+  // of chip ids (e.g. ?whaleFlow=cex_in,cex_out). Empty = no filter.
+  const rawFlow = searchParams.get("whaleFlow") ?? "";
+  const activeChipIds = new Set(
+    rawFlow
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s in FLOW_CHIPS_BY_ID),
+  );
+  const toggleChip = (chipId: string) => {
+    const next = new Set(activeChipIds);
+    if (next.has(chipId)) next.delete(chipId);
+    else next.add(chipId);
+    updateParam(
+      "whaleFlow",
+      next.size === 0 ? null : Array.from(next).join(","),
+    );
+  };
+  const clearFlowFilter = () => updateParam("whaleFlow", null);
+
+  // Resolve active chip ids to the full FlowKind list to send to the API.
+  const flowKindsParam: FlowKind[] | undefined = activeChipIds.size === 0
+    ? undefined
+    : Array.from(activeChipIds).flatMap((id) => FLOW_CHIPS_BY_ID[id].kinds);
+
+  const flowKindsQueryKey = flowKindsParam
+    ? [...flowKindsParam].sort().join(",")
+    : "";
+
   const { data, isLoading, error } = useQuery<WhaleTransfer[]>({
-    queryKey: ["whale-transfers", hours, asset],
-    queryFn: () => fetchWhaleTransfers(hours, asset === "ALL" ? undefined : asset),
+    queryKey: ["whale-transfers", hours, asset, flowKindsQueryKey],
+    queryFn: () =>
+      fetchWhaleTransfers(
+        hours,
+        asset === "ALL" ? undefined : asset,
+        100,
+        flowKindsParam,
+      ),
     refetchInterval: 15_000,
   });
 
@@ -143,6 +225,37 @@ export default function WhaleTransfersPanel() {
       }
       bodyClassName="p-0"
     >
+      {/* Flow-kind filter chips. Multi-select; URL-persisted via ?whaleFlow=*. */}
+      <div className="px-5 pt-3 pb-2 border-b border-surface-divider/60 flex flex-wrap items-center gap-1.5">
+        {FLOW_CHIPS.map((chip) => {
+          const active = activeChipIds.has(chip.id);
+          return (
+            <button
+              key={chip.id}
+              type="button"
+              onClick={() => toggleChip(chip.id)}
+              className={
+                "rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wide ring-1 transition " +
+                (active
+                  ? chip.tone + " opacity-100"
+                  : "ring-surface-divider text-slate-500 hover:text-slate-300 opacity-70 hover:opacity-100")
+              }
+            >
+              {chip.label}
+            </button>
+          );
+        })}
+        {activeChipIds.size > 0 && (
+          <button
+            type="button"
+            onClick={clearFlowFilter}
+            className="ml-1 text-[10px] text-slate-500 hover:text-slate-300 underline-offset-2 hover:underline"
+          >
+            clear
+          </button>
+        )}
+      </div>
+
       {pending.length > 0 && (
         <div className="px-5 pt-4 pb-3 border-b border-surface-divider">
           <div className="flex items-center gap-2 mb-2">
@@ -246,7 +359,23 @@ export default function WhaleTransfersPanel() {
                     {relativeTime(t.ts)}
                   </td>
                   <td className="px-3 py-2.5 border-b border-surface-divider/60">
-                    <AssetBadge asset={t.asset} />
+                    <div className="flex items-center gap-1.5">
+                      <AssetBadge asset={t.asset} />
+                      {(() => {
+                        const b = flowKindBadge(t.flow_kind);
+                        return b ? (
+                          <span
+                            title={t.flow_kind ?? ""}
+                            className={
+                              "inline-flex items-center text-[9px] font-semibold tracking-wide rounded px-1 py-0.5 ring-1 " +
+                              b.tone
+                            }
+                          >
+                            {b.label}
+                          </span>
+                        ) : null;
+                      })()}
+                    </div>
                   </td>
                   <td className="px-3 py-2.5 border-b border-surface-divider/60">
                     <Party addr={t.from_addr} label={t.from_label} />

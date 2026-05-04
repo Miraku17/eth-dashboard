@@ -79,6 +79,7 @@ class WhaleTransfer(BaseModel):
     asset: str
     amount: float
     usd_value: float | None = None
+    flow_kind: str | None = None  # v4: classified at write time
 
 
 class WhaleTransfersResponse(BaseModel):

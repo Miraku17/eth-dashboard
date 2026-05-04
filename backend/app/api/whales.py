@@ -23,12 +23,25 @@ def whale_transfers(
     session: Annotated[Session, Depends(get_session)],
     hours: int = Query(24, ge=1, le=24 * 30),
     asset: str | None = Query(None, description="filter: ETH, USDT, USDC, DAI"),
+    flow_kind: list[str] | None = Query(
+        None,
+        description=(
+            "v4: filter by classified flow_kind. Multi-select with "
+            "?flow_kind=wallet_to_cex&flow_kind=cex_to_wallet. Values: "
+            "wallet_to_cex / cex_to_wallet / wallet_to_dex / dex_to_wallet / "
+            "lending_deposit / lending_withdraw / staking_deposit / "
+            "staking_unstake / bridge_l2 / bridge_l2_withdraw / "
+            "hyperliquid_in / hyperliquid_out / wallet_to_wallet."
+        ),
+    ),
     limit: int = Query(100, ge=1, le=1000),
 ) -> WhaleTransfersResponse:
     cutoff = datetime.now(UTC) - timedelta(hours=hours)
     stmt = select(Transfer).where(Transfer.ts >= cutoff)
     if asset:
         stmt = stmt.where(Transfer.asset == asset.upper())
+    if flow_kind:
+        stmt = stmt.where(Transfer.flow_kind.in_(flow_kind))
     rows = session.execute(stmt.order_by(Transfer.ts.desc()).limit(limit)).scalars().all()
     return WhaleTransfersResponse(
         transfers=[
@@ -44,6 +57,7 @@ def whale_transfers(
                 asset=r.asset,
                 amount=float(r.amount),
                 usd_value=float(r.usd_value) if r.usd_value is not None else None,
+                flow_kind=r.flow_kind,
             )
             for r in rows
         ]

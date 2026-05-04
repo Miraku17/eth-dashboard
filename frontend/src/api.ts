@@ -294,6 +294,21 @@ export type WhaleAsset =
   | "USDe"
   | "XSGD" | "BRZ";
 
+export type FlowKind =
+  | "wallet_to_cex"
+  | "cex_to_wallet"
+  | "wallet_to_dex"
+  | "dex_to_wallet"
+  | "lending_deposit"
+  | "lending_withdraw"
+  | "staking_deposit"
+  | "staking_unstake"
+  | "bridge_l2"
+  | "bridge_l2_withdraw"
+  | "hyperliquid_in"
+  | "hyperliquid_out"
+  | "wallet_to_wallet";
+
 export type WhaleTransfer = {
   tx_hash: string;
   log_index: number;
@@ -306,15 +321,20 @@ export type WhaleTransfer = {
   asset: string;
   amount: number;
   usd_value: number | null;
+  flow_kind: FlowKind | null;
 };
 
 export async function fetchWhaleTransfers(
   hours: number,
   asset?: WhaleAsset,
   limit = 100,
+  flowKinds?: FlowKind[],
 ): Promise<WhaleTransfer[]> {
   const params = new URLSearchParams({ hours: String(hours), limit: String(limit) });
   if (asset) params.set("asset", asset);
+  if (flowKinds && flowKinds.length > 0) {
+    for (const k of flowKinds) params.append("flow_kind", k);
+  }
   const r = await apiFetch(`/api/whales/transfers?${params}`);
   if (!r.ok) throw new Error(`whale transfers ${r.status}`);
   return (await r.json()).transfers;
