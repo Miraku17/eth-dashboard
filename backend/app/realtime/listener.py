@@ -250,6 +250,17 @@ async def _process_block(
     )
     logs = logs_res.get("result") or []
 
+    # eth_usd snapshot is fetched ONCE per block and shared across:
+    #   1. native-tx whale-threshold check (parse_native_tx)
+    #   2. volume_bucket_agg per-event USD pricing (v4)
+    # Must come BEFORE the swap-fetch block — Python sees eth_usd as a
+    # local in this whole function (it's assigned somewhere below), so
+    # any earlier reference would hit UnboundLocalError. Lesson learned
+    # the hard way after PR #64 stalled volume_buckets in production.
+    rows: list[WhaleTransfer] = []
+    with sessionmaker() as session:
+        eth_usd = _latest_eth_usd(session)
+
     # v4 order-flow + volume-buckets: single eth_getLogs filtered to the
     # curated WETH-pool set + Uniswap V2/V3 + Curve + Balancer Swap topics.
     # The decoder dispatches per-event; both aggregators consume the same
@@ -272,18 +283,14 @@ async def _process_block(
                 if order_flow_agg is not None:
                     order_flow_agg.add(ev.dex, ev.side, ev.weth_amount, ts)
                 # Volume buckets need USD per-event (bucket assignment
-                # depends on USD value). Use the block's eth_usd snapshot —
-                # already fetched a few lines above for the native-tx path.
+                # depends on USD value). Reuses the eth_usd snapshot
+                # fetched above.
                 if volume_bucket_agg is not None and eth_usd is not None:
                     volume_bucket_agg.add(ev.weth_amount * eth_usd, ts)
         except Exception:
             # Decoder / log-fetch failures must NOT take down the rest of
             # the block-processing loop. Order-flow is one signal of many.
             log.exception("swap log fetch/decode failed at block %d", block_number)
-
-    rows: list[WhaleTransfer] = []
-    with sessionmaker() as session:
-        eth_usd = _latest_eth_usd(session)
 
     for tx in block.get("transactions") or []:
         row = parse_native_tx(
