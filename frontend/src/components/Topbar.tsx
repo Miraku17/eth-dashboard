@@ -259,9 +259,6 @@ export default function Topbar() {
           <div className="flex items-center gap-2.5">
             <EthMark />
             <span className="text-sm font-semibold tracking-wide">Etherscope</span>
-            <span className="hidden sm:inline text-[10px] font-medium tracking-widest text-slate-500 uppercase border border-surface-border rounded px-1.5 py-0.5 ml-1">
-              Pro
-            </span>
           </div>
           <nav className="flex items-center gap-0.5">
             {NAV.map((n) => (
