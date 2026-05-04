@@ -80,6 +80,13 @@ class WhaleTransfer(BaseModel):
     amount: float
     usd_value: float | None = None
     flow_kind: str | None = None  # v4: classified at write time
+    # v4: smart-money signal — null when the address has no score yet
+    # (no DEX swap activity in the last 30d, or below the cron's noise
+    # floor of 5 trades). Score is realized_pnl_30d in USD.
+    from_score: float | None = None
+    to_score: float | None = None
+    from_win_rate: float | None = None
+    to_win_rate: float | None = None
 
 
 class WhaleTransfersResponse(BaseModel):

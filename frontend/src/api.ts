@@ -322,6 +322,14 @@ export type WhaleTransfer = {
   amount: number;
   usd_value: number | null;
   flow_kind: FlowKind | null;
+  /** v4: realized 30d PnL in USD for this side's address. Null when the
+   *  wallet has no scored history yet (no DEX activity, or below the
+   *  cron's 5-trade noise floor). */
+  from_score: number | null;
+  to_score: number | null;
+  /** v4: 30d win rate. Null until ≥3 round-trips closed. */
+  from_win_rate: number | null;
+  to_win_rate: number | null;
 };
 
 export async function fetchWhaleTransfers(
