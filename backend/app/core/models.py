@@ -7,6 +7,7 @@ from sqlalchemy import (
     Boolean,
     Date,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     Numeric,
@@ -377,4 +378,45 @@ class AddressLabel(Base):
     label: Mapped[str] = mapped_column(String(80))
     source: Mapped[str] = mapped_column(String(16))
     confidence: Mapped[int] = mapped_column(SmallInteger, default=100)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class DexSwap(Base):
+    """Per-event capture of every Swap the realtime listener decodes.
+
+    The listener already aggregates Swaps into hourly buckets (`order_flow`,
+    `volume_buckets`); this table preserves the row-level data needed for
+    per-wallet performance scoring (FIFO PnL, win rate, volume rank).
+
+    `wallet` is the tx's `from` EOA (looked up from the block's transaction
+    list during the listener's per-block processing). The Swap event itself
+    only carries the router/recipient — the originating wallet is what we
+    actually want to score, hence the lookup."""
+    __tablename__ = "dex_swap"
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    tx_hash: Mapped[str] = mapped_column(String(66))
+    log_index: Mapped[int] = mapped_column(Integer)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    wallet: Mapped[str] = mapped_column(String(42), index=True)
+    dex: Mapped[str] = mapped_column(String(16))
+    side: Mapped[str] = mapped_column(String(4))  # 'buy' | 'sell' (user POV on WETH)
+    weth_amount: Mapped[float] = mapped_column(Numeric(38, 18))
+    usd_value: Mapped[float] = mapped_column(Numeric(38, 6))
+
+
+class WalletScore(Base):
+    """Snapshot of computed per-wallet performance metrics. Latest-only —
+    a daily cron recomputes from `dex_swap` and upserts.
+
+    `score` is the panel's sort key for 'smart money' display. v1 uses
+    realized_pnl_30d directly; future revisions can blend in win_rate +
+    log(volume) for more robust ranking."""
+    __tablename__ = "wallet_score"
+    wallet: Mapped[str] = mapped_column(String(42), primary_key=True)
+    trades_30d: Mapped[int] = mapped_column(Integer, default=0)
+    volume_usd_30d: Mapped[float] = mapped_column(Numeric(38, 2), default=0)
+    realized_pnl_30d: Mapped[float] = mapped_column(Numeric(38, 2), default=0)
+    # Nullable — wallets with <N completed round-trips can't be scored.
+    win_rate_30d: Mapped[float | None] = mapped_column(nullable=True)
+    score: Mapped[float] = mapped_column(default=0, index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
