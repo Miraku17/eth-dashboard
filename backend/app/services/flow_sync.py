@@ -115,12 +115,12 @@ def upsert_onchain_volume(session: Session, rows: list[dict]) -> int:
 
 
 _ALLOWED_DEXES = ("uniswap_v2", "uniswap_v3", "curve", "balancer", "other")
-# v4: the realtime listener now owns Uniswap V2 and V3 rows in order_flow
-# (live Swap-event decoder, hourly flush, additive). The Dune cron must NOT
-# write those dex values or the 8h Dune snapshot would clobber an entire
-# hour of live data on each cron tick. Curve / Balancer / Other stay on
-# Dune until those decoders ship (cards 10b/c).
-_LIVE_OWNED_DEXES = frozenset({"uniswap_v2", "uniswap_v3"})
+# v4 (cards 10 + 10b/c): the realtime listener now owns ALL named DEX rows
+# in order_flow — Uniswap V2/V3, Curve, Balancer. The 'other' bucket stays
+# on Dune as a long-tail catch for SushiSwap, PancakeSwap, Maverick, etc.
+# until each is added to the curated pool registry. Dune must skip the
+# live-owned values or the 8h snapshot would clobber an hour of live data.
+_LIVE_OWNED_DEXES = frozenset({"uniswap_v2", "uniswap_v3", "curve", "balancer"})
 
 
 def upsert_order_flow(session: Session, rows: list[dict]) -> int:
