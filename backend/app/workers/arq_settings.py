@@ -7,6 +7,7 @@ from app.core.config import get_settings
 from app.core.db import get_sessionmaker
 from app.services.address_label_sync import seed_address_labels
 from app.workers.alert_jobs import evaluate_alerts
+from app.workers.beacon_flows import sync_beacon_flows
 from app.workers.flow_kind_backfill import run_backfill_if_needed
 from app.workers.cluster_jobs import purge_expired_clusters
 from app.workers.defi_jobs import sync_defi_tvl
@@ -90,6 +91,7 @@ class WorkerSettings:
         sync_dex_pool_tvl,
         sync_lrt_tvl,
         sync_staking_yields,
+        sync_beacon_flows,
         run_backfill_if_needed,
         cleanup_pending_transfers,
         purge_expired_clusters,
@@ -130,6 +132,11 @@ class WorkerSettings:
         # snapshot, offset to minute 47 (after defi_tvl=17, dex_pool=27,
         # lrt_tvl=37) so the four DefiLlama crons stagger evenly.
         cron(sync_staking_yields, minute={47}, run_at_startup=False),
+        # v4: beacon-chain flows live from Lighthouse. Every 5 min, walk
+        # newly-finalized slots since the last cursor, sum deposits +
+        # withdrawals, upsert hourly buckets into staking_flows. Replaces
+        # the Dune staking_flows query.
+        cron(sync_beacon_flows, minute=set(range(0, 60, 5)), run_at_startup=False),
     ]
     on_startup = startup
     on_shutdown = shutdown

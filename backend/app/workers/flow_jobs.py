@@ -52,7 +52,13 @@ async def sync_dune_flows(ctx: dict) -> dict:
             # The Dune query is preserved in DUNE_QUERY_ID_ONCHAIN_VOLUME for
             # rollback but no longer executed. Saves ~720 Dune executions/month.
             # ("onchain_volume", settings.dune_query_id_onchain_volume, upsert_onchain_volume),
-            ("staking_flows", settings.dune_query_id_staking_flows, upsert_staking_flows),
+            # v4: staking_flows migrated off Dune. The new sync_beacon_flows
+            # cron walks newly-finalized slots from Lighthouse every 5 min,
+            # sums deposits + withdrawals, classifies withdrawals as partial
+            # (rewards) or full (exit) by amount threshold, and upserts hourly
+            # rollups into the same staking_flows table. DUNE_QUERY_ID_STAKING_FLOWS
+            # preserved for rollback. Saves ~720 Dune executions/month.
+            # ("staking_flows", settings.dune_query_id_staking_flows, upsert_staking_flows),
             ("staking_flows_by_entity", settings.dune_query_id_staking_flows_by_entity, upsert_staking_flows_by_entity),
             ("bridge_flows", settings.dune_query_id_bridge_flows, upsert_bridge_flows),
         ]
