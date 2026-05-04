@@ -26,6 +26,7 @@ from app.realtime.mempool import run_mempool_loop
 from app.realtime.order_flow_agg import OrderFlowAggregator
 from app.realtime.supply_agg import SupplyAggregator
 from app.realtime.swap_decoder import decode as decode_swap
+from app.realtime.swap_writer import SwapWriter, make_row as _make_swap_row
 from app.realtime.volume_bucket_agg import VolumeBucketAggregator
 from app.services.dex_pools import POOL_ADDRESSES, SWAP_TOPICS
 from app.realtime.parser import (
@@ -222,6 +223,7 @@ async def _process_block(
     supply_agg: SupplyAggregator | None = None,
     order_flow_agg: OrderFlowAggregator | None = None,
     volume_bucket_agg: VolumeBucketAggregator | None = None,
+    swap_writer: SwapWriter | None = None,
 ) -> None:
     threshold_eth, threshold_usd = thresholds
     hex_bn = hex(block_number)
@@ -261,11 +263,14 @@ async def _process_block(
     with sessionmaker() as session:
         eth_usd = _latest_eth_usd(session)
 
-    # v4 order-flow + volume-buckets: single eth_getLogs filtered to the
-    # curated WETH-pool set + Uniswap V2/V3 + Curve + Balancer Swap topics.
-    # The decoder dispatches per-event; both aggregators consume the same
-    # SwapEvent stream so we only fetch logs once.
-    if order_flow_agg is not None or volume_bucket_agg is not None:
+    # v4 order-flow + volume-buckets + dex_swap: single eth_getLogs
+    # filtered to the curated WETH-pool set + Uniswap V2/V3 + Curve +
+    # Balancer Swap topics. The decoder dispatches per-event; THREE
+    # consumers feed off the same stream so we only fetch logs once:
+    #   1. order_flow_agg     — hourly per-(dex, side) rollup
+    #   2. volume_bucket_agg  — hourly per-(usd-size-bucket) rollup
+    #   3. swap_writer        — per-event row capture for wallet scoring
+    if order_flow_agg is not None or volume_bucket_agg is not None or swap_writer is not None:
         try:
             swap_res = await client.call(
                 "eth_getLogs",
@@ -276,6 +281,20 @@ async def _process_block(
                     "topics": [list(SWAP_TOPICS)],
                 }],
             )
+            # tx-hash → from-address map for the block, used to attribute
+            # each Swap event to the ORIGINATING EOA (not the router /
+            # recipient that appears in the event payload). Built lazily
+            # only when swap_writer is active so we don't pay the cost
+            # for installs that don't need wallet scoring.
+            tx_to_from: dict[str, str] = {}
+            if swap_writer is not None:
+                for tx in block.get("transactions") or []:
+                    h = tx.get("hash")
+                    f = tx.get("from")
+                    if h and f:
+                        tx_to_from[h.lower()] = f.lower()
+
+            swap_rows_to_write: list[dict] = []
             for slg in swap_res.get("result") or []:
                 ev = decode_swap(slg)
                 if ev is None:
@@ -287,6 +306,33 @@ async def _process_block(
                 # fetched above.
                 if volume_bucket_agg is not None and eth_usd is not None:
                     volume_bucket_agg.add(ev.weth_amount * eth_usd, ts)
+                # Per-event capture for wallet scoring. Only writes when
+                # we know the originating wallet AND have an ETH price
+                # to compute USD value. Both come from earlier in this
+                # function so should be present in steady state.
+                if swap_writer is not None and eth_usd is not None:
+                    txh = (slg.get("transactionHash") or "").lower()
+                    wallet = tx_to_from.get(txh)
+                    if wallet:
+                        try:
+                            log_idx = int(slg.get("logIndex") or "0x0", 16)
+                        except (TypeError, ValueError):
+                            log_idx = -1
+                        if log_idx >= 0:
+                            swap_rows_to_write.append(
+                                _make_swap_row(
+                                    tx_hash=txh,
+                                    log_index=log_idx,
+                                    ts=ts,
+                                    wallet=wallet,
+                                    dex=ev.dex,
+                                    side=ev.side,
+                                    weth_amount=ev.weth_amount,
+                                    usd_value=ev.weth_amount * eth_usd,
+                                )
+                            )
+            if swap_writer is not None and swap_rows_to_write:
+                swap_writer.write(swap_rows_to_write)
         except Exception:
             # Decoder / log-fetch failures must NOT take down the rest of
             # the block-processing loop. Order-flow is one signal of many.
@@ -344,6 +390,7 @@ async def run_once(ws_url: str, sessionmaker, thresholds: tuple[float, float]) -
 
         order_flow_agg = OrderFlowAggregator(sessionmaker, _eth_price)
         volume_bucket_agg = VolumeBucketAggregator(sessionmaker)
+        swap_writer = SwapWriter(sessionmaker)
 
         def eth_usd_provider() -> float | None:
             with sessionmaker() as session:
@@ -369,7 +416,7 @@ async def run_once(ws_url: str, sessionmaker, thresholds: tuple[float, float]) -
                         await _process_block(
                             client, bn, sessionmaker, thresholds,
                             volume_agg, supply_agg, order_flow_agg,
-                            volume_bucket_agg,
+                            volume_bucket_agg, swap_writer,
                         )
                     except (asyncio.TimeoutError, ConnectionError):
                         # WS went silent or died mid-block; bail out so the

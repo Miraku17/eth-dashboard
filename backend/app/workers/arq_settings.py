@@ -9,6 +9,7 @@ from app.services.address_label_sync import seed_address_labels
 from app.workers.alert_jobs import evaluate_alerts
 from app.workers.beacon_flows import sync_beacon_flows
 from app.workers.flow_kind_backfill import run_backfill_if_needed
+from app.workers.wallet_scoring_jobs import score_wallets
 from app.workers.cluster_jobs import purge_expired_clusters
 from app.workers.defi_jobs import sync_defi_tvl
 from app.workers.dex_pool_jobs import sync_dex_pool_tvl
@@ -95,6 +96,7 @@ class WorkerSettings:
         sync_lrt_tvl,
         sync_staking_yields,
         sync_beacon_flows,
+        score_wallets,
         run_backfill_if_needed,
         cleanup_pending_transfers,
         purge_expired_clusters,
@@ -145,6 +147,11 @@ class WorkerSettings:
         # withdrawals, upsert hourly buckets into staking_flows. Replaces
         # the Dune staking_flows query.
         cron(sync_beacon_flows, minute=set(range(0, 60, 5)), run_at_startup=False),
+        # v4: per-wallet performance scoring. Reads the last 30d of
+        # dex_swap rows, computes FIFO PnL + win rate per wallet, upserts
+        # wallet_score. Once daily at 04:13 UTC — offset from the 03:00
+        # smart-money cron so the two heavy daily jobs don't collide.
+        cron(score_wallets, hour={4}, minute={13}, run_at_startup=False),
     ]
     on_startup = startup
     on_shutdown = shutdown
