@@ -40,7 +40,10 @@ async def startup(ctx: dict) -> None:
     # job_timeout. Spread by 6 min so each finishes before the next starts.
     await ctx["redis"].enqueue_job("sync_dune_flows", _defer_by=0)
     await ctx["redis"].enqueue_job("sync_order_flow", _defer_by=360)
-    await ctx["redis"].enqueue_job("sync_volume_buckets", _defer_by=720)
+    # v4: sync_volume_buckets retired — VolumeBucketAggregator on the
+    # realtime listener now owns the volume_buckets table. Function kept
+    # in flow_jobs.py for one-line revert if needed.
+    # await ctx["redis"].enqueue_job("sync_volume_buckets", _defer_by=720)
     await ctx["redis"].enqueue_job("sync_smart_money_leaderboard", _defer_by=1080)
 
 
@@ -104,10 +107,15 @@ class WorkerSettings:
         # only change every 8h on most venues; hourly is plenty.
         cron(sync_derivatives, minute={5}, run_at_startup=False),
         # Order flow: 8h cadence by default (every 3rd Dune slot) to keep
-        # the free-tier credit budget healthy.
+        # the free-tier credit budget healthy. Note v4: this Dune cron only
+        # writes the 'other' long-tail bucket now (Sushi/Pancake/Maverick);
+        # uniswap_v2 / uniswap_v3 / curve / balancer rows come from the
+        # realtime listener's swap-decoder pipeline. See flow_sync.py.
         cron(sync_order_flow, **_order_flow_cron_kwargs(), run_at_startup=False),
-        # Volume buckets: same 8h cadence as order-flow, offset by 10 min.
-        cron(sync_volume_buckets, **_volume_buckets_cron_kwargs(), run_at_startup=False),
+        # Volume buckets: v4 — retired. The VolumeBucketAggregator on the
+        # realtime listener now owns the volume_buckets table. Cron kept
+        # commented for one-line revert if rollback ever needed.
+        # cron(sync_volume_buckets, **_volume_buckets_cron_kwargs(), run_at_startup=False),
         # Smart-money leaderboard: once a day at 03:00 UTC. The query is
         # meaningfully heavier than order-flow (30d vs 7d window), so a
         # single refresh per day keeps us inside the Dune free-tier budget.

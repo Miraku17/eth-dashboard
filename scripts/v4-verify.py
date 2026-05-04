@@ -35,6 +35,7 @@ from app.core.models import (
     StakingFlow,
     StakingFlowByEntity,
     Transfer,
+    VolumeBucket,
 )
 
 
@@ -152,6 +153,7 @@ def main() -> int:
     _check_freshness("stablecoin_flows", StablecoinFlow, "ts_bucket", fresh_window_hourly)
     _check_freshness("staking_flows", StakingFlow, "ts_bucket", fresh_window_5min)
     _check_freshness("staking_flows_by_entity", StakingFlowByEntity, "ts_bucket", fresh_window_5min)
+    _check_freshness("volume_buckets", VolumeBucket, "ts_bucket", fresh_window_hourly)
 
     # order_flow needs a freshness AND a per-DEX coverage check.
     of_latest = s.execute(
