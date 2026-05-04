@@ -23,10 +23,12 @@ from app.core.models import AddressLabel, NetworkActivity, PriceCandle, Transfer
 from app.realtime.flow_classifier import classify as classify_flow
 from app.realtime.liquidations import run_loop as run_liquidations_loop
 from app.realtime.mempool import run_mempool_loop
+from app.realtime.supply_agg import SupplyAggregator
 from app.realtime.parser import (
     NetworkPoint,
     WhaleTransfer,
     block_timestamp,
+    extract_mint_burn,
     extract_network_activity,
     extract_stable_volume,
     parse_erc20_log,
@@ -213,6 +215,7 @@ async def _process_block(
     sessionmaker,
     thresholds: tuple[float, float],
     volume_agg: MinuteAggregator | None = None,
+    supply_agg: SupplyAggregator | None = None,
 ) -> None:
     threshold_eth, threshold_usd = thresholds
     hex_bn = hex(block_number)
@@ -266,6 +269,14 @@ async def _process_block(
             if sv is not None:
                 asset, usd = sv
                 volume_agg.add(asset, usd, ts)
+        # v4: feed mint/burn events to the supply aggregator (replaces Dune
+        # stablecoin_supply). Mints have from=0x0, burns have to=0x0 — both
+        # extracted from the same Transfer logs we're already iterating.
+        if supply_agg is not None:
+            mb = extract_mint_burn(lg)
+            if mb is not None:
+                asset, direction, usd = mb
+                supply_agg.add(asset, direction, usd, ts)
 
     if rows:
         with sessionmaker() as session:
@@ -281,6 +292,7 @@ async def run_once(ws_url: str, sessionmaker, thresholds: tuple[float, float]) -
         client = AlchemyClient(ws)
         pump_task = asyncio.create_task(client.pump())
         volume_agg = MinuteAggregator(sessionmaker)
+        supply_agg = SupplyAggregator(sessionmaker)
 
         def eth_usd_provider() -> float | None:
             with sessionmaker() as session:
@@ -303,7 +315,9 @@ async def run_once(ws_url: str, sessionmaker, thresholds: tuple[float, float]) -
                         return  # outer main() loop recreates the WS
                     bn = int(head["number"], 16)
                     try:
-                        await _process_block(client, bn, sessionmaker, thresholds, volume_agg)
+                        await _process_block(
+                            client, bn, sessionmaker, thresholds, volume_agg, supply_agg
+                        )
                     except (asyncio.TimeoutError, ConnectionError):
                         # WS went silent or died mid-block; bail out so the
                         # outer loop reconnects rather than spinning on a
@@ -319,6 +333,8 @@ async def run_once(ws_url: str, sessionmaker, thresholds: tuple[float, float]) -
         finally:
             with contextlib.suppress(Exception):
                 volume_agg.flush()
+            with contextlib.suppress(Exception):
+                supply_agg.flush()
             pump_task.cancel()
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await pump_task
