@@ -84,6 +84,12 @@ class Transfer(Base):
     asset: Mapped[str] = mapped_column(String(16))
     amount: Mapped[float] = mapped_column(Numeric(38, 18))
     usd_value: Mapped[float | None] = mapped_column(Numeric(32, 2), nullable=True)
+    # v4: live flow classification. Nullable for legacy rows until the
+    # backfill job runs. See app.realtime.flow_classifier for the
+    # category-pair → flow_kind mapping and the FlowKind enum.
+    flow_kind: Mapped[str | None] = mapped_column(
+        String(24), nullable=True, index=True
+    )
 
 
 class PendingTransfer(Base):
@@ -97,6 +103,7 @@ class PendingTransfer(Base):
     seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     nonce: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     gas_price_gwei: Mapped[float | None] = mapped_column(Numeric(20, 9), nullable=True)
+    flow_kind: Mapped[str | None] = mapped_column(String(24), nullable=True)
 
 
 class AlertRule(Base):

@@ -7,6 +7,7 @@ from app.core.config import get_settings
 from app.core.db import get_sessionmaker
 from app.services.address_label_sync import seed_address_labels
 from app.workers.alert_jobs import evaluate_alerts
+from app.workers.flow_kind_backfill import run_backfill_if_needed
 from app.workers.cluster_jobs import purge_expired_clusters
 from app.workers.defi_jobs import sync_defi_tvl
 from app.workers.dex_pool_jobs import sync_dex_pool_tvl
@@ -28,6 +29,9 @@ async def startup(ctx: dict) -> None:
     SessionLocal = get_sessionmaker()
     with SessionLocal() as session:
         seed_address_labels(session)
+    # v4: one-shot backfill of flow_kind on historical transfers. Cheap
+    # no-op once it's run successfully (skips if no NULL flow_kind rows).
+    await ctx["redis"].enqueue_job("run_backfill_if_needed")
     await ctx["redis"].enqueue_job("backfill_price_history")
     await ctx["redis"].enqueue_job("sync_derivatives")
     # Dune-heavy jobs are staggered: free-tier serializes executions, and
@@ -86,6 +90,7 @@ class WorkerSettings:
         sync_dex_pool_tvl,
         sync_lrt_tvl,
         sync_staking_yields,
+        run_backfill_if_needed,
         cleanup_pending_transfers,
         purge_expired_clusters,
     ]
