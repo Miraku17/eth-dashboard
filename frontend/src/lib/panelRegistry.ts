@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 
 import AlertEventsPanel from "../components/AlertEventsPanel";
 import BridgeFlowsPanel from "../components/BridgeFlowsPanel";
+import CexNetFlowPanel from "../components/CexNetFlowPanel";
 import DefiTvlPanel from "../components/DefiTvlPanel";
 import DexPoolTvlPanel from "../components/DexPoolTvlPanel";
 import DerivativesPanel from "../components/DerivativesPanel";
@@ -61,6 +62,7 @@ export type PanelDef = {
 
 export const PANELS: PanelDef[] = [
   { id: "price-hero", label: "Price", component: PriceHero, defaultPage: "overview", defaultWidth: 4, homeOnly: true },
+  { id: "cex-net-flow", label: "CEX net flow", component: CexNetFlowPanel, defaultPage: "overview", defaultWidth: 2 },
   { id: "price-chart", label: "Chart", component: PriceChart, defaultPage: "markets", defaultWidth: 3 },
   { id: "derivatives", label: "Derivatives", component: DerivativesPanel, defaultPage: "markets", defaultWidth: 2 },
   { id: "liquidations", label: "Liquidations", component: LiquidationsPanel, defaultPage: "markets", defaultWidth: 2 },
@@ -90,8 +92,8 @@ export const PANELS_BY_ID: Record<string, PanelDef> = Object.fromEntries(
 /** Default Overview layout. v2 shape: each entry carries an explicit width. */
 export const DEFAULT_OVERVIEW_LAYOUT: { id: string; width: PanelWidth }[] = [
   { id: "price-hero", width: 4 },
-  { id: "price-chart", width: 3 },
-  { id: "exchange-flows", width: 1 },
+  { id: "cex-net-flow", width: 2 },
+  { id: "price-chart", width: 2 },
   { id: "whale-transfers", width: 2 },
   { id: "smart-money", width: 2 },
 ];

@@ -2,12 +2,14 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
     BridgeFlowPoint,
     BridgeFlowsResponse,
+    CexNetFlowResponse,
+    CexNetFlowWindow,
     ExchangeFlowPoint,
     ExchangeFlowsResponse,
     OnchainVolumePoint,
@@ -26,8 +28,10 @@ from app.core.models import (
     OnchainVolume,
     OrderFlow,
     StablecoinFlow,
+    Transfer,
     VolumeBucket,
 )
+from app.realtime.flow_classifier import FlowKind
 
 router = APIRouter(prefix="/flows", tags=["flows"])
 
@@ -185,4 +189,126 @@ def bridge_flows(
             )
             for r in rows
         ]
+    )
+
+
+_DEFAULT_CEX_WINDOWS = (1, 24)
+
+
+@router.get("/cex-net-flow", response_model=CexNetFlowResponse)
+def cex_net_flow(
+    session: Annotated[Session, Depends(get_session)],
+    windows: Annotated[
+        list[int] | None,
+        Query(
+            description="Hour windows to compute (e.g. ?windows=1&windows=24). "
+            "Default 1h + 24h.",
+        ),
+    ] = None,
+) -> CexNetFlowResponse:
+    """Live net-flow into / out of CEX hot wallets, computed from
+    `transfers.flow_kind` (the v4 live classifier).
+
+    Positive `net_usd` means more money moving ONTO exchanges (bearish
+    signal). Negative means net WITHDRAWAL (bullish — accumulating
+    wallets pulling off-exchange). Headline numbers refresh in real
+    time as new whale transfers land in `transfers`.
+    """
+    win_list = sorted(set(windows or _DEFAULT_CEX_WINDOWS))
+    now = datetime.now(UTC)
+
+    # One pass per window over `transfers` filtered by flow_kind.
+    out_windows: list[CexNetFlowWindow] = []
+    longest_cutoff = now - timedelta(hours=max(win_list))
+
+    for h in win_list:
+        cutoff = now - timedelta(hours=h)
+        agg = session.execute(
+            select(
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (Transfer.flow_kind == FlowKind.WALLET_TO_CEX, Transfer.usd_value),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ).label("inflow_usd"),
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (Transfer.flow_kind == FlowKind.CEX_TO_WALLET, Transfer.usd_value),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ).label("outflow_usd"),
+                func.coalesce(
+                    func.sum(
+                        case((Transfer.flow_kind == FlowKind.WALLET_TO_CEX, 1), else_=0)
+                    ),
+                    0,
+                ).label("inflow_count"),
+                func.coalesce(
+                    func.sum(
+                        case((Transfer.flow_kind == FlowKind.CEX_TO_WALLET, 1), else_=0)
+                    ),
+                    0,
+                ).label("outflow_count"),
+            ).where(
+                Transfer.ts >= cutoff,
+                Transfer.flow_kind.in_(
+                    [FlowKind.WALLET_TO_CEX, FlowKind.CEX_TO_WALLET]
+                ),
+            )
+        ).one()
+        out_windows.append(
+            CexNetFlowWindow(
+                hours=h,
+                inflow_usd=float(agg.inflow_usd),
+                outflow_usd=float(agg.outflow_usd),
+                net_usd=float(agg.inflow_usd) - float(agg.outflow_usd),
+                inflow_count=int(agg.inflow_count),
+                outflow_count=int(agg.outflow_count),
+            )
+        )
+
+    # Recency + extremes computed across the longest window only.
+    latest_in = session.execute(
+        select(Transfer.ts)
+        .where(
+            Transfer.flow_kind == FlowKind.WALLET_TO_CEX,
+            Transfer.ts >= longest_cutoff,
+        )
+        .order_by(Transfer.ts.desc())
+        .limit(1)
+    ).scalar()
+    latest_out = session.execute(
+        select(Transfer.ts)
+        .where(
+            Transfer.flow_kind == FlowKind.CEX_TO_WALLET,
+            Transfer.ts >= longest_cutoff,
+        )
+        .order_by(Transfer.ts.desc())
+        .limit(1)
+    ).scalar()
+    largest_in = session.execute(
+        select(func.coalesce(func.max(Transfer.usd_value), 0)).where(
+            Transfer.flow_kind == FlowKind.WALLET_TO_CEX,
+            Transfer.ts >= longest_cutoff,
+        )
+    ).scalar() or 0
+    largest_out = session.execute(
+        select(func.coalesce(func.max(Transfer.usd_value), 0)).where(
+            Transfer.flow_kind == FlowKind.CEX_TO_WALLET,
+            Transfer.ts >= longest_cutoff,
+        )
+    ).scalar() or 0
+
+    return CexNetFlowResponse(
+        windows=out_windows,
+        latest_inflow_ts=latest_in,
+        latest_outflow_ts=latest_out,
+        largest_inflow_usd=float(largest_in),
+        largest_outflow_usd=float(largest_out),
     )

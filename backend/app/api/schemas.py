@@ -313,6 +313,29 @@ class LiquidationResponse(BaseModel):
     buckets: list[LiquidationBucket]
 
 
+# ---------- CEX net-flow tile (v4 — live, derived from transfers.flow_kind) ----------
+
+
+class CexNetFlowWindow(BaseModel):
+    """One time-window summary (e.g. 1h / 24h)."""
+    hours: int
+    inflow_usd: float       # USD into CEX hot wallets (wallet_to_cex)
+    outflow_usd: float      # USD out of CEX hot wallets (cex_to_wallet)
+    net_usd: float          # inflow - outflow (positive = bearish, money moving onto exchanges)
+    inflow_count: int
+    outflow_count: int
+
+
+class CexNetFlowResponse(BaseModel):
+    """Live CEX net-flow signal computed from `transfers.flow_kind`.
+    The 20x priority signal in the v4 vision."""
+    windows: list[CexNetFlowWindow]
+    latest_inflow_ts: datetime | None     # When the most recent CEX inflow happened
+    latest_outflow_ts: datetime | None
+    largest_inflow_usd: float             # Biggest single CEX deposit in the longest window
+    largest_outflow_usd: float
+
+
 # ---------- Volume size buckets (v2) ----------
 
 

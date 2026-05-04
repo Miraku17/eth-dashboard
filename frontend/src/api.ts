@@ -515,6 +515,31 @@ export async function fetchLiquidations(hours = 24): Promise<LiquidationResponse
   return r.json();
 }
 
+// ---------- CEX net-flow tile (v4 — live, transfer-classifier driven) ----------
+
+export type CexNetFlowWindow = {
+  hours: number;
+  inflow_usd: number;
+  outflow_usd: number;
+  net_usd: number;
+  inflow_count: number;
+  outflow_count: number;
+};
+
+export type CexNetFlowResponse = {
+  windows: CexNetFlowWindow[];
+  latest_inflow_ts: string | null;
+  latest_outflow_ts: string | null;
+  largest_inflow_usd: number;
+  largest_outflow_usd: number;
+};
+
+export async function fetchCexNetFlow(): Promise<CexNetFlowResponse> {
+  const r = await apiFetch(`/api/flows/cex-net-flow`);
+  if (!r.ok) throw new Error(`cex net flow ${r.status}`);
+  return r.json();
+}
+
 export type OrderFlowDex =
   | "uniswap_v2"
   | "uniswap_v3"
