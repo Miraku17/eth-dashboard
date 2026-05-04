@@ -28,8 +28,8 @@ from app.core.db import get_session
 from app.core.models import (
     BridgeFlow,
     ExchangeFlow,
-    OnchainVolume,
     OrderFlow,
+    RealtimeVolume,
     StablecoinFlow,
     Transfer,
     VolumeBucket,
@@ -98,23 +98,42 @@ def onchain_volume(
     hours: HoursParam = 24 * 30,
     limit: int = Query(5000, ge=1, le=20000),
 ) -> OnchainVolumeResponse:
+    """Hourly on-chain stablecoin volume.
+
+    v4 (post-Dune-migration): rolls up the per-minute `realtime_volume`
+    table into hourly (asset, ts_bucket) buckets via SQL date_trunc. The
+    underlying data comes from the realtime listener — no Dune query.
+    Sub-second freshness vs the old 5-minute Dune lag.
+
+    Schema-compatible with the legacy Dune-fed endpoint: same response
+    shape (OnchainVolumePoint with ts_bucket / asset / tx_count /
+    usd_value), so the OnchainVolumePanel needs zero changes.
+    """
     cutoff = datetime.now(UTC) - timedelta(hours=hours)
+    bucket = func.date_trunc("hour", RealtimeVolume.ts_minute).label("ts_bucket")
     rows = session.execute(
-        select(OnchainVolume)
-        .where(OnchainVolume.ts_bucket >= cutoff)
-        .order_by(OnchainVolume.ts_bucket.desc())
-        .limit(limit)
-    ).scalars().all()
-    points = [
-        OnchainVolumePoint(
-            ts_bucket=r.ts_bucket,
-            asset=r.asset,
-            tx_count=r.tx_count,
-            usd_value=float(r.usd_value),
+        select(
+            bucket,
+            RealtimeVolume.asset,
+            func.coalesce(func.sum(RealtimeVolume.transfer_count), 0).label("tx_count"),
+            func.coalesce(func.sum(RealtimeVolume.usd_volume), 0).label("usd_value"),
         )
-        for r in reversed(rows)
-    ]
-    return OnchainVolumeResponse(points=points)
+        .where(RealtimeVolume.ts_minute >= cutoff)
+        .group_by(bucket, RealtimeVolume.asset)
+        .order_by(bucket.asc(), RealtimeVolume.asset.asc())
+        .limit(limit)
+    ).all()
+    return OnchainVolumeResponse(
+        points=[
+            OnchainVolumePoint(
+                ts_bucket=r.ts_bucket,
+                asset=r.asset,
+                tx_count=int(r.tx_count),
+                usd_value=float(r.usd_value),
+            )
+            for r in rows
+        ]
+    )
 
 
 @router.get("/order-flow", response_model=OrderFlowResponse)

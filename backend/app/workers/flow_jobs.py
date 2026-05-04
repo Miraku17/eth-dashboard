@@ -41,7 +41,12 @@ async def sync_dune_flows(ctx: dict) -> dict:
         jobs = [
             ("exchange_flows", settings.dune_query_id_exchange_flows, upsert_exchange_flows),
             ("stablecoin_flows", settings.dune_query_id_stablecoin_supply, upsert_stablecoin_flows),
-            ("onchain_volume", settings.dune_query_id_onchain_volume, upsert_onchain_volume),
+            # v4: onchain_volume migrated off Dune. The /api/flows/onchain-volume
+            # endpoint now reads from `realtime_volume` (per-minute USD by asset,
+            # populated by the realtime listener) rolled up to hourly buckets.
+            # The Dune query is preserved in DUNE_QUERY_ID_ONCHAIN_VOLUME for
+            # rollback but no longer executed. Saves ~720 Dune executions/month.
+            # ("onchain_volume", settings.dune_query_id_onchain_volume, upsert_onchain_volume),
             ("staking_flows", settings.dune_query_id_staking_flows, upsert_staking_flows),
             ("staking_flows_by_entity", settings.dune_query_id_staking_flows_by_entity, upsert_staking_flows_by_entity),
             ("bridge_flows", settings.dune_query_id_bridge_flows, upsert_bridge_flows),
