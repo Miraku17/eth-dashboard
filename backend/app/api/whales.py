@@ -12,7 +12,7 @@ from app.api.schemas import (
     WhaleTransfersResponse,
 )
 from app.core.db import get_session
-from app.core.models import PendingTransfer, Transfer
+from app.core.models import PendingTransfer, Transfer, WalletScore
 from app.realtime.labels import label_for
 
 router = APIRouter(prefix="/whales", tags=["whales"])
@@ -43,6 +43,27 @@ def whale_transfers(
     if flow_kind:
         stmt = stmt.where(Transfer.flow_kind.in_(flow_kind))
     rows = session.execute(stmt.order_by(Transfer.ts.desc()).limit(limit)).scalars().all()
+
+    # v4: enrich with wallet_score for both sides of every transfer in a
+    # single batched lookup (one IN-clause SELECT, not 2N round-trips).
+    addrs: set[str] = set()
+    for r in rows:
+        addrs.add(r.from_addr.lower())
+        addrs.add(r.to_addr.lower())
+    score_rows = (
+        session.execute(
+            select(WalletScore.wallet, WalletScore.score, WalletScore.win_rate_30d)
+            .where(WalletScore.wallet.in_(addrs))
+        ).all()
+        if addrs
+        else []
+    )
+    scores: dict[str, tuple[float | None, float | None]] = {
+        w: (float(s) if s is not None else None,
+            float(wr) if wr is not None else None)
+        for (w, s, wr) in score_rows
+    }
+
     return WhaleTransfersResponse(
         transfers=[
             WhaleTransfer(
@@ -58,6 +79,10 @@ def whale_transfers(
                 amount=float(r.amount),
                 usd_value=float(r.usd_value) if r.usd_value is not None else None,
                 flow_kind=r.flow_kind,
+                from_score=scores.get(r.from_addr.lower(), (None, None))[0],
+                to_score=scores.get(r.to_addr.lower(), (None, None))[0],
+                from_win_rate=scores.get(r.from_addr.lower(), (None, None))[1],
+                to_win_rate=scores.get(r.to_addr.lower(), (None, None))[1],
             )
             for r in rows
         ]

@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { fetchHealth, type DataSourceStatus, AUTH_EXPIRED_EVENT } from "../api";
+import { useEffect, useState } from "react";
+import { fetchCandles, fetchHealth, type DataSourceStatus, AUTH_EXPIRED_EVENT } from "../api";
 import { logout } from "../auth";
+import { binanceWS } from "../lib/binanceWS";
 import { useAuthUser } from "./AuthGate";
 import { NavLink, useLocation } from "react-router-dom";
 import { useCustomizeMode } from "../state/customizeMode";
@@ -22,6 +23,94 @@ const SOURCE_LABELS: Record<string, string> = {
   alchemy_blocks: "ETH Node",
   whale_transfers: "Whales",
 };
+
+/**
+ * Live ETH price ticker — sub-second updates via the existing browser→Binance
+ * WebSocket singleton. Bootstrap from /api/price/candles 1m so the navbar
+ * shows a sensible value the instant the page mounts (vs the ~500ms-2s
+ * delay for the first WS trade message). 24h % change is computed from
+ * a single `1h limit=24` REST call once at mount.
+ *
+ * Lives in the navbar so the headline market signal is always visible
+ * without scrolling or switching panels — that's the highest-leverage
+ * single piece of info on any ETH dashboard.
+ */
+function EthTicker() {
+  const [price, setPrice] = useState<number | null>(null);
+  const [pct24, setPct24] = useState<number | null>(null);
+
+  // Bootstrap: most recent 1m candle close gives us the current price
+  // until the WS sends its first trade.
+  const { data: bootstrap } = useQuery({
+    queryKey: ["topbar-eth-price-bootstrap"],
+    queryFn: () => fetchCandles("1m", 1),
+    staleTime: 60_000,
+  });
+  useEffect(() => {
+    if (
+      bootstrap
+      && bootstrap.candles.length > 0
+      && price === null
+    ) {
+      setPrice(bootstrap.candles[bootstrap.candles.length - 1].close);
+    }
+    // We only want this to run once on first bootstrap, not every change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bootstrap]);
+
+  // 24h change: fetch 25 hourly candles (covers a full 24h window plus
+  // the in-progress hour) and diff first vs last close.
+  const { data: hourly } = useQuery({
+    queryKey: ["topbar-eth-24h"],
+    queryFn: () => fetchCandles("1h", 25),
+    refetchInterval: 5 * 60_000,
+  });
+  useEffect(() => {
+    if (hourly && hourly.candles.length >= 2) {
+      const first = hourly.candles[0].close;
+      const last = hourly.candles[hourly.candles.length - 1].close;
+      if (first > 0) setPct24(((last - first) / first) * 100);
+    }
+  }, [hourly]);
+
+  // Live trade subscription.
+  useEffect(() => {
+    return binanceWS.subscribeTrade((m) => setPrice(m.price));
+  }, []);
+
+  if (price === null) {
+    return (
+      <span className="hidden md:inline-flex items-center text-xs text-slate-500 font-mono">
+        ETH —
+      </span>
+    );
+  }
+  const pctTone =
+    pct24 === null ? "text-slate-500" : pct24 >= 0 ? "text-up" : "text-down";
+  const pctSign = pct24 !== null && pct24 >= 0 ? "+" : "";
+  return (
+    <div className="hidden md:flex items-baseline gap-1.5 px-2 py-1 rounded-md bg-surface-raised/40 border border-surface-border/60">
+      <span className="text-[10px] uppercase tracking-wider text-slate-500 font-medium">
+        ETH
+      </span>
+      <span className="font-mono tabular-nums text-sm text-slate-100 font-semibold">
+        $
+        {price >= 1000
+          ? price.toLocaleString("en-US", {
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            })
+          : price.toFixed(2)}
+      </span>
+      {pct24 !== null && (
+        <span className={`font-mono tabular-nums text-[11px] ${pctTone}`}>
+          {pctSign}
+          {pct24.toFixed(2)}%
+        </span>
+      )}
+    </div>
+  );
+}
 
 function EthMark() {
   return (
@@ -174,16 +263,16 @@ export default function Topbar() {
               Pro
             </span>
           </div>
-          <nav className="flex items-center gap-1">
+          <nav className="flex items-center gap-0.5">
             {NAV.map((n) => (
               <NavLink
                 key={n.to}
                 to={n.to}
                 end={n.to === "/"}
                 className={({ isActive }) =>
-                  "px-3 py-1.5 text-sm rounded-md transition " +
+                  "relative px-3 py-1.5 text-sm rounded-md transition " +
                   (isActive
-                    ? "text-slate-100 bg-surface-raised/80"
+                    ? "text-slate-100 font-medium after:absolute after:left-3 after:right-3 after:-bottom-[13px] after:h-[2px] after:bg-brand after:rounded-full"
                     : "text-slate-400 hover:text-slate-200 hover:bg-surface-raised/60")
                 }
               >
@@ -191,6 +280,7 @@ export default function Topbar() {
               </NavLink>
             ))}
           </nav>
+          <EthTicker />
         </div>
         <div className="relative flex items-center gap-4">
           <button

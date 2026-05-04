@@ -50,6 +50,42 @@ function Party({ addr, label }: { addr: string; label: string | null }) {
   );
 }
 
+/**
+ * Smart-money badge — rendered next to addresses whose 30d realized PnL
+ * crosses the threshold. Tooltip carries the underlying numbers so a
+ * user can verify the "smart" verdict at a glance.
+ *
+ * Tier thresholds tuned to be selective: $100k+ realized is the floor
+ * for a 30d "smart trader", $1M+ gets the gold tier. Below $100k we
+ * render nothing — the panel is for whale-grade signal, not noise.
+ */
+const SMART_FLOOR_USD = 100_000;
+const SMART_GOLD_USD = 1_000_000;
+
+function SmartBadge({ score, winRate }: { score: number | null; winRate: number | null }) {
+  if (score === null || score < SMART_FLOOR_USD) return null;
+  const gold = score >= SMART_GOLD_USD;
+  const tone = gold
+    ? "bg-amber-400/15 text-amber-300 ring-amber-400/40"
+    : "bg-emerald-500/10 text-emerald-300 ring-emerald-400/30";
+  const wr = winRate != null ? `${(winRate * 100).toFixed(0)}% win` : "";
+  const pnl = score >= 1_000_000 ? `+$${(score / 1_000_000).toFixed(1)}M` : `+$${(score / 1_000).toFixed(0)}k`;
+  return (
+    <span
+      title={`30d PnL ${pnl}${wr ? " · " + wr : ""}`}
+      className={`inline-flex items-center gap-0.5 text-[9px] font-semibold tracking-wide rounded px-1 py-0.5 ring-1 ${tone}`}
+    >
+      ★ {pnl}
+    </span>
+  );
+}
+
+/** True if either side of a transfer has a score that crosses the smart-money floor. */
+function hasSmartParty(t: { from_score: number | null; to_score: number | null }): boolean {
+  return (t.from_score != null && t.from_score >= SMART_FLOOR_USD)
+      || (t.to_score != null && t.to_score >= SMART_FLOOR_USD);
+}
+
 const ASSET_OPTIONS: readonly { value: WhaleAsset | "ALL"; label: string }[] = [
   { value: "ALL", label: "All" },
   { value: "ETH", label: "ETH" },
@@ -347,12 +383,18 @@ export default function WhaleTransfersPanel() {
               </tr>
             </thead>
             <tbody>
-              {data.map((t, i) => (
+              {data.map((t, i) => {
+                const smart = hasSmartParty(t);
+                return (
                 <tr
                   key={`${t.tx_hash}-${t.log_index}`}
                   className={
                     "row-hover transition " +
-                    (i % 2 === 0 ? "bg-transparent" : "bg-surface-sunken/40")
+                    (smart
+                      ? "bg-emerald-500/5 ring-1 ring-inset ring-emerald-400/20"
+                      : i % 2 === 0
+                        ? "bg-transparent"
+                        : "bg-surface-sunken/40")
                   }
                 >
                   <td className="hidden @md:table-cell px-5 py-2.5 text-slate-400 whitespace-nowrap border-b border-surface-divider/60">
@@ -378,10 +420,16 @@ export default function WhaleTransfersPanel() {
                     </div>
                   </td>
                   <td className="px-3 py-2.5 border-b border-surface-divider/60">
-                    <Party addr={t.from_addr} label={t.from_label} />
+                    <div className="flex items-center gap-1.5">
+                      <Party addr={t.from_addr} label={t.from_label} />
+                      <SmartBadge score={t.from_score} winRate={t.from_win_rate} />
+                    </div>
                   </td>
                   <td className="px-3 py-2.5 border-b border-surface-divider/60">
-                    <Party addr={t.to_addr} label={t.to_label} />
+                    <div className="flex items-center gap-1.5">
+                      <Party addr={t.to_addr} label={t.to_label} />
+                      <SmartBadge score={t.to_score} winRate={t.to_win_rate} />
+                    </div>
                   </td>
                   <td className="px-3 py-2.5 text-right font-mono tabular-nums text-slate-100 border-b border-surface-divider/60">
                     {t.amount >= 1000 ? t.amount.toFixed(0) : t.amount.toFixed(2)}{" "}
@@ -403,7 +451,8 @@ export default function WhaleTransfersPanel() {
                     </a>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
