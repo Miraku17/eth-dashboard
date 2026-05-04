@@ -23,7 +23,10 @@ from app.core.models import AddressLabel, NetworkActivity, PriceCandle, Transfer
 from app.realtime.flow_classifier import classify as classify_flow
 from app.realtime.liquidations import run_loop as run_liquidations_loop
 from app.realtime.mempool import run_mempool_loop
+from app.realtime.order_flow_agg import OrderFlowAggregator
 from app.realtime.supply_agg import SupplyAggregator
+from app.realtime.swap_decoder import decode as decode_swap
+from app.services.dex_pools import POOL_ADDRESSES, SWAP_TOPICS
 from app.realtime.parser import (
     NetworkPoint,
     WhaleTransfer,
@@ -216,6 +219,7 @@ async def _process_block(
     thresholds: tuple[float, float],
     volume_agg: MinuteAggregator | None = None,
     supply_agg: SupplyAggregator | None = None,
+    order_flow_agg: OrderFlowAggregator | None = None,
 ) -> None:
     threshold_eth, threshold_usd = thresholds
     hex_bn = hex(block_number)
@@ -243,6 +247,29 @@ async def _process_block(
         }],
     )
     logs = logs_res.get("result") or []
+
+    # v4 order-flow: separate eth_getLogs filtered to the curated WETH-pool
+    # set + Uniswap V2/V3 Swap topics. Cheap because the pool list is tiny
+    # (<10 addresses) and the topic filter is server-side.
+    if order_flow_agg is not None:
+        try:
+            swap_res = await client.call(
+                "eth_getLogs",
+                [{
+                    "fromBlock": hex_bn,
+                    "toBlock": hex_bn,
+                    "address": list(POOL_ADDRESSES),
+                    "topics": [list(SWAP_TOPICS)],
+                }],
+            )
+            for slg in swap_res.get("result") or []:
+                ev = decode_swap(slg)
+                if ev is not None:
+                    order_flow_agg.add(ev.dex, ev.side, ev.weth_amount, ts)
+        except Exception:
+            # Decoder / log-fetch failures must NOT take down the rest of
+            # the block-processing loop. Order-flow is one signal of many.
+            log.exception("swap log fetch/decode failed at block %d", block_number)
 
     rows: list[WhaleTransfer] = []
     with sessionmaker() as session:
@@ -294,6 +321,12 @@ async def run_once(ws_url: str, sessionmaker, thresholds: tuple[float, float]) -
         volume_agg = MinuteAggregator(sessionmaker)
         supply_agg = SupplyAggregator(sessionmaker)
 
+        def _eth_price() -> float | None:
+            with sessionmaker() as s:
+                return _latest_eth_usd(s)
+
+        order_flow_agg = OrderFlowAggregator(sessionmaker, _eth_price)
+
         def eth_usd_provider() -> float | None:
             with sessionmaker() as session:
                 return _latest_eth_usd(session)
@@ -316,7 +349,8 @@ async def run_once(ws_url: str, sessionmaker, thresholds: tuple[float, float]) -
                     bn = int(head["number"], 16)
                     try:
                         await _process_block(
-                            client, bn, sessionmaker, thresholds, volume_agg, supply_agg
+                            client, bn, sessionmaker, thresholds,
+                            volume_agg, supply_agg, order_flow_agg,
                         )
                     except (asyncio.TimeoutError, ConnectionError):
                         # WS went silent or died mid-block; bail out so the
@@ -335,6 +369,8 @@ async def run_once(ws_url: str, sessionmaker, thresholds: tuple[float, float]) -
                 volume_agg.flush()
             with contextlib.suppress(Exception):
                 supply_agg.flush()
+            with contextlib.suppress(Exception):
+                order_flow_agg.flush()
             pump_task.cancel()
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await pump_task

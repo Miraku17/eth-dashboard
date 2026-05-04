@@ -115,6 +115,12 @@ def upsert_onchain_volume(session: Session, rows: list[dict]) -> int:
 
 
 _ALLOWED_DEXES = ("uniswap_v2", "uniswap_v3", "curve", "balancer", "other")
+# v4: the realtime listener now owns Uniswap V2 and V3 rows in order_flow
+# (live Swap-event decoder, hourly flush, additive). The Dune cron must NOT
+# write those dex values or the 8h Dune snapshot would clobber an entire
+# hour of live data on each cron tick. Curve / Balancer / Other stay on
+# Dune until those decoders ship (cards 10b/c).
+_LIVE_OWNED_DEXES = frozenset({"uniswap_v2", "uniswap_v3"})
 
 
 def upsert_order_flow(session: Session, rows: list[dict]) -> int:
@@ -128,6 +134,9 @@ def upsert_order_flow(session: Session, rows: list[dict]) -> int:
         # Defensive: any unknown dex string from the Dune query falls into 'other'.
         if dex not in _ALLOWED_DEXES:
             dex = "other"
+        # v4: live cron owns these rows — Dune is no longer authoritative.
+        if dex in _LIVE_OWNED_DEXES:
+            continue
         values.append(
             {
                 "ts_bucket": _parse_ts(r["ts_bucket"]),
