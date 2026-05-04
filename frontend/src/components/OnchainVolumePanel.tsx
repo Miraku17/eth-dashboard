@@ -57,13 +57,15 @@ export default function OnchainVolumePanel() {
   return (
     <Card
       title="On-chain transfer volume"
-      subtitle="stacked daily USD across ETH, stables, WETH"
+      subtitle="stacked daily USD · live · derived from realtime listener"
       actions={<FlowRangeSelector value={range} onChange={setRange} options={OPTIONS} />}
     >
       {isLoading && <p className="text-sm text-slate-500">loading…</p>}
       {error && <p className="text-sm text-down">unavailable</p>}
       {!isLoading && !error && pivot.length === 0 && (
-        <p className="text-sm text-slate-500">no data yet — waiting for Dune sync</p>
+        <p className="text-sm text-slate-500">
+          no data yet — waiting for the realtime listener to populate.
+        </p>
       )}
       {pivot.length > 0 && (
         <div className="h-72 -mx-2">
