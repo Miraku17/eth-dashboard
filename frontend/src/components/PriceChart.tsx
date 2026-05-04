@@ -5,6 +5,7 @@ import {
   type IChartApi,
   type ISeriesApi,
   type MouseEventParams,
+  type SeriesType,
   type UTCTimestamp,
 } from "lightweight-charts";
 
@@ -13,6 +14,7 @@ import { formatUsdCompact, formatUsdFull } from "../lib/format";
 import { binanceWS } from "../lib/binanceWS";
 import { useBinanceStatus } from "../hooks/useBinanceStatus";
 import Card from "./ui/Card";
+import ChartTypeSelector, { type ChartType } from "./ChartTypeSelector";
 import TimeframeSelector from "./TimeframeSelector";
 
 type Props = {
@@ -27,7 +29,7 @@ type Hover = {
   up: boolean;
 } | null;
 
-function HoverLegend({ hover }: { hover: Hover }) {
+function HoverLegend({ hover, chartType }: { hover: Hover; chartType: ChartType }) {
   if (!hover) return null;
   const { candle, change, changePct, up } = hover;
   const color = up ? "text-up" : "text-down";
@@ -38,17 +40,24 @@ function HoverLegend({ hover }: { hover: Hover }) {
     hour: "2-digit",
     minute: "2-digit",
   });
+  // Line / area / baseline only have a meaningful "close" — OHLC rows are
+  // noise on those views. Show a compact legend instead.
+  const compact = chartType !== "candles";
   return (
     <div className="pointer-events-none absolute top-3 left-3 z-10 rounded-md border border-surface-border bg-surface-card/85 backdrop-blur-md px-3 py-2 text-xs font-mono tabular-nums shadow-card">
       <div className="text-[10px] tracking-wider uppercase text-slate-500 mb-1">{dateStr}</div>
       <div className="grid grid-cols-[auto_auto] gap-x-4 gap-y-0.5">
-        <span className="text-slate-500">O</span>
-        <span className="text-slate-200 text-right">{formatUsdFull(candle.open)}</span>
-        <span className="text-slate-500">H</span>
-        <span className="text-slate-200 text-right">{formatUsdFull(candle.high)}</span>
-        <span className="text-slate-500">L</span>
-        <span className="text-slate-200 text-right">{formatUsdFull(candle.low)}</span>
-        <span className="text-slate-500">C</span>
+        {!compact && (
+          <>
+            <span className="text-slate-500">O</span>
+            <span className="text-slate-200 text-right">{formatUsdFull(candle.open)}</span>
+            <span className="text-slate-500">H</span>
+            <span className="text-slate-200 text-right">{formatUsdFull(candle.high)}</span>
+            <span className="text-slate-500">L</span>
+            <span className="text-slate-200 text-right">{formatUsdFull(candle.low)}</span>
+          </>
+        )}
+        <span className="text-slate-500">{compact ? "Price" : "C"}</span>
         <span className={color + " text-right font-semibold"}>
           {formatUsdFull(candle.close)}
         </span>
@@ -71,12 +80,36 @@ function HoverLegend({ hover }: { hover: Hover }) {
   );
 }
 
+const STORAGE_KEY = "eth.priceChart.chartType";
+
+function loadChartType(): ChartType {
+  if (typeof window === "undefined") return "candles";
+  const v = window.localStorage.getItem(STORAGE_KEY);
+  if (v === "candles" || v === "line" || v === "area" || v === "baseline") return v;
+  return "candles";
+}
+
 export default function PriceChart({ timeframe, onTimeframeChange }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  // Single price-series ref; the type changes when the user flips chartType
+  // (candlestick / line / area / baseline). The volume histogram below
+  // stays the same regardless.
+  const priceSeriesRef = useRef<ISeriesApi<SeriesType> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const candleMapRef = useRef<Map<number, Candle>>(new Map());
+
+  const [chartType, setChartType] = useState<ChartType>(loadChartType);
+  // Keep a ref synced to chartType so the live-tick handler picks the
+  // right series-update shape without recreating its closure on every
+  // type change.
+  const chartTypeRef = useRef<ChartType>(chartType);
+  useEffect(() => {
+    chartTypeRef.current = chartType;
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY, chartType);
+    }
+  }, [chartType]);
 
   const [hover, setHover] = useState<Hover>(null);
 
@@ -91,6 +124,8 @@ export default function PriceChart({ timeframe, onTimeframeChange }: Props) {
     refetchOnWindowFocus: false,
   });
 
+  // Initial chart setup (runs once). Price series is added/replaced by a
+  // separate effect that responds to chartType.
   useEffect(() => {
     if (!containerRef.current || chartRef.current) return;
 
@@ -118,14 +153,6 @@ export default function PriceChart({ timeframe, onTimeframeChange }: Props) {
       height: 460,
     });
 
-    const candleSeries = chart.addCandlestickSeries({
-      upColor: "#19c37d",
-      downColor: "#ff5c62",
-      borderVisible: false,
-      wickUpColor: "#19c37d",
-      wickDownColor: "#ff5c62",
-    });
-
     const volumeSeries = chart.addHistogramSeries({
       priceFormat: { type: "volume" },
       priceScaleId: "volume",
@@ -135,7 +162,6 @@ export default function PriceChart({ timeframe, onTimeframeChange }: Props) {
     });
 
     chartRef.current = chart;
-    candleSeriesRef.current = candleSeries;
     volumeSeriesRef.current = volumeSeries;
 
     const onCrosshairMove = (p: MouseEventParams) => {
@@ -166,25 +192,78 @@ export default function PriceChart({ timeframe, onTimeframeChange }: Props) {
       chart.unsubscribeCrosshairMove(onCrosshairMove);
       chart.remove();
       chartRef.current = null;
-      candleSeriesRef.current = null;
+      priceSeriesRef.current = null;
       volumeSeriesRef.current = null;
     };
   }, []);
 
+  // Add/replace the price series whenever chartType changes. We also
+  // re-apply the current data to the new series so switching modes
+  // doesn't blank out the chart for a frame.
   useEffect(() => {
-    if (!data || !candleSeriesRef.current || !volumeSeriesRef.current) return;
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    // Remove the old series so we don't pile up.
+    if (priceSeriesRef.current) {
+      chart.removeSeries(priceSeriesRef.current);
+      priceSeriesRef.current = null;
+    }
+
+    let series: ISeriesApi<SeriesType>;
+    if (chartType === "candles") {
+      series = chart.addCandlestickSeries({
+        upColor: "#19c37d",
+        downColor: "#ff5c62",
+        borderVisible: false,
+        wickUpColor: "#19c37d",
+        wickDownColor: "#ff5c62",
+      });
+    } else if (chartType === "line") {
+      series = chart.addLineSeries({
+        color: "#7c83ff",
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: true,
+      });
+    } else if (chartType === "area") {
+      series = chart.addAreaSeries({
+        lineColor: "#7c83ff",
+        topColor: "rgba(124,131,255,0.30)",
+        bottomColor: "rgba(124,131,255,0.02)",
+        lineWidth: 2,
+      });
+    } else {
+      // baseline — green above the first-close baseline, red below.
+      // baseValue.price is set after we know the data, in the data effect.
+      series = chart.addBaselineSeries({
+        topLineColor: "#19c37d",
+        topFillColor1: "rgba(25,195,125,0.28)",
+        topFillColor2: "rgba(25,195,125,0.02)",
+        bottomLineColor: "#ff5c62",
+        bottomFillColor1: "rgba(255,92,98,0.02)",
+        bottomFillColor2: "rgba(255,92,98,0.28)",
+        lineWidth: 2,
+        baseValue: { type: "price", price: 0 }, // overwritten when data lands
+      });
+    }
+    priceSeriesRef.current = series;
+
+    // If we already have data buffered, apply it to the new series so
+    // there's no blank frame on type-switch.
+    if (data && data.candles.length > 0) {
+      applyDataToPriceSeries(series, chartType, data.candles);
+    }
+  }, [chartType, data]);
+
+  // When fresh historical data lands, reseed the candle map AND both
+  // series. Volume histogram is the same shape across all chart types.
+  useEffect(() => {
+    if (!data || !volumeSeriesRef.current) return;
 
     const map = new Map<number, Candle>();
-    const candles = data.candles.map((c) => {
-      map.set(c.time, c);
-      return {
-        time: c.time as UTCTimestamp,
-        open: c.open,
-        high: c.high,
-        low: c.low,
-        close: c.close,
-      };
-    });
+    for (const c of data.candles) map.set(c.time, c);
+
     const volumes = data.candles.map((c) => ({
       time: c.time as UTCTimestamp,
       value: c.volume,
@@ -192,8 +271,10 @@ export default function PriceChart({ timeframe, onTimeframeChange }: Props) {
     }));
 
     candleMapRef.current = map;
-    candleSeriesRef.current.setData(candles);
     volumeSeriesRef.current.setData(volumes);
+    if (priceSeriesRef.current) {
+      applyDataToPriceSeries(priceSeriesRef.current, chartType, data.candles);
+    }
 
     // Seed the hover with the most recent candle so the legend is populated
     // even before the user moves their mouse.
@@ -203,10 +284,11 @@ export default function PriceChart({ timeframe, onTimeframeChange }: Props) {
       const changePct = last.open > 0 ? (change / last.open) * 100 : 0;
       setHover({ candle: last, change, changePct, up: last.close >= last.open });
     }
-  }, [data]);
+  }, [data, chartType]);
 
-  // Live-tick the last candle in place. Lightweight Charts' series.update()
-  // recognises matching `time` as the last bar and updates without flicker.
+  // Live-tick the last bar in place. Each chart type takes a different
+  // update payload shape — the tick handler reads chartTypeRef so we
+  // don't have to re-subscribe when the user flips type.
   const handleTick = useCallback(
     (m: {
       openTime: number;
@@ -217,17 +299,23 @@ export default function PriceChart({ timeframe, onTimeframeChange }: Props) {
       volume: number;
       closed: boolean;
     }) => {
-      const candleSeries = candleSeriesRef.current;
+      const priceSeries = priceSeriesRef.current;
       const volumeSeries = volumeSeriesRef.current;
-      if (!candleSeries || !volumeSeries) return;
+      if (!priceSeries || !volumeSeries) return;
       const t = m.openTime as UTCTimestamp;
-      candleSeries.update({
-        time: t,
-        open: m.open,
-        high: m.high,
-        low: m.low,
-        close: m.close,
-      });
+      const type = chartTypeRef.current;
+      if (type === "candles") {
+        priceSeries.update({
+          time: t,
+          open: m.open,
+          high: m.high,
+          low: m.low,
+          close: m.close,
+        } as never);
+      } else {
+        // line / area / baseline — single-value point, close.
+        priceSeries.update({ time: t, value: m.close } as never);
+      }
       volumeSeries.update({
         time: t,
         value: m.volume,
@@ -276,13 +364,55 @@ export default function PriceChart({ timeframe, onTimeframeChange }: Props) {
               : `${data?.candles.length ?? 0} ${timeframe} candles · Binance live`
       }
       live
-      actions={<TimeframeSelector value={timeframe} onChange={onTimeframeChange} />}
+      actions={
+        <div className="flex flex-wrap items-center gap-2 justify-end">
+          <ChartTypeSelector value={chartType} onChange={setChartType} />
+          <TimeframeSelector value={timeframe} onChange={onTimeframeChange} />
+        </div>
+      }
       bodyClassName="p-0"
     >
       <div className="relative pt-2 pb-3">
-        <HoverLegend hover={hover} />
+        <HoverLegend hover={hover} chartType={chartType} />
         <div ref={containerRef} className="w-full overflow-hidden" />
       </div>
     </Card>
   );
+}
+
+/**
+ * Converts the project's `Candle[]` shape to whatever the active series
+ * type expects, then writes it. Centralised so both the historical-data
+ * effect and the chart-type-switch effect share one implementation.
+ *
+ * For baseline mode, also sets `baseValue` to the first close in the
+ * window so the green/red split marks "where price started".
+ */
+function applyDataToPriceSeries(
+  series: ISeriesApi<SeriesType>,
+  type: ChartType,
+  candles: Candle[],
+): void {
+  if (type === "candles") {
+    series.setData(
+      candles.map((c) => ({
+        time: c.time as UTCTimestamp,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+      })) as never,
+    );
+    return;
+  }
+  const points = candles.map((c) => ({
+    time: c.time as UTCTimestamp,
+    value: c.close,
+  }));
+  if (type === "baseline" && candles.length > 0) {
+    series.applyOptions({
+      baseValue: { type: "price", price: candles[0].close },
+    });
+  }
+  series.setData(points as never);
 }
