@@ -26,6 +26,7 @@ from app.realtime.mempool import run_mempool_loop
 from app.realtime.order_flow_agg import OrderFlowAggregator
 from app.realtime.supply_agg import SupplyAggregator
 from app.realtime.swap_decoder import decode as decode_swap
+from app.realtime.volume_bucket_agg import VolumeBucketAggregator
 from app.services.dex_pools import POOL_ADDRESSES, SWAP_TOPICS
 from app.realtime.parser import (
     NetworkPoint,
@@ -220,6 +221,7 @@ async def _process_block(
     volume_agg: MinuteAggregator | None = None,
     supply_agg: SupplyAggregator | None = None,
     order_flow_agg: OrderFlowAggregator | None = None,
+    volume_bucket_agg: VolumeBucketAggregator | None = None,
 ) -> None:
     threshold_eth, threshold_usd = thresholds
     hex_bn = hex(block_number)
@@ -248,10 +250,11 @@ async def _process_block(
     )
     logs = logs_res.get("result") or []
 
-    # v4 order-flow: separate eth_getLogs filtered to the curated WETH-pool
-    # set + Uniswap V2/V3 Swap topics. Cheap because the pool list is tiny
-    # (<10 addresses) and the topic filter is server-side.
-    if order_flow_agg is not None:
+    # v4 order-flow + volume-buckets: single eth_getLogs filtered to the
+    # curated WETH-pool set + Uniswap V2/V3 + Curve + Balancer Swap topics.
+    # The decoder dispatches per-event; both aggregators consume the same
+    # SwapEvent stream so we only fetch logs once.
+    if order_flow_agg is not None or volume_bucket_agg is not None:
         try:
             swap_res = await client.call(
                 "eth_getLogs",
@@ -264,8 +267,15 @@ async def _process_block(
             )
             for slg in swap_res.get("result") or []:
                 ev = decode_swap(slg)
-                if ev is not None:
+                if ev is None:
+                    continue
+                if order_flow_agg is not None:
                     order_flow_agg.add(ev.dex, ev.side, ev.weth_amount, ts)
+                # Volume buckets need USD per-event (bucket assignment
+                # depends on USD value). Use the block's eth_usd snapshot —
+                # already fetched a few lines above for the native-tx path.
+                if volume_bucket_agg is not None and eth_usd is not None:
+                    volume_bucket_agg.add(ev.weth_amount * eth_usd, ts)
         except Exception:
             # Decoder / log-fetch failures must NOT take down the rest of
             # the block-processing loop. Order-flow is one signal of many.
@@ -326,6 +336,7 @@ async def run_once(ws_url: str, sessionmaker, thresholds: tuple[float, float]) -
                 return _latest_eth_usd(s)
 
         order_flow_agg = OrderFlowAggregator(sessionmaker, _eth_price)
+        volume_bucket_agg = VolumeBucketAggregator(sessionmaker)
 
         def eth_usd_provider() -> float | None:
             with sessionmaker() as session:
@@ -351,6 +362,7 @@ async def run_once(ws_url: str, sessionmaker, thresholds: tuple[float, float]) -
                         await _process_block(
                             client, bn, sessionmaker, thresholds,
                             volume_agg, supply_agg, order_flow_agg,
+                            volume_bucket_agg,
                         )
                     except (asyncio.TimeoutError, ConnectionError):
                         # WS went silent or died mid-block; bail out so the
@@ -371,6 +383,8 @@ async def run_once(ws_url: str, sessionmaker, thresholds: tuple[float, float]) -
                 supply_agg.flush()
             with contextlib.suppress(Exception):
                 order_flow_agg.flush()
+            with contextlib.suppress(Exception):
+                volume_bucket_agg.flush()
             pump_task.cancel()
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await pump_task
