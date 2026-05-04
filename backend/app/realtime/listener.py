@@ -19,7 +19,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
-from app.core.models import NetworkActivity, PriceCandle, Transfer
+from app.core.models import AddressLabel, NetworkActivity, PriceCandle, Transfer
+from app.realtime.flow_classifier import classify as classify_flow
 from app.realtime.liquidations import run_loop as run_liquidations_loop
 from app.realtime.mempool import run_mempool_loop
 from app.realtime.parser import (
@@ -68,9 +69,39 @@ def _latest_eth_usd(session: Session) -> float | None:
     return float(row.close) if row else None
 
 
+def _classify_batch(
+    session: Session, rows: list[WhaleTransfer]
+) -> dict[tuple[str, int], str]:
+    """Look up address labels for both sides of each transfer in a single
+    SELECT, then run the pure classifier per row. Returns
+    {(tx_hash, log_index): flow_kind} so the insert can pick up the right
+    value per row by composite key."""
+    if not rows:
+        return {}
+    addrs: set[str] = set()
+    for r in rows:
+        addrs.add(r.from_addr.lower())
+        addrs.add(r.to_addr.lower())
+    label_rows = session.execute(
+        select(AddressLabel.address, AddressLabel.category).where(
+            AddressLabel.address.in_(addrs)
+        )
+    ).all()
+    cat_by_addr: dict[str, str] = {a: c for (a, c) in label_rows}
+
+    out: dict[tuple[str, int], str] = {}
+    for r in rows:
+        out[(r.tx_hash, r.log_index)] = classify_flow(
+            cat_by_addr.get(r.from_addr.lower()),
+            cat_by_addr.get(r.to_addr.lower()),
+        )
+    return out
+
+
 def _persist(session: Session, rows: list[WhaleTransfer]) -> int:
     if not rows:
         return 0
+    flow_by_row = _classify_batch(session, rows)
     stmt = insert(Transfer).values([
         {
             "tx_hash": r.tx_hash,
@@ -82,6 +113,7 @@ def _persist(session: Session, rows: list[WhaleTransfer]) -> int:
             "asset": r.asset,
             "amount": r.amount,
             "usd_value": r.usd_value,
+            "flow_kind": flow_by_row.get((r.tx_hash, r.log_index)),
         }
         for r in rows
     ])
