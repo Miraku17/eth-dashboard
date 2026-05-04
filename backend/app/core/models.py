@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     Numeric,
+    SmallInteger,
     String,
     UniqueConstraint,
 )
@@ -348,3 +349,25 @@ class WalletCluster(Base):
         DateTime(timezone=True), index=True
     )
     payload: Mapped[dict] = mapped_column(JSONB)
+
+
+class AddressLabel(Base):
+    """Curated + heuristic label registry — single source of truth used by
+    the realtime listener's flow classifier (v4). Each row maps an Ethereum
+    address to a category (cex / dex_router / lending / staking / etc.) so
+    transfers can be tagged with their `flow_kind` at write time.
+
+    `address`     -- lowercase 0x… mainnet address (PK).
+    `category`    -- enum-like; see app.services.address_labels.LabelCategory.
+    `label`       -- human-readable display name (e.g. "Binance hot 14").
+    `source`      -- 'curated' | 'heuristic' | 'etherscan'.
+    `confidence`  -- 0-100; curated entries default to 100. Heuristic entries
+                     vary based on signal strength.
+    """
+    __tablename__ = "address_label"
+    address: Mapped[str] = mapped_column(String(42), primary_key=True)
+    category: Mapped[str] = mapped_column(String(24), index=True)
+    label: Mapped[str] = mapped_column(String(80))
+    source: Mapped[str] = mapped_column(String(16))
+    confidence: Mapped[int] = mapped_column(SmallInteger, default=100)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
