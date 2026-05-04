@@ -131,13 +131,18 @@ def main() -> int:
 
     section("== Live aggregators (replaces Dune) ==")
 
-    # 3. Migrated tables have FRESH data (last write within window).
-    #    realtime_volume + stablecoin_flows + order_flow flush hourly.
-    #    staking_flows updates every 5 min via beacon cron.
-    fresh_window_hourly = now - timedelta(hours=2)
-    fresh_window_5min = now - timedelta(minutes=15)
+    # 3. Migrated tables have FRESH data.
+    #
+    # IMPORTANT: every aggregator we check stores `ts_bucket` as the
+    # HOUR-rounded-down timestamp (so the bucket for swaps between
+    # 07:00 and 07:59 has ts_bucket=07:00:00). The "latest" ts_bucket
+    # at any time is therefore between 0 and 60 minutes old, and only
+    # advances to the new hour after the first flush in that hour. We
+    # use a 2-hour window across the board — anything older than that
+    # means the cron / listener stopped writing entirely.
+    fresh_window = now - timedelta(hours=2)
 
-    def _check_freshness(label: str, model, ts_attr: str, fresh_within: datetime) -> None:
+    def _check_freshness(label: str, model, ts_attr: str) -> None:
         latest = s.execute(
             select(getattr(model, ts_attr)).order_by(getattr(model, ts_attr).desc()).limit(1)
         ).scalar()
@@ -145,15 +150,15 @@ def main() -> int:
             _record("WARN", label, "no rows yet (listener / cron just started?)")
             return
         age = now - latest
-        if latest >= fresh_within:
+        if latest >= fresh_window:
             _record("PASS", label, f"latest at {latest.isoformat()[:19]} ({_age_str(age)} ago)")
         else:
             _record("FAIL", label, f"stale: latest at {latest.isoformat()[:19]} ({_age_str(age)} ago)")
 
-    _check_freshness("stablecoin_flows", StablecoinFlow, "ts_bucket", fresh_window_hourly)
-    _check_freshness("staking_flows", StakingFlow, "ts_bucket", fresh_window_5min)
-    _check_freshness("staking_flows_by_entity", StakingFlowByEntity, "ts_bucket", fresh_window_5min)
-    _check_freshness("volume_buckets", VolumeBucket, "ts_bucket", fresh_window_hourly)
+    _check_freshness("stablecoin_flows", StablecoinFlow, "ts_bucket")
+    _check_freshness("staking_flows", StakingFlow, "ts_bucket")
+    _check_freshness("staking_flows_by_entity", StakingFlowByEntity, "ts_bucket")
+    _check_freshness("volume_buckets", VolumeBucket, "ts_bucket")
 
     # order_flow needs a freshness AND a per-DEX coverage check.
     of_latest = s.execute(
@@ -163,7 +168,7 @@ def main() -> int:
         _record("WARN", "order_flow", "no rows")
     else:
         age = now - of_latest
-        level = "PASS" if of_latest >= fresh_window_hourly else "FAIL"
+        level = "PASS" if of_latest >= fresh_window else "FAIL"
         _record(level, "order_flow", f"latest {of_latest.isoformat()[:19]} ({_age_str(age)})")
 
         # Each named DEX should have at least one row in the last 24h.
