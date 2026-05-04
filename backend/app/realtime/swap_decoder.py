@@ -29,9 +29,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.services.dex_pools import (
+    BALANCER_SWAP_TOPIC,
+    BALANCER_VAULT_ADDRESS,
+    CURVE_TOKEN_EXCHANGE_TOPIC,
     POOL_BY_ADDRESS,
     UNISWAP_V2_SWAP_TOPIC,
     UNISWAP_V3_SWAP_TOPIC,
+    WETH,
 )
 
 WETH_DECIMALS = 18
@@ -82,9 +86,13 @@ def decode(log: dict) -> SwapEvent | None:
     topic0 = topics[0].lower()
 
     if pool.dex == "uniswap_v2" and topic0 == UNISWAP_V2_SWAP_TOPIC:
-        return _decode_v2(log, pool.weth_is_token0)
+        return _decode_v2(log, bool(pool.weth_is_token0))
     if pool.dex == "uniswap_v3" and topic0 == UNISWAP_V3_SWAP_TOPIC:
-        return _decode_v3(log, pool.weth_is_token0)
+        return _decode_v3(log, bool(pool.weth_is_token0))
+    if pool.dex == "curve" and topic0 == CURVE_TOKEN_EXCHANGE_TOPIC:
+        return _decode_curve(log, pool.weth_index)
+    if pool.dex == "balancer" and topic0 == BALANCER_SWAP_TOPIC:
+        return _decode_balancer(log)
     return None
 
 
@@ -144,3 +152,79 @@ def _decode_v3(log: dict, weth_is_token0: bool) -> SwapEvent | None:
     if amt <= 0:
         return None
     return SwapEvent(dex="uniswap_v3", side=side, weth_amount=amt)
+
+
+def _decode_curve(log: dict, weth_index: int | None) -> SwapEvent | None:
+    """Curve TokenExchange:
+        TokenExchange(buyer indexed, sold_id int128, tokens_sold uint256,
+                      bought_id int128, tokens_bought uint256)
+    Non-indexed fields → 4 words (128 bytes) in `data`.
+
+    Direction: if sold_id == weth_index, the user GAVE WETH to the pool
+    (sell). If bought_id == weth_index, the user RECEIVED WETH (buy).
+    Anything else means the swap didn't involve WETH in this pool — None.
+    """
+    if weth_index is None:
+        return None
+    data = log.get("data") or "0x"
+    words = _slice_words(data)
+    if len(words) < 4:
+        return None
+    try:
+        sold_id = _hex_to_int(words[0])
+        tokens_sold = _hex_to_uint(words[1])
+        bought_id = _hex_to_int(words[2])
+        tokens_bought = _hex_to_uint(words[3])
+    except ValueError:
+        return None
+    if sold_id == weth_index:
+        amt = tokens_sold / _WEI_PER_ETH
+        side = "sell"
+    elif bought_id == weth_index:
+        amt = tokens_bought / _WEI_PER_ETH
+        side = "buy"
+    else:
+        return None
+    if amt <= 0:
+        return None
+    return SwapEvent(dex="curve", side=side, weth_amount=amt)
+
+
+def _decode_balancer(log: dict) -> SwapEvent | None:
+    """Balancer V2 Vault Swap:
+        Swap(poolId bytes32 indexed, tokenIn address indexed,
+             tokenOut address indexed, amountIn uint256, amountOut uint256)
+    3 indexed → topics[0..3]. Non-indexed → 2 words in `data`
+    (amountIn, amountOut).
+
+    The Vault emits a Swap for EVERY swap across all Balancer V2 pools;
+    most don't involve WETH. We filter at decode time by checking
+    tokenIn (topics[2]) and tokenOut (topics[3]) against the WETH
+    address. Non-WETH swaps return None — the listener buckets them as
+    'no event found' which is correct.
+    """
+    topics = log.get("topics") or []
+    if len(topics) < 4:
+        return None
+    token_in = "0x" + topics[2][-40:].lower()
+    token_out = "0x" + topics[3][-40:].lower()
+    data = log.get("data") or "0x"
+    words = _slice_words(data)
+    if len(words) < 2:
+        return None
+    try:
+        amount_in = _hex_to_uint(words[0])
+        amount_out = _hex_to_uint(words[1])
+    except ValueError:
+        return None
+    if token_in == WETH:
+        amt = amount_in / _WEI_PER_ETH
+        side = "sell"
+    elif token_out == WETH:
+        amt = amount_out / _WEI_PER_ETH
+        side = "buy"
+    else:
+        return None
+    if amt <= 0:
+        return None
+    return SwapEvent(dex="balancer", side=side, weth_amount=amt)
