@@ -20,12 +20,15 @@ def _key(ip: str) -> str:
 
 
 def register_login_failure(ip: str) -> None:
-    """Increment the counter and (re)apply the window TTL on the first hit."""
+    """Increment the counter and apply the window TTL on the first hit.
+
+    Two-call pattern (INCR then conditional EXPIRE) instead of a pipelined
+    EXPIRE … NX so we don't require Redis 7+.
+    """
     c = _client()
-    pipe = c.pipeline()
-    pipe.incr(_key(ip))
-    pipe.expire(_key(ip), WINDOW_SECONDS, nx=True)
-    pipe.execute()
+    key = _key(ip)
+    if c.incr(key) == 1:
+        c.expire(key, WINDOW_SECONDS)
 
 
 def check_login_ip(ip: str) -> None:
