@@ -641,3 +641,29 @@ class WalletProfile(BaseModel):
     linked_wallets: list[LinkedWallet] = []
     token_holdings: list[TokenHolding] = []
     balance_unavailable: bool = False
+
+
+# ── Market regime classifier (v4 card 9) ─────────────────────────────
+
+RegimeLabel = Literal[
+    "neutral", "accumulation", "distribution", "euphoria", "capitulation"
+]
+
+
+class RegimeFeature(BaseModel):
+    name: str
+    raw: float
+    baseline_mean: float
+    baseline_std: float
+    z: float = Field(description="signed, clipped to ±3; positive = bearish bias")
+    weight: float
+    contribution: float = Field(description="z * weight — what enters the score")
+    as_of: datetime | None = None
+
+
+class RegimeResponse(BaseModel):
+    label: RegimeLabel
+    score: float = Field(description="signed total — positive bearish, negative bullish")
+    confidence: float = Field(ge=0, le=1)
+    computed_at: datetime
+    features: list[RegimeFeature]

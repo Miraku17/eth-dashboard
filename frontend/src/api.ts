@@ -760,3 +760,37 @@ export async function fetchWalletProfile(address: string): Promise<WalletProfile
   if (!r.ok) throw new Error(`fetchWalletProfile failed: ${r.status}`);
   return r.json();
 }
+
+// ---------- Market regime classifier (v4 card 9) ----------
+
+export type RegimeLabel =
+  | "neutral"
+  | "accumulation"
+  | "distribution"
+  | "euphoria"
+  | "capitulation";
+
+export type RegimeFeature = {
+  name: string;
+  raw: number;
+  baseline_mean: number;
+  baseline_std: number;
+  z: number;
+  weight: number;
+  contribution: number;
+  as_of: string | null;
+};
+
+export type RegimeResponse = {
+  label: RegimeLabel;
+  score: number;
+  confidence: number;
+  computed_at: string;
+  features: RegimeFeature[];
+};
+
+export async function fetchRegime(): Promise<RegimeResponse> {
+  const r = await apiFetch(`/api/regime`);
+  if (!r.ok) throw new Error(`fetchRegime failed: ${r.status}`);
+  return r.json();
+}
