@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -19,10 +19,24 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    # Bind host port to localhost only — the api/worker/realtime
+    # containers reach redis over the internal docker network, so the
+    # host mapping is only useful for local debugging via redis-cli.
+    # Exposing 6379 on 0.0.0.0 invites REPLICAOF / CONFIG-SET attacks.
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
+    # Disable the dangerous commands attackers chain together to write
+    # SSH keys / cron jobs / replication payloads. Renaming to "" drops them.
+    command: >
+      redis-server
+      --rename-command CONFIG ""
+      --rename-command REPLICAOF ""
+      --rename-command SLAVEOF ""
+      --rename-command DEBUG ""
+      --rename-command FLUSHALL ""
+      --rename-command FLUSHDB ""
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
