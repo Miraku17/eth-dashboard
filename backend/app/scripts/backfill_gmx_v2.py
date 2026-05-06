@@ -68,23 +68,50 @@ async def _get_latest_block(http_url: str) -> int:
         return int(r.json()["result"], 16)
 
 
+async def _rpc_with_retry(http: httpx.AsyncClient, http_url: str, payload: dict, *, label: str):
+    """POST a JSON-RPC call with up to 4 retries on transient errors.
+
+    Triggers a retry on:
+    - HTTP 5xx (server / load-balancer noise)
+    - HTTP 429 (rate limit)
+    - JSON-RPC body error (some providers return 200 with error in body)
+    Backoff: 1s, 2s, 4s, 8s.
+    """
+    last_exc: Exception | None = None
+    for attempt in range(5):
+        try:
+            r = await http.post(http_url, json=payload)
+            if r.status_code >= 500 or r.status_code == 429:
+                raise RuntimeError(f"{label} HTTP {r.status_code}")
+            r.raise_for_status()
+            body = r.json()
+            if "error" in body:
+                raise RuntimeError(f"{label} JSON-RPC error: {body['error']}")
+            return body.get("result")
+        except Exception as e:
+            last_exc = e
+            if attempt < 4:
+                await asyncio.sleep(2**attempt)
+    assert last_exc is not None
+    raise last_exc
+
+
 async def _get_logs(
     http: httpx.AsyncClient, http_url: str, *, from_block: int, to_block: int,
 ) -> list[dict]:
-    r = await http.post(http_url, json={
-        "jsonrpc": "2.0", "id": 1, "method": "eth_getLogs",
-        "params": [{
-            "fromBlock": hex(from_block),
-            "toBlock": hex(to_block),
-            "address": GMX_V2_EVENT_EMITTER,
-            "topics": [None, [_TOPIC_POSITION_INCREASE, _TOPIC_POSITION_DECREASE]],
-        }],
-    })
-    r.raise_for_status()
-    body = r.json()
-    if "error" in body:
-        raise RuntimeError(f"eth_getLogs error: {body['error']}")
-    return body.get("result") or []
+    return await _rpc_with_retry(
+        http, http_url,
+        {
+            "jsonrpc": "2.0", "id": 1, "method": "eth_getLogs",
+            "params": [{
+                "fromBlock": hex(from_block),
+                "toBlock": hex(to_block),
+                "address": GMX_V2_EVENT_EMITTER,
+                "topics": [None, [_TOPIC_POSITION_INCREASE, _TOPIC_POSITION_DECREASE]],
+            }],
+        },
+        label="eth_getLogs",
+    ) or []
 
 
 async def _get_block_timestamps(
