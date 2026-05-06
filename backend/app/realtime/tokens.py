@@ -50,6 +50,8 @@ STABLES: tuple[StableToken, ...] = (
     StableToken("USDe",  "0x4c9edd5852cd905f086c759e8383e09bff1e68b3", 18, "USD", 1.00),
     StableToken("XSGD",  "0x70e8de73ce538da2beed35d14187f6959a8eca96", 6,  "SGD", 0.74),
     StableToken("BRZ",   "0x01d33fd36ec67c6ada32cf36b31e88ee190b1839", 18, "BRL", 0.20),
+    # Stasis EURS — note: 2-decimal token (most stables are 6 or 18).
+    StableToken("EURS",  "0xdb25f211ab05b1c97d595516f45794528a807ad8", 2,  "EUR", 1.08),
 )
 
 STABLES_BY_ADDRESS: dict[str, StableToken] = {t.address: t for t in STABLES}

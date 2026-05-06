@@ -79,6 +79,10 @@ export const ASSET_COLOR: Record<string, AssetColor> = {
     rgb: "rgb(52 211 153)", // emerald-400
     badgeClasses: "bg-emerald-500/10 text-emerald-300 ring-emerald-400/20",
   },
+  EURS: {
+    rgb: "rgb(56 189 248)", // sky-400
+    badgeClasses: "bg-sky-500/10 text-sky-300 ring-sky-400/20",
+  },
 
   // Other currency stables
   ZCHF: {

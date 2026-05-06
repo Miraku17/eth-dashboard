@@ -101,7 +101,7 @@ WhaleAsset = Literal[
     "PYUSD", "FDUSD", "USDS", "GHO", "EUROC", "ZCHF",
     "EURCV", "EURe", "tGBP",
     "USDe",
-    "XSGD", "BRZ",
+    "XSGD", "BRZ", "EURS",
     "ANY",
 ]
 

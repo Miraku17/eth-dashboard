@@ -292,7 +292,7 @@ export type WhaleAsset =
   | "PYUSD" | "FDUSD" | "USDS" | "GHO" | "EUROC" | "ZCHF"
   | "EURCV" | "EURe" | "tGBP"
   | "USDe"
-  | "XSGD" | "BRZ";
+  | "XSGD" | "BRZ" | "EURS";
 
 export type FlowKind =
   | "wallet_to_cex"

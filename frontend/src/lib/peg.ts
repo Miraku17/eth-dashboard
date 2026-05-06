@@ -11,6 +11,7 @@ export const PEG_BY_ASSET: Record<string, PegCurrency> = {
   EUROC: "EUR",
   EURCV: "EUR",
   EURe: "EUR",
+  EURS: "EUR",
   ZCHF: "CHF",
   tGBP: "GBP",
   USDe: "USD",
