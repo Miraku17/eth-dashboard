@@ -794,3 +794,81 @@ export async function fetchRegime(): Promise<RegimeResponse> {
   if (!r.ok) throw new Error(`fetchRegime failed: ${r.status}`);
   return r.json();
 }
+
+// ---------- On-chain perps (v5 — GMX V2) ----------
+
+export type PerpEventKind = "open" | "increase" | "close" | "decrease" | "liquidation";
+export type PerpSide = "long" | "short";
+
+export type PerpEvent = {
+  ts: string;
+  venue: string;
+  account: string;
+  market: string;
+  event_kind: PerpEventKind;
+  side: PerpSide;
+  size_usd: number;
+  size_after_usd: number;
+  collateral_usd: number;
+  leverage: number;
+  price_usd: number;
+  pnl_usd: number | null;
+  tx_hash: string;
+};
+
+export type PerpEventsResponse = { events: PerpEvent[] };
+
+export type PerpSummary = {
+  hours: number;
+  opens_count: number;
+  closes_count: number;
+  liquidations_count: number;
+  total_long_liq_usd: number;
+  total_short_liq_usd: number;
+  biggest_liq_usd: number;
+  biggest_liq_account: string | null;
+  biggest_liq_market: string | null;
+  biggest_liq_ts: string | null;
+  open_long_size_usd: number;
+  open_short_size_usd: number;
+  long_short_skew: number;
+};
+
+export type PerpPosition = {
+  account: string;
+  market: string;
+  side: PerpSide;
+  size_usd: number;
+  collateral_usd: number;
+  leverage: number;
+  opened_at: string;
+  last_event_at: string;
+};
+
+export type PerpPositionsResponse = { positions: PerpPosition[] };
+
+export async function fetchPerpEvents(
+  opts: { hours?: number; kind?: PerpEventKind; minSizeUsd?: number; limit?: number } = {},
+): Promise<PerpEventsResponse> {
+  const params = new URLSearchParams();
+  if (opts.hours != null) params.set("hours", String(opts.hours));
+  if (opts.kind) params.set("kind", opts.kind);
+  if (opts.minSizeUsd != null && opts.minSizeUsd > 0) params.set("min_size_usd", String(opts.minSizeUsd));
+  if (opts.limit != null) params.set("limit", String(opts.limit));
+  const qs = params.toString();
+  const r = await apiFetch(`/api/perps/events${qs ? `?${qs}` : ""}`);
+  if (!r.ok) throw new Error(`fetchPerpEvents failed: ${r.status}`);
+  return r.json();
+}
+
+export async function fetchPerpSummary(hours: number = 24): Promise<PerpSummary> {
+  const r = await apiFetch(`/api/perps/summary?hours=${hours}`);
+  if (!r.ok) throw new Error(`fetchPerpSummary failed: ${r.status}`);
+  return r.json();
+}
+
+export async function fetchPerpLargestPositions(limit: number = 20): Promise<PerpPositionsResponse> {
+  const r = await apiFetch(`/api/perps/largest-positions?limit=${limit}`);
+  if (!r.ok) throw new Error(`fetchPerpLargestPositions failed: ${r.status}`);
+  return r.json();
+}

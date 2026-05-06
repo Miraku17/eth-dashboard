@@ -15,6 +15,7 @@ import LstMarketSharePanel from "../components/LstMarketSharePanel";
 import MarketRegimePanel from "../components/MarketRegimePanel";
 import MempoolPanel from "../components/MempoolPanel";
 import NetworkActivityPanel from "../components/NetworkActivityPanel";
+import OnchainPerpsPanel from "../components/OnchainPerpsPanel";
 import OnchainVolumePanel from "../components/OnchainVolumePanel";
 import OrderFlowPanel from "../components/OrderFlowPanel";
 import PriceChart from "../components/PriceChart";
@@ -73,6 +74,7 @@ export const PANELS: PanelDef[] = [
   { id: "smart-money", label: "Smart money", component: SmartMoneyLeaderboard, defaultPage: "markets", defaultWidth: 2 },
   { id: "order-flow", label: "Order flow", component: OrderFlowPanel, defaultPage: "markets", defaultWidth: 2 },
   { id: "volume-structure", label: "Volume structure", component: VolumeStructurePanel, defaultPage: "markets", defaultWidth: 2 },
+  { id: "onchain-perps", label: "On-chain perps", component: OnchainPerpsPanel, defaultPage: "markets", defaultWidth: 3 },
   { id: "stablecoin-supply", label: "Stablecoin supply", component: StablecoinSupplyPanel, defaultPage: "onchain", defaultWidth: 1, section: "stablecoins" },
   { id: "live-volume", label: "Live volume", component: LiveVolumePanel, defaultPage: "onchain", defaultWidth: 2, section: "stablecoins" },
   { id: "whale-transfers", label: "Whale transfers", component: WhaleTransfersPanel, defaultPage: "onchain", defaultWidth: 2, section: "stablecoins" },
