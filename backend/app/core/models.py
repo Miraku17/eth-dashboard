@@ -329,6 +329,40 @@ class SmartMoneyLeaderboard(Base):
     weth_sold: Mapped[float] = mapped_column(Numeric(36, 18), nullable=False)
 
 
+class OnchainPerpEvent(Base):
+    """One row per detected on-chain perp event (open / increase / close /
+    decrease / liquidation). Single venue in v1 — GMX V2 on Arbitrum — but
+    `venue` is sized to allow Vertex / dYdX / future Arbitrum-side perps to
+    slot in without schema change.
+
+    Event-sourced by design: open positions, liquidations feed, and history
+    all derive from this table by group-by-account-market windowed reads.
+    `size_usd` is the per-event delta; `size_after_usd` is the post-event
+    remaining position size. Liquidations are PositionDecrease events with
+    `event_kind='liquidation'`; `pnl_usd` is realized PnL on close /
+    decrease / liquidation, NULL on opens / increases.
+    """
+    __tablename__ = "onchain_perp_event"
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True, nullable=False)
+    venue: Mapped[str] = mapped_column(String(16), nullable=False)
+    account: Mapped[str] = mapped_column(String(42), nullable=False)
+    market: Mapped[str] = mapped_column(String(32), nullable=False)
+    event_kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    side: Mapped[str] = mapped_column(String(8), nullable=False)
+    size_usd: Mapped[Decimal] = mapped_column(Numeric(38, 6), nullable=False)
+    size_after_usd: Mapped[Decimal] = mapped_column(Numeric(38, 6), nullable=False)
+    collateral_usd: Mapped[Decimal] = mapped_column(Numeric(38, 6), nullable=False)
+    leverage: Mapped[Decimal] = mapped_column(Numeric(12, 4), nullable=False)
+    price_usd: Mapped[Decimal] = mapped_column(Numeric(38, 6), nullable=False)
+    pnl_usd: Mapped[Decimal | None] = mapped_column(Numeric(38, 6), nullable=True)
+    tx_hash: Mapped[str] = mapped_column(String(66), nullable=False)
+    log_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    __table_args__ = (
+        UniqueConstraint("tx_hash", "log_index", name="uq_onchain_perp_event_tx_log"),
+    )
+
+
 class WalletBalanceHistory(Base):
     """Daily ETH balance snapshot per wallet (v2 wallet profile).
 
