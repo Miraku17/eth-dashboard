@@ -93,6 +93,11 @@ services:
   # ARBITRUM_HTTP_URL are unset (and ALCHEMY_API_KEY is also unset) the
   # entrypoint logs a warning and idles — no crash loop.
   arbitrum_realtime:
+    # Opt-in via profile so the live listener doesn't crash-loop or burn CUs
+    # against an unconfigured/exhausted Arbitrum endpoint by default. Start
+    # explicitly with `docker compose --profile arbitrum up -d arbitrum_realtime`
+    # once an Alchemy paid plan (or other reliable Arbitrum RPC) is wired in.
+    profiles: ["arbitrum"]
     build: ./backend
     dns: [1.1.1.1, 8.8.8.8]
     env_file: .env
