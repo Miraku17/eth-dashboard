@@ -87,6 +87,25 @@ services:
     volumes:
       - ./backend:/app
 
+  # Sibling listener for Arbitrum-side perp activity (GMX V2). Runs in its
+  # own process so an Arbitrum endpoint hiccup or GMX-decoder bug can't
+  # disrupt mainnet realtime processing. When ARBITRUM_WS_URL +
+  # ARBITRUM_HTTP_URL are unset (and ALCHEMY_API_KEY is also unset) the
+  # entrypoint logs a warning and idles — no crash loop.
+  arbitrum_realtime:
+    build: ./backend
+    dns: [1.1.1.1, 8.8.8.8]
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    command: python -m app.realtime.arbitrum_listener
+    volumes:
+      - ./backend:/app
+
   frontend:
     build: ./frontend
     restart: unless-stopped

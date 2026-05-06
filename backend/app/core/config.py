@@ -20,6 +20,13 @@ class Settings(BaseSettings):
     # is set, falls back to Alchemy's HTTPS endpoint.
     alchemy_http_url: str = ""
     beacon_http_url: str | None = None
+
+    # Arbitrum endpoints — used by the v5 GMX V2 perp listener
+    # (`arbitrum_realtime` Docker service). Reuse the same Alchemy key
+    # against arb-mainnet, or point at a self-hosted Nitro node. When
+    # both are unset, the listener container starts in no-op mode.
+    arbitrum_ws_url: str = ""
+    arbitrum_http_url: str = ""
     dune_api_key: str = ""
     etherscan_api_key: str = ""
     coingecko_api_key: str = ""
@@ -90,6 +97,22 @@ class Settings(BaseSettings):
         if not self.alchemy_api_key:
             return ""
         return f"https://eth-mainnet.g.alchemy.com/v2/{self.alchemy_api_key}"
+
+    @property
+    def effective_arbitrum_ws_url(self) -> str:
+        if self.arbitrum_ws_url:
+            return self.arbitrum_ws_url
+        if not self.alchemy_api_key:
+            return ""
+        return f"wss://arb-mainnet.g.alchemy.com/v2/{self.alchemy_api_key}"
+
+    @property
+    def effective_arbitrum_http_url(self) -> str:
+        if self.arbitrum_http_url:
+            return self.arbitrum_http_url
+        if not self.alchemy_api_key:
+            return ""
+        return f"https://arb-mainnet.g.alchemy.com/v2/{self.alchemy_api_key}"
 
     @property
     def database_url(self) -> str:
