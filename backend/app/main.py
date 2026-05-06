@@ -12,6 +12,7 @@ from app.api.flows import router as flows_router
 from app.api.health import router as health_router
 from app.api.leaderboard import router as leaderboard_router
 from app.api.network import router as network_router
+from app.api.perps import router as perps_router
 from app.api.price import router as price_router
 from app.api.regime import router as regime_router
 from app.api.restaking import router as restaking_router
@@ -60,3 +61,4 @@ app.include_router(defi_router, prefix="/api", dependencies=[AuthDep])
 app.include_router(volume_router, prefix="/api", dependencies=[AuthDep])
 app.include_router(wallets_router, prefix="/api", dependencies=[AuthDep])
 app.include_router(regime_router, prefix="/api", dependencies=[AuthDep])
+app.include_router(perps_router, prefix="/api", dependencies=[AuthDep])

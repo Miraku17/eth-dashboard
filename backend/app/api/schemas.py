@@ -667,3 +667,65 @@ class RegimeResponse(BaseModel):
     confidence: float = Field(ge=0, le=1)
     computed_at: datetime
     features: list[RegimeFeature]
+
+
+# ---------- On-chain perps (v5 — GMX V2) ----------
+
+
+class PerpEvent(BaseModel):
+    """One row from `onchain_perp_event`. Flat view of a position lifecycle
+    event (open / increase / close / decrease / liquidation)."""
+    ts: datetime
+    venue: str
+    account: str
+    market: str
+    event_kind: str
+    side: str
+    size_usd: float
+    size_after_usd: float
+    collateral_usd: float
+    leverage: float
+    price_usd: float
+    pnl_usd: float | None = None
+    tx_hash: str
+
+
+class PerpEventsResponse(BaseModel):
+    events: list[PerpEvent]
+
+
+class PerpSummary(BaseModel):
+    """Headline numbers for the panel's tile row."""
+    hours: int
+    opens_count: int
+    closes_count: int
+    liquidations_count: int
+    total_long_liq_usd: float
+    total_short_liq_usd: float
+    biggest_liq_usd: float
+    biggest_liq_account: str | None = None
+    biggest_liq_market: str | None = None
+    biggest_liq_ts: datetime | None = None
+    open_long_size_usd: float
+    open_short_size_usd: float
+    long_short_skew: float = Field(
+        description="(long - short) / (long + short); 0.0 when both legs are empty",
+    )
+
+
+class PerpPosition(BaseModel):
+    """Reconstructed currently-open position. Result of windowed group-by
+    over `onchain_perp_event` — last event per (account, market, side)
+    where size_after_usd > 0."""
+    account: str
+    market: str
+    side: str
+    size_usd: float
+    collateral_usd: float
+    leverage: float
+    opened_at: datetime
+    last_event_at: datetime
+
+
+class PerpPositionsResponse(BaseModel):
+    positions: list[PerpPosition]
