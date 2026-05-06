@@ -17,6 +17,14 @@ dependencies = [
     "python-dotenv>=1.0",
     "websockets>=13.1",
     "argon2-cffi>=23.1",
+    # eth-abi (pure-Python) is pulled in for the v5 GMX V2 perp decoder —
+    # the GMX EventLogData struct is too deeply nested (7 nested arrays of
+    # (string, T) plus 7 of (string, T[])) to hand-roll safely. Existing
+    # decoders (swap_decoder, parser) keep their hand-rolled hex parsing.
+    "eth-abi>=5.1",
+    # eth-hash needs a backend installed for keccak256; pycryptodome is the
+    # standard pure-wheel choice (no native build at install time).
+    "eth-hash[pycryptodome]>=0.7",
 ]
 
 [project.optional-dependencies]
