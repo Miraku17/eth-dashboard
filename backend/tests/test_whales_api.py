@@ -4,7 +4,7 @@ from decimal import Decimal
 import pytest
 from sqlalchemy.orm import sessionmaker
 
-from app.core.models import Transfer
+from app.core.models import Transfer, WalletScore
 
 
 @pytest.fixture
@@ -60,3 +60,62 @@ def test_whales_transfers_asset_filter(seeded_transfers, auth_client):
     body = r.json()
     assert len(body["transfers"]) == 1
     assert body["transfers"][0]["asset"] == "USDC"
+
+
+@pytest.fixture
+def seeded_smart_wallet(seeded_transfers, migrated_engine):
+    """Marks the sender of `0xaaa` as smart-money so smart_only filtering
+    has a hit; leaves `0xbbb` parties unscored to verify exclusion."""
+    Session = sessionmaker(bind=migrated_engine, expire_on_commit=False)
+    with Session() as s:
+        s.query(WalletScore).delete()
+        s.add(
+            WalletScore(
+                wallet="0x0000000000000000000000000000000000000001",
+                trades_30d=42,
+                volume_usd_30d=Decimal("5000000"),
+                realized_pnl_30d=Decimal("250000"),
+                win_rate_30d=0.6,
+                score=250_000.0,
+                updated_at=datetime.now(UTC),
+            )
+        )
+        s.commit()
+    yield
+
+
+def test_whales_transfers_smart_only_filter(seeded_smart_wallet, auth_client):
+    """smart_only=true returns only the transfer touching a wallet whose
+    score crosses the smart-money floor; the other transfer is excluded
+    even though it's within the time window."""
+    r = auth_client.get("/api/whales/transfers?smart_only=true&hours=24")
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body["transfers"]) == 1
+    assert body["transfers"][0]["tx_hash"] == "0xaaa"
+    # Enrichment still attaches scores (existing behaviour, unaffected).
+    assert body["transfers"][0]["from_score"] == 250_000.0
+
+
+def test_whales_transfers_smart_only_excludes_below_floor(
+    seeded_transfers, migrated_engine, auth_client
+):
+    """A wallet scored below SMART_FLOOR_USD must not be matched."""
+    Session = sessionmaker(bind=migrated_engine, expire_on_commit=False)
+    with Session() as s:
+        s.query(WalletScore).delete()
+        s.add(
+            WalletScore(
+                wallet="0x0000000000000000000000000000000000000001",
+                trades_30d=10,
+                volume_usd_30d=Decimal("50000"),
+                realized_pnl_30d=Decimal("5000"),
+                win_rate_30d=0.5,
+                score=5_000.0,  # under the $100k floor
+                updated_at=datetime.now(UTC),
+            )
+        )
+        s.commit()
+    r = auth_client.get("/api/whales/transfers?smart_only=true&hours=24")
+    assert r.status_code == 200
+    assert len(r.json()["transfers"]) == 0

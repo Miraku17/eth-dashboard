@@ -15,7 +15,8 @@ type RuleType =
   | "price_change_pct"
   | "whale_transfer"
   | "whale_to_exchange"
-  | "exchange_netflow";
+  | "exchange_netflow"
+  | "wallet_score_move";
 
 const RULE_TYPE_LABELS: Record<RuleType, string> = {
   price_above: "Price above threshold",
@@ -24,6 +25,7 @@ const RULE_TYPE_LABELS: Record<RuleType, string> = {
   whale_transfer: "Whale transfer (any)",
   whale_to_exchange: "Whale transfer to/from exchange",
   exchange_netflow: "Exchange netflow over window",
+  wallet_score_move: "★ Smart-money wallet move",
 };
 
 const DEFAULTS: Record<RuleType, Record<string, unknown>> = {
@@ -37,6 +39,12 @@ const DEFAULTS: Record<RuleType, Record<string, unknown>> = {
     window_h: 24,
     threshold_usd: 50_000_000,
     direction: "net",
+  },
+  wallet_score_move: {
+    asset: "ANY",
+    min_usd: 1_000_000,
+    min_score: 100_000,
+    direction: "any",
   },
 };
 
@@ -315,6 +323,59 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
                 <option value="net">|net|</option>
                 <option value="in">inflow</option>
                 <option value="out">outflow</option>
+              </select>
+            </div>
+          </>
+        )}
+
+        {ruleType === "wallet_score_move" && (
+          <>
+            <div>
+              {label("Asset")}
+              <select
+                className={field()}
+                value={String(params.asset ?? "ANY")}
+                onChange={(e) => setParam("asset", e.target.value)}
+              >
+                {WHALE_ASSETS.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              {label("Minimum USD")}
+              <input
+                type="number"
+                step="any"
+                className={field()}
+                value={String(params.min_usd ?? 1_000_000)}
+                onChange={(e) => setParam("min_usd", Number(e.target.value))}
+                required
+              />
+            </div>
+            <div>
+              {label("Minimum smart score (USD)")}
+              <input
+                type="number"
+                step="any"
+                className={field()}
+                value={String(params.min_score ?? 100_000)}
+                onChange={(e) => setParam("min_score", Number(e.target.value))}
+                required
+              />
+            </div>
+            <div>
+              {label("Direction")}
+              <select
+                className={field()}
+                value={String(params.direction ?? "any")}
+                onChange={(e) => setParam("direction", e.target.value)}
+              >
+                <option value="any">any (smart on either side)</option>
+                <option value="from">smart sender (smart →)</option>
+                <option value="to">smart receiver (→ smart)</option>
               </select>
             </div>
           </>

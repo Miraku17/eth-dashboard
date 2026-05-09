@@ -18,6 +18,7 @@ import {
   type LinkedWallet,
   type TokenHolding,
   type WalletProfile,
+  type WalletScoreInfo,
   type WalletTransfer,
 } from "../api";
 import { formatUsdCompact, formatUsdFull, relativeTime } from "../lib/format";
@@ -25,6 +26,105 @@ import { useWalletDrawer } from "../state/walletDrawer";
 
 function truncate(addr: string): string {
   return addr.length < 10 ? addr : `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+}
+
+// Mirrors `SMART_FLOOR_USD` in WhaleTransfersPanel + the backend's
+// `/api/whales/transfers?smart_only=true` filter. Below this PnL, a
+// wallet is panel-noise — we don't badge or tier it.
+const SMART_FLOOR_USD = 100_000;
+const SMART_GOLD_USD = 1_000_000;
+
+function formatPnl(usd: number): string {
+  const abs = Math.abs(usd);
+  const sign = usd >= 0 ? "+" : "−";
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(2)}M`;
+  if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(0)}k`;
+  return `${sign}$${abs.toFixed(0)}`;
+}
+
+function SmartMoneyTile({ score }: { score: WalletScoreInfo }) {
+  const isSmart = score.score >= SMART_FLOOR_USD;
+  const gold = score.score >= SMART_GOLD_USD;
+  const tone = !isSmart
+    ? "ring-surface-border bg-surface-raised/40 text-slate-400"
+    : gold
+      ? "ring-amber-400/30 bg-amber-400/5 text-amber-200"
+      : "ring-emerald-400/25 bg-emerald-500/5 text-emerald-200";
+  const badgeTone = !isSmart
+    ? "ring-slate-500/30 text-slate-400 bg-slate-500/10"
+    : gold
+      ? "ring-amber-400/40 text-amber-300 bg-amber-400/15"
+      : "ring-emerald-400/40 text-emerald-300 bg-emerald-500/15";
+  const updated = new Date(score.updated_at);
+  const updatedAge = relativeTime(score.updated_at);
+  return (
+    <div className={`rounded-lg ring-1 ${tone} p-4`}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="text-[11px] uppercase tracking-wider text-slate-500">
+            Wallet score · 30d
+          </div>
+          {isSmart && (
+            <span
+              className={`inline-flex items-center text-[10px] font-semibold tracking-wide rounded px-1.5 py-0.5 ring-1 ${badgeTone}`}
+              title={`Smart-money tier ${gold ? "(★ gold ≥ $1M)" : "(≥ $100k)"}`}
+            >
+              ★ {gold ? "Gold" : "Smart"}
+            </span>
+          )}
+        </div>
+        <div
+          className="text-[10px] text-slate-500 font-mono tabular-nums"
+          title={updated.toISOString()}
+        >
+          updated {updatedAge}
+        </div>
+      </div>
+
+      <div className="mt-2 grid grid-cols-3 gap-3">
+        <div>
+          <div className="text-[11px] uppercase tracking-wider text-slate-500">Realized PnL</div>
+          <div className="font-mono tabular-nums text-lg text-slate-100">
+            {formatPnl(score.realized_pnl_30d)}
+          </div>
+        </div>
+        <div>
+          <div className="text-[11px] uppercase tracking-wider text-slate-500">Win rate</div>
+          <div className="font-mono tabular-nums text-lg text-slate-100">
+            {score.win_rate_30d !== null
+              ? `${(score.win_rate_30d * 100).toFixed(0)}%`
+              : "—"}
+          </div>
+        </div>
+        <div>
+          <div className="text-[11px] uppercase tracking-wider text-slate-500">Volume</div>
+          <div className="font-mono tabular-nums text-lg text-slate-100">
+            {formatUsdCompact(score.volume_usd_30d)}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-2 text-[11px] text-slate-500">
+        {score.trades_30d.toLocaleString()} swaps · v1 score = realized PnL
+      </div>
+    </div>
+  );
+}
+
+function LinkedSmartBadge({ score }: { score: number | null }) {
+  if (score === null || score < SMART_FLOOR_USD) return null;
+  const gold = score >= SMART_GOLD_USD;
+  const tone = gold
+    ? "bg-amber-400/15 text-amber-300 ring-amber-400/40"
+    : "bg-emerald-500/10 text-emerald-300 ring-emerald-400/30";
+  return (
+    <span
+      title={`30d PnL ${formatPnl(score)}`}
+      className={`ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-semibold tracking-wide rounded px-1 py-0.5 ring-1 ${tone}`}
+    >
+      ★ {formatPnl(score)}
+    </span>
+  );
 }
 
 function ConfidenceChip({ confidence }: { confidence: LinkedWallet["confidence"] }) {
@@ -448,6 +548,11 @@ function ProfileBody({
         </div>
       </div>
 
+      {/* Smart-money tile — only when the daily scoring cron has produced
+          a row. Wallet may be scored but below the smart floor; the tile
+          still renders (greyed) so the user sees raw PnL/win-rate. */}
+      {data.wallet_score && <SmartMoneyTile score={data.wallet_score} />}
+
       {/* Token holdings */}
       {data.token_holdings.length > 0 && (
         <div>
@@ -536,6 +641,7 @@ function ProfileBody({
                 >
                   <div className="font-mono text-sm truncate hover:text-brand-soft transition">
                     {lw.label ?? lw.address}
+                    <LinkedSmartBadge score={lw.score} />
                   </div>
                   <ReasonLine reasons={lw.reasons} />
                 </button>

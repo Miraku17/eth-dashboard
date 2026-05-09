@@ -4,12 +4,20 @@ from decimal import Decimal
 import pytest
 from sqlalchemy.orm import sessionmaker
 
-from app.core.models import AlertEvent, AlertRule, ExchangeFlow, PriceCandle, Transfer
+from app.core.models import (
+    AlertEvent,
+    AlertRule,
+    ExchangeFlow,
+    PriceCandle,
+    Transfer,
+    WalletScore,
+)
 from app.services.alerts.rules import (
     evaluate_exchange_netflow,
     evaluate_price_above,
     evaluate_price_below,
     evaluate_price_change_pct,
+    evaluate_wallet_score_move,
     evaluate_whale_to_exchange,
     evaluate_whale_transfer,
 )
@@ -37,6 +45,7 @@ def session(migrated_engine):
         s.query(PriceCandle).delete()
         s.query(Transfer).delete()
         s.query(ExchangeFlow).delete()
+        s.query(WalletScore).delete()
         s.commit()
         yield s
 
@@ -351,3 +360,130 @@ def test_exchange_netflow_below_threshold_no_fire(session):
     session.commit()
 
     assert evaluate_exchange_netflow(session, rule) == []
+
+
+# ---------- wallet_score_move ----------
+
+# Lowercased addresses match how the daily scoring cron writes wallet_score.
+SMART_FROM_ADDR = "0x1111111111111111111111111111111111111111"
+SMART_TO_ADDR = "0x2222222222222222222222222222222222222222"
+NOISE_ADDR = "0x3333333333333333333333333333333333333333"
+
+
+def _smart_score(wallet: str, score: float) -> WalletScore:
+    return WalletScore(
+        wallet=wallet,
+        trades_30d=20,
+        volume_usd_30d=Decimal("1000000"),
+        realized_pnl_30d=Decimal(str(score)),
+        win_rate_30d=0.55,
+        score=score,
+        updated_at=datetime.now(UTC),
+    )
+
+
+def test_wallet_score_move_fires_when_smart_party_moves(session):
+    rule = AlertRule(
+        name="sm", rule_type="wallet_score_move",
+        params={
+            "asset": "ANY",
+            "min_usd": 1_000_000.0,
+            "min_score": 100_000.0,
+            "direction": "any",
+        },
+        channels=[],
+    )
+    session.add(rule)
+    session.add(_smart_score(SMART_FROM_ADDR, 250_000.0))
+    session.commit()
+
+    now = datetime.now(UTC)
+    # whale-grade move from a smart wallet — should fire
+    session.add(Transfer(
+        tx_hash="0xsmart", log_index=0, block_number=1,
+        ts=now - timedelta(minutes=2),
+        from_addr=SMART_FROM_ADDR, to_addr=NOISE_ADDR,
+        asset="USDT", amount=Decimal("2000000"), usd_value=Decimal("2000000"),
+    ))
+    # whale-grade but neither side scored — should NOT fire
+    session.add(Transfer(
+        tx_hash="0xnoise", log_index=0, block_number=2,
+        ts=now - timedelta(minutes=1),
+        from_addr=NOISE_ADDR, to_addr="0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+        asset="USDT", amount=Decimal("3000000"), usd_value=Decimal("3000000"),
+    ))
+    session.commit()
+
+    fires = evaluate_wallet_score_move(session, rule)
+    assert {f.payload["tx_hash"] for f in fires} == {"0xsmart"}
+    assert fires[0].payload["match_side"] == "from"
+    assert fires[0].payload["from_score"] == 250_000.0
+
+
+def test_wallet_score_move_below_floor_excluded(session):
+    """A scored wallet below `min_score` must not match — the floor is the
+    whole point of the rule."""
+    rule = AlertRule(
+        name="sm", rule_type="wallet_score_move",
+        params={
+            "asset": "ANY",
+            "min_usd": 1_000_000.0,
+            "min_score": 100_000.0,
+            "direction": "any",
+        },
+        channels=[],
+    )
+    session.add(rule)
+    session.add(_smart_score(SMART_FROM_ADDR, 5_000.0))  # below the $100k floor
+    session.commit()
+
+    session.add(Transfer(
+        tx_hash="0xlow", log_index=0, block_number=1,
+        ts=datetime.now(UTC) - timedelta(minutes=2),
+        from_addr=SMART_FROM_ADDR, to_addr=NOISE_ADDR,
+        asset="USDT", amount=Decimal("2000000"), usd_value=Decimal("2000000"),
+    ))
+    session.commit()
+
+    assert evaluate_wallet_score_move(session, rule) == []
+
+
+def test_wallet_score_move_direction_to_requires_smart_receiver(session):
+    """direction='to' restricts to transfers where the *receiver* is smart;
+    a transfer from a smart wallet to a noise wallet must not match."""
+    rule = AlertRule(
+        name="sm", rule_type="wallet_score_move",
+        params={
+            "asset": "ANY",
+            "min_usd": 1_000_000.0,
+            "min_score": 100_000.0,
+            "direction": "to",
+        },
+        channels=[],
+    )
+    session.add(rule)
+    session.add(_smart_score(SMART_FROM_ADDR, 250_000.0))
+    session.add(_smart_score(SMART_TO_ADDR, 500_000.0))
+    session.commit()
+
+    now = datetime.now(UTC)
+    # smart → noise: under direction=to this should NOT fire
+    session.add(Transfer(
+        tx_hash="0xsmartfrom", log_index=0, block_number=1,
+        ts=now - timedelta(minutes=2),
+        from_addr=SMART_FROM_ADDR, to_addr=NOISE_ADDR,
+        asset="USDT", amount=Decimal("2000000"), usd_value=Decimal("2000000"),
+    ))
+    # noise → smart: should fire
+    session.add(Transfer(
+        tx_hash="0xsmartto", log_index=0, block_number=2,
+        ts=now - timedelta(minutes=1),
+        from_addr=NOISE_ADDR, to_addr=SMART_TO_ADDR,
+        asset="USDT", amount=Decimal("2000000"), usd_value=Decimal("2000000"),
+    ))
+    session.commit()
+
+    fires = evaluate_wallet_score_move(session, rule)
+    assert {f.payload["tx_hash"] for f in fires} == {"0xsmartto"}
+    assert fires[0].payload["match_side"] == "to"
+    assert fires[0].payload["to_score"] == 500_000.0

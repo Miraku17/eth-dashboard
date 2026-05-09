@@ -9,7 +9,14 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import and_, desc, func, select
 from sqlalchemy.orm import Session
 
-from app.core.models import AlertEvent, AlertRule, ExchangeFlow, PriceCandle, Transfer
+from app.core.models import (
+    AlertEvent,
+    AlertRule,
+    ExchangeFlow,
+    PriceCandle,
+    Transfer,
+    WalletScore,
+)
 from app.realtime.labels import label_for
 
 DEFAULT_CANDLE_TF = "1m"
@@ -311,6 +318,107 @@ def evaluate_exchange_netflow(session: Session, rule: AlertRule) -> list[Fire]:
     ]
 
 
+def evaluate_wallet_score_move(session: Session, rule: AlertRule) -> list[Fire]:
+    """Whale-grade transfer where at least one party is a smart-money wallet
+    (wallet_score.score >= min_score). `direction` selects which side must
+    carry the score: 'from' = smart sender, 'to' = smart receiver, 'any' =
+    either. Per-transfer dedup; no cooldown gating (every match fires).
+    """
+    p = rule.params
+    asset = p.get("asset", "ANY")
+    min_usd = float(p["min_usd"])
+    min_score = float(p.get("min_score", 100_000.0))
+    direction = p.get("direction", "any")
+
+    last_ts = _latest_event_ts(session, rule.id)
+    cutoff = last_ts if last_ts else datetime.now(UTC) - timedelta(minutes=10)
+
+    # Build the smart-wallet subquery once; reused across the OR sides.
+    smart_wallets = select(WalletScore.wallet).where(WalletScore.score >= min_score)
+
+    side_filters = []
+    if direction in ("any", "from"):
+        side_filters.append(func.lower(Transfer.from_addr).in_(smart_wallets))
+    if direction in ("any", "to"):
+        side_filters.append(func.lower(Transfer.to_addr).in_(smart_wallets))
+    # `direction` is validated by the Pydantic schema; the empty case
+    # below would mean a misconfigured rule slipped through, so bail out
+    # rather than emit "match every row".
+    if not side_filters:
+        return []
+
+    filters = [
+        Transfer.ts > cutoff,
+        Transfer.usd_value >= min_usd,
+        side_filters[0] if len(side_filters) == 1 else side_filters[0] | side_filters[1],
+    ]
+    if asset != "ANY":
+        filters.append(Transfer.asset == asset)
+
+    rows = session.execute(
+        select(Transfer).where(and_(*filters)).order_by(Transfer.ts.asc()).limit(100)
+    ).scalars().all()
+
+    # Look up the per-side scores in one batched query so the payload can
+    # carry them (lets Telegram + webhook recipients see *why* it fired).
+    addrs: set[str] = set()
+    for t in rows:
+        addrs.add(t.from_addr.lower())
+        addrs.add(t.to_addr.lower())
+    score_map: dict[str, float] = {}
+    if addrs:
+        for w, s in session.execute(
+            select(WalletScore.wallet, WalletScore.score).where(WalletScore.wallet.in_(addrs))
+        ).all():
+            score_map[w] = float(s) if s is not None else 0.0
+
+    seen = _existing_dedup_keys(session, rule.id, cutoff - timedelta(minutes=30))
+    fires: list[Fire] = []
+    for t in rows:
+        from_score = score_map.get(t.from_addr.lower())
+        to_score = score_map.get(t.to_addr.lower())
+        # Determine which side carries the smart-money signal for the payload.
+        from_smart = from_score is not None and from_score >= min_score
+        to_smart = to_score is not None and to_score >= min_score
+        if from_smart and to_smart:
+            match_side = "both"
+        elif from_smart:
+            match_side = "from"
+        elif to_smart:
+            match_side = "to"
+        else:
+            # Shouldn't happen given the SQL filter, but guard against
+            # row-level race where a wallet's score drops below the floor
+            # between the subquery and the score_map fetch.
+            continue
+
+        dedup = f"{t.tx_hash}:{t.log_index}"
+        if dedup in seen:
+            continue
+        fires.append(
+            Fire(
+                payload={
+                    "tx_hash": t.tx_hash,
+                    "log_index": t.log_index,
+                    "asset": t.asset,
+                    "amount": float(t.amount),
+                    "usd_value": float(t.usd_value) if t.usd_value is not None else None,
+                    "from_addr": t.from_addr,
+                    "to_addr": t.to_addr,
+                    "from_label": label_for(t.from_addr),
+                    "to_label": label_for(t.to_addr),
+                    "from_score": from_score,
+                    "to_score": to_score,
+                    "min_score": min_score,
+                    "match_side": match_side,
+                    "ts": t.ts.isoformat(),
+                    "_dedup": dedup,
+                }
+            )
+        )
+    return fires
+
+
 EVALUATORS = {
     "price_above": evaluate_price_above,
     "price_below": evaluate_price_below,
@@ -318,6 +426,7 @@ EVALUATORS = {
     "whale_transfer": evaluate_whale_transfer,
     "whale_to_exchange": evaluate_whale_to_exchange,
     "exchange_netflow": evaluate_exchange_netflow,
+    "wallet_score_move": evaluate_wallet_score_move,
 }
 
 

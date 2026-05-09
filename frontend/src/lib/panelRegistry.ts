@@ -20,6 +20,7 @@ import OnchainVolumePanel from "../components/OnchainVolumePanel";
 import OrderFlowPanel from "../components/OrderFlowPanel";
 import PriceChart from "../components/PriceChart";
 import PriceHero from "../components/PriceHero";
+import SmartMoneyDirectionPanel from "../components/SmartMoneyDirectionPanel";
 import SmartMoneyLeaderboard from "../components/SmartMoneyLeaderboard";
 import StablecoinSupplyPanel from "../components/StablecoinSupplyPanel";
 import StakingFlowsPanel from "../components/StakingFlowsPanel";
@@ -66,6 +67,7 @@ export type PanelDef = {
 export const PANELS: PanelDef[] = [
   { id: "price-hero", label: "Price", component: PriceHero, defaultPage: "overview", defaultWidth: 4, homeOnly: true },
   { id: "market-regime", label: "Market regime", component: MarketRegimePanel, defaultPage: "overview", defaultWidth: 2 },
+  { id: "smart-money-direction", label: "Smart-money direction", component: SmartMoneyDirectionPanel, defaultPage: "overview", defaultWidth: 2 },
   { id: "cex-net-flow", label: "CEX net flow", component: CexNetFlowPanel, defaultPage: "overview", defaultWidth: 2 },
   { id: "category-net-flow", label: "DeFi flows", component: CategoryNetFlowPanel, defaultPage: "overview", defaultWidth: 2 },
   { id: "price-chart", label: "Chart", component: PriceChart, defaultPage: "markets", defaultWidth: 3 },
@@ -99,6 +101,7 @@ export const PANELS_BY_ID: Record<string, PanelDef> = Object.fromEntries(
 export const DEFAULT_OVERVIEW_LAYOUT: { id: string; width: PanelWidth }[] = [
   { id: "price-hero", width: 4 },
   { id: "market-regime", width: 2 },
+  { id: "smart-money-direction", width: 2 },
   { id: "cex-net-flow", width: 2 },
   { id: "category-net-flow", width: 2 },
   { id: "price-chart", width: 2 },

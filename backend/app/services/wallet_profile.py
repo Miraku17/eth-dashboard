@@ -29,10 +29,11 @@ from app.api.schemas import (
     LinkedWallet,
     NetFlowPoint,
     WalletProfile,
+    WalletScoreInfo,
     WalletTransfer,
 )
 from app.clients.eth_rpc import EthRpcClient, RpcError, gather_balances
-from app.core.models import Transfer, WalletBalanceHistory, WalletCluster
+from app.core.models import Transfer, WalletBalanceHistory, WalletCluster, WalletScore
 
 log = logging.getLogger(__name__)
 
@@ -346,6 +347,56 @@ async def build_profile_async(
         except Exception as exc:  # noqa: BLE001 — never fail the whole profile.
             log.warning("token holdings unavailable for %s: %s", address, exc)
 
+    # v5: pull `wallet_score` for the target wallet AND every linked-wallet
+    # peer in one IN-clause so the drawer can flag smart-money inline. Empty
+    # `linked` is the common case (no cluster) — skip the score query when
+    # there's no addresses to look up.
+    score_addrs: set[str] = {address.lower()}
+    for lw in linked:
+        score_addrs.add(lw.address.lower())
+    score_rows = (
+        session.execute(
+            select(
+                WalletScore.wallet,
+                WalletScore.score,
+                WalletScore.realized_pnl_30d,
+                WalletScore.win_rate_30d,
+                WalletScore.trades_30d,
+                WalletScore.volume_usd_30d,
+                WalletScore.updated_at,
+            ).where(WalletScore.wallet.in_(score_addrs))
+        ).all()
+        if score_addrs
+        else []
+    )
+    score_map: dict[str, WalletScoreInfo] = {
+        row.wallet: WalletScoreInfo(
+            score=float(row.score),
+            realized_pnl_30d=float(row.realized_pnl_30d),
+            win_rate_30d=float(row.win_rate_30d) if row.win_rate_30d is not None else None,
+            trades_30d=int(row.trades_30d),
+            volume_usd_30d=float(row.volume_usd_30d),
+            updated_at=row.updated_at,
+        )
+        for row in score_rows
+    }
+
+    target_score = score_map.get(address.lower())
+    linked_decorated = [
+        LinkedWallet(
+            address=lw.address,
+            label=lw.label,
+            confidence=lw.confidence,
+            reasons=lw.reasons,
+            score=(
+                score_map[lw.address.lower()].score
+                if lw.address.lower() in score_map
+                else None
+            ),
+        )
+        for lw in linked
+    ]
+
     return WalletProfile(
         address=address,
         labels=labels,
@@ -359,7 +410,8 @@ async def build_profile_async(
         net_flow_7d=_net_flow_7d(session, address),
         top_counterparties=_top_counterparties(session, address),
         recent_transfers=_recent_transfers(session, address),
-        linked_wallets=linked,
+        linked_wallets=linked_decorated,
         token_holdings=token_holdings,
         balance_unavailable=balance_unavailable,
+        wallet_score=target_score,
     )

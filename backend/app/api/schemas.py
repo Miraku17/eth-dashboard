@@ -146,13 +146,25 @@ class ExchangeNetflowParams(BaseModel):
     direction: Literal["in", "out", "net"] = "net"
 
 
+class WalletScoreMoveParams(BaseModel):
+    rule_type: Literal["wallet_score_move"] = "wallet_score_move"
+    asset: WhaleAsset = "ANY"
+    min_usd: float = Field(gt=0)
+    # Floor below which a wallet's PnL is panel-noise. Default mirrors
+    # `SMART_FLOOR_USD` in WhaleTransfersPanel and the `smart_only` filter
+    # on `/api/whales/transfers`.
+    min_score: float = Field(default=100_000.0, gt=0)
+    direction: Literal["any", "from", "to"] = "any"
+
+
 RuleParams = Annotated[
     PriceAboveParams
     | PriceBelowParams
     | PriceChangePctParams
     | WhaleTransferParams
     | WhaleToExchangeParams
-    | ExchangeNetflowParams,
+    | ExchangeNetflowParams
+    | WalletScoreMoveParams,
     Field(discriminator="rule_type"),
 ]
 
@@ -314,6 +326,14 @@ class LiquidationSummary(BaseModel):
     short_count: int
     largest_usd: float       # biggest single liquidation in the window
     venue: str               # 'binance' for v1
+    # Newest event in the entire `perp_liquidation` table (not the chart
+    # window) and a derived stale flag. Lets the UI distinguish a quiet
+    # market from a dead listener — Binance's public futures WS data
+    # plane is silently filtered from some networks (REST works, control
+    # frames work, market-data frames never arrive), so the panel needs
+    # to surface that rather than show "quiet market window" forever.
+    last_event_ts: datetime | None = None
+    listener_stale: bool = False
 
 
 class LiquidationResponse(BaseModel):
@@ -567,6 +587,10 @@ class LinkedWallet(BaseModel):
     label: str | None = None
     confidence: Literal["strong", "weak"]
     reasons: list[str]
+    # v5: nullable wallet_score.score (30d realized PnL in USD) so the
+    # drawer can flag smart-money peers inline. None if the wallet has no
+    # scored history (no DEX activity, or below the cron's 5-trade floor).
+    score: float | None = None
 
 
 class ClusterStats(BaseModel):
@@ -625,6 +649,17 @@ class TokenHolding(BaseModel):
     usd_value: float | None = None
 
 
+class WalletScoreInfo(BaseModel):
+    """v5 surface of `wallet_score` for the wallet drawer header tile.
+    Mirrors the row exactly minus the PK column."""
+    score: float
+    realized_pnl_30d: float
+    win_rate_30d: float | None = None
+    trades_30d: int
+    volume_usd_30d: float
+    updated_at: datetime
+
+
 class WalletProfile(BaseModel):
     address: str
     labels: list[str] = []
@@ -641,6 +676,33 @@ class WalletProfile(BaseModel):
     linked_wallets: list[LinkedWallet] = []
     token_holdings: list[TokenHolding] = []
     balance_unavailable: bool = False
+    # v5: present when the daily scoring cron has produced a row for this
+    # address. Surfaces 30d realized PnL + win-rate so the drawer can show
+    # a smart-money tile next to the balance.
+    wallet_score: WalletScoreInfo | None = None
+
+
+# ── Smart-money net direction (v5 overview tile) ─────────────────────
+
+
+class SmartMoneyDirectionPoint(BaseModel):
+    date: str  # YYYY-MM-DD UTC
+    bought_usd: float
+    sold_usd: float
+    net_usd: float
+
+
+class SmartMoneyDirectionResponse(BaseModel):
+    """24h headline + 7-day daily sparkline of WETH bought vs sold by
+    smart-money wallets (any wallet whose `wallet_score.score` clears
+    `min_score`). Net positive = smart money is accumulating ETH."""
+    bought_usd_24h: float
+    sold_usd_24h: float
+    net_usd_24h: float
+    smart_wallets_active_24h: int
+    min_score: float
+    sparkline_7d: list[SmartMoneyDirectionPoint]
+    computed_at: datetime
 
 
 # ── Market regime classifier (v4 card 9) ─────────────────────────────

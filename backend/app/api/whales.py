@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
@@ -16,6 +16,11 @@ from app.core.models import PendingTransfer, Transfer, WalletScore
 from app.realtime.labels import label_for
 
 router = APIRouter(prefix="/whales", tags=["whales"])
+
+# Mirrors `SMART_FLOOR_USD` in WhaleTransfersPanel.tsx — keep in sync if
+# the frontend tier moves. Below this, a wallet's PnL is panel-noise, not
+# signal worth filtering on.
+SMART_FLOOR_USD = 100_000.0
 
 
 @router.get("/transfers", response_model=WhaleTransfersResponse)
@@ -35,6 +40,13 @@ def whale_transfers(
         ),
     ),
     limit: int = Query(100, ge=1, le=1000),
+    smart_only: bool = Query(
+        False,
+        description=(
+            "v5: when true, only return transfers where at least one party is a "
+            "smart-money wallet (wallet_score.score >= $100k 30d realized PnL)."
+        ),
+    ),
 ) -> WhaleTransfersResponse:
     cutoff = datetime.now(UTC) - timedelta(hours=hours)
     stmt = select(Transfer).where(Transfer.ts >= cutoff)
@@ -42,6 +54,19 @@ def whale_transfers(
         stmt = stmt.where(Transfer.asset == asset.upper())
     if flow_kind:
         stmt = stmt.where(Transfer.flow_kind.in_(flow_kind))
+    if smart_only:
+        # WalletScore.wallet is stored lowercase by the scoring cron;
+        # transfer addresses retain mixed case from the chain, so lowercase
+        # both sides for the IN-clause comparison.
+        smart_wallets = select(WalletScore.wallet).where(
+            WalletScore.score >= SMART_FLOOR_USD
+        )
+        stmt = stmt.where(
+            or_(
+                func.lower(Transfer.from_addr).in_(smart_wallets),
+                func.lower(Transfer.to_addr).in_(smart_wallets),
+            )
+        )
     rows = session.execute(stmt.order_by(Transfer.ts.desc()).limit(limit)).scalars().all()
 
     # v4: enrich with wallet_score for both sides of every transfer in a

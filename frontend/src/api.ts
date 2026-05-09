@@ -337,12 +337,14 @@ export async function fetchWhaleTransfers(
   asset?: WhaleAsset,
   limit = 100,
   flowKinds?: FlowKind[],
+  smartOnly = false,
 ): Promise<WhaleTransfer[]> {
   const params = new URLSearchParams({ hours: String(hours), limit: String(limit) });
   if (asset) params.set("asset", asset);
   if (flowKinds && flowKinds.length > 0) {
     for (const k of flowKinds) params.append("flow_kind", k);
   }
+  if (smartOnly) params.set("smart_only", "true");
   const r = await apiFetch(`/api/whales/transfers?${params}`);
   if (!r.ok) throw new Error(`whale transfers ${r.status}`);
   return (await r.json()).transfers;
@@ -530,6 +532,8 @@ export type LiquidationSummary = {
   short_count: number;
   largest_usd: number;
   venue: string;
+  last_event_ts: string | null;
+  listener_stale: boolean;
 };
 
 export type LiquidationResponse = {
@@ -666,6 +670,9 @@ export type LinkedWallet = {
   label: string | null;
   confidence: ClusterConfidence;
   reasons: string[];
+  /** v5: 30d realized PnL in USD when the linked wallet has been scored;
+   *  null otherwise. Drawer shows a ★ Smart badge above SMART_FLOOR_USD. */
+  score: number | null;
 };
 
 export type GasFunderInfo = {
@@ -737,6 +744,15 @@ export type TokenHolding = {
   price_usd: number | null;
   usd_value: number | null;
 };
+export type WalletScoreInfo = {
+  score: number;
+  realized_pnl_30d: number;
+  win_rate_30d: number | null;
+  trades_30d: number;
+  volume_usd_30d: number;
+  updated_at: string;
+};
+
 export type WalletProfile = {
   address: string;
   labels: string[];
@@ -753,11 +769,37 @@ export type WalletProfile = {
   linked_wallets: LinkedWallet[];
   token_holdings: TokenHolding[];
   balance_unavailable: boolean;
+  wallet_score: WalletScoreInfo | null;
 };
 
 export async function fetchWalletProfile(address: string): Promise<WalletProfile> {
   const r = await apiFetch(`/api/wallets/${address}/profile`);
   if (!r.ok) throw new Error(`fetchWalletProfile failed: ${r.status}`);
+  return r.json();
+}
+
+// ---------- Smart-money net direction (v5 overview tile) ----------
+
+export type SmartMoneyDirectionPoint = {
+  date: string; // YYYY-MM-DD UTC
+  bought_usd: number;
+  sold_usd: number;
+  net_usd: number;
+};
+
+export type SmartMoneyDirectionResponse = {
+  bought_usd_24h: number;
+  sold_usd_24h: number;
+  net_usd_24h: number;
+  smart_wallets_active_24h: number;
+  min_score: number;
+  sparkline_7d: SmartMoneyDirectionPoint[];
+  computed_at: string;
+};
+
+export async function fetchSmartMoneyDirection(): Promise<SmartMoneyDirectionResponse> {
+  const r = await apiFetch("/api/smart-money/direction");
+  if (!r.ok) throw new Error(`fetchSmartMoneyDirection failed: ${r.status}`);
   return r.json();
 }
 

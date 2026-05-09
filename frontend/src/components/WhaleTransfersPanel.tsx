@@ -190,6 +190,12 @@ export default function WhaleTransfersPanel() {
   const setAsset = (v: WhaleAsset | "ALL") => updateParam("whaleAsset", v === "ALL" ? null : v);
   const setHours = (v: number) => updateParam("whaleHours", v === 24 ? null : String(v));
 
+  // Smart-only filter: surfaces transfers where at least one party clears the
+  // wallet_score floor. Backend does the SQL filter; we still bump the limit
+  // so the smart-money subset isn't bottle-necked by the chrono-100 cap.
+  const smartOnly = searchParams.get("whaleSmart") === "1";
+  const toggleSmart = () => updateParam("whaleSmart", smartOnly ? null : "1");
+
   // Flow-kind chip state. URL param `whaleFlow` is a comma-separated list
   // of chip ids (e.g. ?whaleFlow=cex_in,cex_out). Empty = no filter.
   const rawFlow = searchParams.get("whaleFlow") ?? "";
@@ -220,13 +226,14 @@ export default function WhaleTransfersPanel() {
     : "";
 
   const { data, isLoading, error } = useQuery<WhaleTransfer[]>({
-    queryKey: ["whale-transfers", hours, asset, flowKindsQueryKey],
+    queryKey: ["whale-transfers", hours, asset, flowKindsQueryKey, smartOnly],
     queryFn: () =>
       fetchWhaleTransfers(
         hours,
         asset === "ALL" ? undefined : asset,
-        100,
+        smartOnly ? 500 : 100,
         flowKindsParam,
+        smartOnly,
       ),
     refetchInterval: 15_000,
   });
@@ -237,6 +244,16 @@ export default function WhaleTransfersPanel() {
     refetchInterval: 5_000,
   });
 
+  // When smart-only is active, rank by max-party-score desc so the highest-PnL
+  // wallets surface to the top within the time window — chronological order
+  // would interleave a $250k trader between two $5M moves.
+  const view = (() => {
+    const rows = data ?? [];
+    if (!smartOnly) return rows;
+    const score = (t: WhaleTransfer) => Math.max(t.from_score ?? 0, t.to_score ?? 0);
+    return [...rows].sort((a, b) => score(b) - score(a));
+  })();
+  const smartCount = (data ?? []).reduce((n, t) => (hasSmartParty(t) ? n + 1 : n), 0);
   const total = (data ?? []).reduce((s, t) => s + (t.usd_value ?? 0), 0);
 
   return (
@@ -244,7 +261,9 @@ export default function WhaleTransfersPanel() {
       title="Whale transfers"
       subtitle={
         data && data.length > 0
-          ? `${data.length} moves · ${formatUsdCompact(total)} total · last ${hours}h`
+          ? `${data.length} moves · ${formatUsdCompact(total)} total · last ${hours}h${
+              !smartOnly && smartCount > 0 ? ` · ${smartCount} smart-money` : ""
+            }`
           : "ETH ≥ 500 · Stables ≥ $1M"
       }
       live
@@ -262,8 +281,24 @@ export default function WhaleTransfersPanel() {
       }
       bodyClassName="p-0"
     >
-      {/* Flow-kind filter chips. Multi-select; URL-persisted via ?whaleFlow=*. */}
+      {/* Flow-kind filter chips. Multi-select; URL-persisted via ?whaleFlow=*.
+          The Smart-only toggle leads the row — it's the most common high-signal
+          filter and benefits from being visually first. */}
       <div className="px-5 pt-3 pb-2 border-b border-surface-divider/60 flex flex-wrap items-center gap-1.5">
+        <button
+          type="button"
+          onClick={toggleSmart}
+          title="Show only transfers involving wallets with ≥ $100k 30d realized PnL"
+          className={
+            "rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wide ring-1 transition " +
+            (smartOnly
+              ? "bg-emerald-500/15 text-emerald-300 ring-emerald-400/40 opacity-100"
+              : "ring-surface-divider text-slate-500 hover:text-emerald-300 opacity-70 hover:opacity-100")
+          }
+        >
+          ★ Smart only
+        </button>
+        <span className="mx-1 h-3 w-px bg-surface-divider" aria-hidden />
         {FLOW_CHIPS.map((chip) => {
           const active = activeChipIds.has(chip.id);
           return (
@@ -349,13 +384,19 @@ export default function WhaleTransfersPanel() {
       {isLoading && <p className="p-5 text-sm text-slate-500">loading…</p>}
       {error && <p className="p-5 text-sm text-down">unavailable</p>}
       {!isLoading && !error && data && data.length === 0 && (
-        <p className="p-5 text-sm text-slate-500">
-          no whale transfers yet — listener needs <code className="text-slate-300">ALCHEMY_API_KEY</code>{" "}
-          and a few blocks
-        </p>
+        smartOnly ? (
+          <p className="p-5 text-sm text-slate-500">
+            no smart-money moves in the last {hours}h — toggle ★ off to see all whales
+          </p>
+        ) : (
+          <p className="p-5 text-sm text-slate-500">
+            no whale transfers yet — listener needs <code className="text-slate-300">ALCHEMY_API_KEY</code>{" "}
+            and a few blocks
+          </p>
+        )
       )}
 
-      {data && data.length > 0 && (
+      {view.length > 0 && (
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-separate border-spacing-0">
             <thead className="text-[11px] tracking-wider uppercase text-slate-500">
@@ -384,7 +425,7 @@ export default function WhaleTransfersPanel() {
               </tr>
             </thead>
             <tbody>
-              {data.map((t, i) => {
+              {view.map((t, i) => {
                 const smart = hasSmartParty(t);
                 return (
                 <tr
