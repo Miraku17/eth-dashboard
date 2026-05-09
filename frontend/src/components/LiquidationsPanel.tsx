@@ -62,10 +62,21 @@ export default function LiquidationsPanel() {
       {isLoading && <p className="p-5 text-sm text-slate-500">loading…</p>}
       {error && <p className="p-5 text-sm text-down">unavailable</p>}
       {!isLoading && !error && (!data || rows.length === 0) && (
-        <p className="p-5 text-sm text-slate-500">
-          no liquidations in the last {range} — quiet market window. Listener
-          subscribes to Binance forceOrder; events stream as they happen.
-        </p>
+        summary?.listener_stale ? (
+          <p className="p-5 text-sm text-slate-500">
+            <span className="text-down font-medium">Stream unavailable from this network.</span>{" "}
+            Binance's public futures WebSocket is reachable here but never
+            delivers market-data frames — REST works, the data plane is
+            silently filtered. The listener is healthy and will populate
+            this panel automatically once deployed somewhere unfiltered
+            (e.g. the Hetzner target).
+          </p>
+        ) : (
+          <p className="p-5 text-sm text-slate-500">
+            no liquidations in the last {range} — quiet market window. Listener
+            subscribes to Binance forceOrder; events stream as they happen.
+          </p>
+        )
       )}
 
       {summary && rows.length > 0 && (

@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import desc, func, select
+from sqlalchemy import case, desc, func, select
 from sqlalchemy.orm import Session
 
 from app.api.schemas import (
@@ -107,21 +107,35 @@ def liquidations(
     """
     cutoff = datetime.now(UTC) - timedelta(hours=hours)
 
+    # Listener health: the newest event in the entire table, regardless of
+    # window. Used to flag a dead Binance forceOrder stream so the panel
+    # can show "stream unavailable" rather than "quiet market window".
+    # 6h covers the longest plausible quiet stretch on ETHUSDT perp.
+    LIQUIDATION_STALE_HOURS = 6
+    last_event_ts: datetime | None = session.execute(
+        select(func.max(PerpLiquidation.ts))
+    ).scalar_one()
+    listener_stale = (
+        last_event_ts is None
+        or (datetime.now(UTC) - last_event_ts)
+        > timedelta(hours=LIQUIDATION_STALE_HOURS)
+    )
+
     # Headline tile: 24h totals + largest single liquidation. Window matches
     # `hours` rather than fixed 24h so the tile stays consistent with the chart.
     summary_row = session.execute(
         select(
             func.coalesce(func.sum(
-                func.case((PerpLiquidation.side == "long", PerpLiquidation.notional_usd),
+                case((PerpLiquidation.side == "long", PerpLiquidation.notional_usd),
                           else_=0)), 0).label("long_usd"),
             func.coalesce(func.sum(
-                func.case((PerpLiquidation.side == "short", PerpLiquidation.notional_usd),
+                case((PerpLiquidation.side == "short", PerpLiquidation.notional_usd),
                           else_=0)), 0).label("short_usd"),
             func.coalesce(func.sum(
-                func.case((PerpLiquidation.side == "long", 1),
+                case((PerpLiquidation.side == "long", 1),
                           else_=0)), 0).label("long_count"),
             func.coalesce(func.sum(
-                func.case((PerpLiquidation.side == "short", 1),
+                case((PerpLiquidation.side == "short", 1),
                           else_=0)), 0).label("short_count"),
             func.coalesce(func.max(PerpLiquidation.notional_usd), 0).label("largest_usd"),
         ).where(PerpLiquidation.ts >= cutoff)
@@ -133,16 +147,16 @@ def liquidations(
         select(
             bucket_ts,
             func.coalesce(func.sum(
-                func.case((PerpLiquidation.side == "long", PerpLiquidation.notional_usd),
+                case((PerpLiquidation.side == "long", PerpLiquidation.notional_usd),
                           else_=0)), 0).label("long_usd"),
             func.coalesce(func.sum(
-                func.case((PerpLiquidation.side == "short", PerpLiquidation.notional_usd),
+                case((PerpLiquidation.side == "short", PerpLiquidation.notional_usd),
                           else_=0)), 0).label("short_usd"),
             func.coalesce(func.sum(
-                func.case((PerpLiquidation.side == "long", 1),
+                case((PerpLiquidation.side == "long", 1),
                           else_=0)), 0).label("long_count"),
             func.coalesce(func.sum(
-                func.case((PerpLiquidation.side == "short", 1),
+                case((PerpLiquidation.side == "short", 1),
                           else_=0)), 0).label("short_count"),
         )
         .where(PerpLiquidation.ts >= cutoff)
@@ -158,6 +172,8 @@ def liquidations(
             short_count=int(summary_row.short_count),
             largest_usd=float(summary_row.largest_usd),
             venue="binance",
+            last_event_ts=last_event_ts,
+            listener_stale=listener_stale,
         ),
         buckets=[
             LiquidationBucket(

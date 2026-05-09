@@ -4,7 +4,7 @@ from decimal import Decimal
 import pytest
 from sqlalchemy.orm import sessionmaker
 
-from app.core.models import DerivativesSnapshot
+from app.core.models import DerivativesSnapshot, PerpLiquidation
 
 
 @pytest.fixture
@@ -70,3 +70,55 @@ def test_series_exchange_filter(seeded, auth_client):
     points = r.json()["points"]
     assert len(points) == 2
     assert {p["exchange"] for p in points} == {"binance"}
+
+
+def _seed_liquidation(session, ts, side="long", notional=Decimal("50000")):
+    session.add(PerpLiquidation(
+        ts=ts, venue="binance", symbol="ETHUSDT", side=side,
+        price=Decimal("2500"), qty=notional / Decimal("2500"),
+        notional_usd=notional,
+    ))
+
+
+def test_liquidations_listener_fresh(migrated_engine, auth_client):
+    Session = sessionmaker(bind=migrated_engine, expire_on_commit=False)
+    with Session() as s:
+        s.query(PerpLiquidation).delete()
+        _seed_liquidation(s, datetime.now(UTC) - timedelta(minutes=5))
+        s.commit()
+
+    r = auth_client.get("/api/derivatives/liquidations?hours=24")
+    assert r.status_code == 200
+    summary = r.json()["summary"]
+    assert summary["listener_stale"] is False
+    assert summary["last_event_ts"] is not None
+
+
+def test_liquidations_listener_stale(migrated_engine, auth_client):
+    Session = sessionmaker(bind=migrated_engine, expire_on_commit=False)
+    with Session() as s:
+        s.query(PerpLiquidation).delete()
+        # Last event a year ago — way past the 6h stale threshold.
+        _seed_liquidation(s, datetime.now(UTC) - timedelta(days=365))
+        s.commit()
+
+    r = auth_client.get("/api/derivatives/liquidations?hours=24")
+    assert r.status_code == 200
+    summary = r.json()["summary"]
+    assert summary["listener_stale"] is True
+    # The chart window is 24h so the year-old event must NOT appear in buckets.
+    assert r.json()["buckets"] == []
+
+
+def test_liquidations_listener_empty_table(migrated_engine, auth_client):
+    Session = sessionmaker(bind=migrated_engine, expire_on_commit=False)
+    with Session() as s:
+        s.query(PerpLiquidation).delete()
+        s.commit()
+
+    r = auth_client.get("/api/derivatives/liquidations?hours=24")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["summary"]["listener_stale"] is True
+    assert body["summary"]["last_event_ts"] is None
+    assert body["buckets"] == []
