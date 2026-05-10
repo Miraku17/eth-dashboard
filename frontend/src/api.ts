@@ -619,6 +619,37 @@ export async function fetchOrderFlow(hours = 24 * 7): Promise<OrderFlowPoint[]> 
   return (await r.json()).points;
 }
 
+export type MantleOrderFlowRow = {
+  ts_bucket: string;       // ISO timestamp
+  dex: string;             // 'agni'
+  side: "buy" | "sell";
+  count: number;
+  mnt_amount: number;
+  usd_value: number | null;
+};
+
+export type MantleOrderFlowSummary = {
+  buy_usd: number | null;
+  sell_usd: number | null;
+  net_usd: number | null;
+  active_dexes: string[];
+  mnt_usd: number | null;
+  price_unavailable: boolean;
+};
+
+export type MantleOrderFlowResponse = {
+  rows: MantleOrderFlowRow[];
+  summary: MantleOrderFlowSummary;
+};
+
+export async function fetchMantleOrderFlow(
+  hours = 24,
+): Promise<MantleOrderFlowResponse> {
+  const r = await apiFetch(`/api/flows/mantle-order-flow?hours=${hours}`);
+  if (!r.ok) throw new Error(`mantle order flow ${r.status}`);
+  return r.json();
+}
+
 export type VolumeBucket = "retail" | "mid" | "large" | "whale";
 
 export type VolumeBucketPoint = {
