@@ -96,6 +96,12 @@ export default function LiveVolumePanel() {
       )}
       {stacked.length > 0 && (
         <div className="space-y-3">
+          <TrendHeadline
+            lastTotal={lastTotal}
+            lastSlowMA={lastSlowMA}
+            slowPeriod={slowPeriod}
+            rowsSoFar={stacked.length}
+          />
           <div className="flex items-baseline justify-between text-xs">
             <span className="text-slate-500">{stacked.length} minutes shown</span>
             <span className="font-mono tabular-nums text-slate-200">
@@ -277,4 +283,45 @@ function pivot(points: RealtimeVolumePoint[], window: number): Pivoted {
     lastTotal: lastIdx >= 0 ? totals[lastIdx] : undefined,
     lastSlowMA: lastIdx >= 0 ? slowMA[lastIdx] : undefined,
   };
+}
+
+function TrendHeadline({
+  lastTotal,
+  lastSlowMA,
+  slowPeriod,
+  rowsSoFar,
+}: {
+  lastTotal: number | undefined;
+  lastSlowMA: number | undefined;
+  slowPeriod: number;
+  rowsSoFar: number;
+}) {
+  // Warming up: not enough samples to fill the slow window yet.
+  if (lastSlowMA === undefined || lastTotal === undefined) {
+    const remaining = Math.max(0, slowPeriod - rowsSoFar);
+    return (
+      <div className="text-xs text-slate-500">
+        warming up — {slowPeriod}m baseline in {remaining}m
+      </div>
+    );
+  }
+
+  const delta = lastSlowMA > 0 ? lastTotal / lastSlowMA - 1 : 0;
+  const absPct = Math.abs(delta) * 100;
+  const flat = absPct < 5;
+  const up = !flat && delta > 0;
+  const tint = flat ? "text-slate-500" : up ? "text-up" : "text-down";
+  const arrow = flat ? "→" : up ? "▲" : "▼";
+  const sign = delta > 0 ? "+" : delta < 0 ? "−" : "";
+  return (
+    <div className="flex items-baseline justify-between text-sm">
+      <span className="font-mono tabular-nums text-slate-200">
+        {formatUsdCompact(lastTotal)} / min
+      </span>
+      <span className={`font-mono tabular-nums ${tint}`}>
+        {sign}
+        {absPct.toFixed(0)}% vs {slowPeriod}m avg {arrow}
+      </span>
+    </div>
+  );
 }
