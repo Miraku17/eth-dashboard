@@ -94,6 +94,58 @@ def _parse_event(msg: dict) -> dict | None:
     }
 
 
+def parse_bybit_liquidation(event: dict) -> dict | None:
+    """Map one Bybit V5 `allLiquidation` event entry to a PerpLiquidation row dict.
+
+    Bybit V5 payload shape (per item in the `data` list of an
+    allLiquidation.{symbol} frame):
+      { "T": <unix_ms>, "s": "ETHUSDT", "S": "Buy" | "Sell",
+        "v": "<qty_in_eth_string>", "p": "<price_usd_string>" }
+
+    Side inversion (matches the previous Binance forceOrder convention so the
+    panel and existing tests render identically):
+      S="Buy"  → exchange buys to close a SHORT  → side='short'
+      S="Sell" → exchange sells to close a LONG  → side='long'
+
+    Returns None on any missing/malformed field — the listener loop logs at
+    WARN and skips the event without raising.
+    """
+    venue_side = event.get("S")
+    if venue_side == "Buy":
+        side = "short"
+    elif venue_side == "Sell":
+        side = "long"
+    else:
+        return None
+
+    symbol = event.get("s")
+    if not symbol:
+        return None
+
+    transact_ms = event.get("T")
+    if not transact_ms:
+        return None
+
+    try:
+        price = float(event.get("p") or 0)
+        qty = float(event.get("v") or 0)
+    except (TypeError, ValueError):
+        return None
+    if price <= 0 or qty <= 0:
+        return None
+
+    ts = datetime.fromtimestamp(int(transact_ms) / 1000, tz=UTC)
+    return {
+        "ts": ts,
+        "venue": "bybit",
+        "symbol": symbol,
+        "side": side,
+        "price": price,
+        "qty": qty,
+        "notional_usd": price * qty,
+    }
+
+
 def _persist(rows: list[dict], sessionmaker) -> int:
     if not rows:
         return 0
