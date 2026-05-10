@@ -305,6 +305,32 @@ class OrderFlowResponse(BaseModel):
     points: list[OrderFlowPoint]
 
 
+# ---------- Mantle order flow (v5) ----------
+
+
+class MantleOrderFlowRow(BaseModel):
+    ts_bucket: datetime
+    dex: str
+    side: str            # "buy" | "sell"
+    count: int
+    mnt_amount: float
+    usd_value: float | None  # null when MNT/USD price is unavailable
+
+
+class MantleOrderFlowSummary(BaseModel):
+    buy_usd: float | None
+    sell_usd: float | None
+    net_usd: float | None
+    active_dexes: list[str]
+    mnt_usd: float | None
+    price_unavailable: bool
+
+
+class MantleOrderFlowResponse(BaseModel):
+    rows: list[MantleOrderFlowRow]
+    summary: MantleOrderFlowSummary
+
+
 # ---------- Perp liquidations (v2) ----------
 
 
