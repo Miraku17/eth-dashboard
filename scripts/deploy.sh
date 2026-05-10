@@ -92,11 +92,14 @@ if [ "$FULL" = "true" ]; then
   # rm -sfv on frontend wipes its anonymous volume so a fresh node_modules
   # from the new image can populate the container.
   $DC rm -sfv frontend || true
-  $DC up -d --build
+  # `--profile mantle` opts in the mantle_realtime sibling listener so it
+  # comes up on every full deploy alongside the rest of the stack. The
+  # listener is still no-op when MANTLE_WS_URL is unset.
+  $DC --profile mantle up -d --build
 else
   if [ "$REBUILD_BACKEND" = "true" ]; then
-    $DC build api worker realtime
-    $DC up -d api worker realtime
+    $DC build api worker realtime mantle_realtime
+    $DC --profile mantle up -d api worker realtime mantle_realtime
   fi
   if [ "$REBUILD_FRONTEND" = "true" ]; then
     $DC rm -sfv frontend || true
