@@ -179,6 +179,26 @@ export default function LiveVolumePanel() {
           </div>
 
           <ul className="grid grid-cols-2 @xs:grid-cols-1 gap-x-3 gap-y-1.5 text-[11px] font-mono tabular-nums">
+            <li className="flex items-center justify-between">
+              <span className="flex items-center gap-2 min-w-0 truncate">
+                <span
+                  className="inline-block w-2 h-2 rounded-sm shrink-0"
+                  style={{ backgroundColor: FAST_MA_COLOR }}
+                />
+                <span className="text-slate-300">{fastPeriod}m MA</span>
+              </span>
+              <span className="text-slate-400">trend</span>
+            </li>
+            <li className="flex items-center justify-between">
+              <span className="flex items-center gap-2 min-w-0 truncate">
+                <span
+                  className="inline-block w-2 h-2 rounded-sm shrink-0"
+                  style={{ backgroundColor: SLOW_MA_COLOR }}
+                />
+                <span className="text-slate-300">{slowPeriod}m MA</span>
+              </span>
+              <span className="text-slate-400">baseline</span>
+            </li>
             {sortedAssets.slice(0, 8).map((a) => (
               <li key={a} className="flex items-center justify-between">
                 <span className="flex items-center gap-2 min-w-0 truncate">
