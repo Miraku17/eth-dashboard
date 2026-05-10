@@ -31,10 +31,7 @@ def upgrade() -> None:
     op.create_index(
         "ix_mantle_order_flow_ts",
         "mantle_order_flow",
-        ["ts_bucket"],
-        unique=False,
-        postgresql_using="btree",
-        postgresql_ops={"ts_bucket": "DESC"},
+        [sa.text("ts_bucket DESC")],
     )
 
 
