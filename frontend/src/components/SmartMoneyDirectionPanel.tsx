@@ -7,6 +7,7 @@ import {
   type SmartMoneyDirectionResponse,
 } from "../api";
 import { formatUsdCompact } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import Card from "./ui/Card";
 
 /**
@@ -21,6 +22,7 @@ import Card from "./ui/Card";
  * cache cycle.
  */
 export default function SmartMoneyDirectionPanel() {
+  const t = useT();
   const { data, isLoading, error } = useQuery<SmartMoneyDirectionResponse>({
     queryKey: ["smart-money-direction"],
     queryFn: fetchSmartMoneyDirection,
@@ -28,12 +30,12 @@ export default function SmartMoneyDirectionPanel() {
   });
 
   const min = data?.min_score ?? 100_000;
-  const subtitle = `Last 24h · 30d realized PnL ≥ ${formatUsdCompact(min)}`;
+  const subtitle = t("smart-money-direction.subtitle", { min: formatUsdCompact(min) });
 
   return (
-    <Card title="Smart-money direction" subtitle={subtitle}>
-      {isLoading && <p className="text-sm text-slate-500">loading…</p>}
-      {error && <p className="text-sm text-down">unavailable</p>}
+    <Card title={t("smart-money-direction.title")} subtitle={subtitle}>
+      {isLoading && <p className="text-sm text-slate-500">{t("common.loading")}</p>}
+      {error && <p className="text-sm text-down">{t("common.unavailable")}</p>}
       {data && (
         <SmartMoneyBody data={data} />
       )}
@@ -42,6 +44,7 @@ export default function SmartMoneyDirectionPanel() {
 }
 
 function SmartMoneyBody({ data }: { data: SmartMoneyDirectionResponse }) {
+  const t = useT();
   const isAccumulating = data.net_usd_24h > 0;
   const isFlat = data.net_usd_24h === 0;
   // Edge case: scoring cron hasn't run yet, or no smart-money swaps in
@@ -49,10 +52,7 @@ function SmartMoneyBody({ data }: { data: SmartMoneyDirectionResponse }) {
   if (data.smart_wallets_active_24h === 0 && data.bought_usd_24h === 0 && data.sold_usd_24h === 0) {
     return (
       <div className="text-sm text-slate-500">
-        no smart-money DEX swaps in the last 24h —
-        the daily <code className="text-slate-300">score_wallets</code> cron
-        produces this set; if it hasn't run yet, the panel will populate
-        on its first pass.
+        {t("smart-money-direction.empty")}
       </div>
     );
   }
@@ -63,11 +63,12 @@ function SmartMoneyBody({ data }: { data: SmartMoneyDirectionResponse }) {
       ? "text-up"
       : "text-down";
   const verdict = isFlat
-    ? "Balanced"
+    ? t("smart-money-direction.verdict.balanced")
     : isAccumulating
-      ? "Net buying"
-      : "Net selling";
+      ? t("smart-money-direction.verdict.buying")
+      : t("smart-money-direction.verdict.selling");
   const sign = data.net_usd_24h > 0 ? "+" : data.net_usd_24h < 0 ? "−" : "";
+  const count = data.smart_wallets_active_24h;
 
   return (
     <div className="space-y-3">
@@ -81,22 +82,23 @@ function SmartMoneyBody({ data }: { data: SmartMoneyDirectionResponse }) {
           {formatUsdCompact(Math.abs(data.net_usd_24h))}
         </div>
         <div className="text-[11px] text-slate-500">
-          {data.smart_wallets_active_24h.toLocaleString()} smart wallet
-          {data.smart_wallets_active_24h === 1 ? "" : "s"} active
+          {count === 1
+            ? t("smart-money-direction.wallets_active", { count })
+            : t("smart-money-direction.wallets_active_plural", { count })}
         </div>
       </div>
 
       {/* Buy / sell tile pair */}
       <div className="grid grid-cols-2 gap-2">
-        <LegTile label="Bought" usd={data.bought_usd_24h} tone="up" />
-        <LegTile label="Sold" usd={data.sold_usd_24h} tone="down" />
+        <LegTile labelKey="smart-money-direction.tile.bought" usd={data.bought_usd_24h} tone="up" />
+        <LegTile labelKey="smart-money-direction.tile.sold" usd={data.sold_usd_24h} tone="down" />
       </div>
 
       {/* 7-day signed sparkline. Bars above zero = net buying day, below =
           net selling. Dotted zero line for orientation. */}
       <div>
         <div className="text-[11px] tracking-wider uppercase text-slate-500 mb-1">
-          Net · 7d
+          {t("smart-money-direction.net_7d")}
         </div>
         <Sparkline data={data.sparkline_7d} />
       </div>
@@ -105,20 +107,21 @@ function SmartMoneyBody({ data }: { data: SmartMoneyDirectionResponse }) {
 }
 
 function LegTile({
-  label,
+  labelKey,
   usd,
   tone,
 }: {
-  label: string;
+  labelKey: "smart-money-direction.tile.bought" | "smart-money-direction.tile.sold";
   usd: number;
   tone: "up" | "down";
 }) {
+  const t = useT();
   const cls = tone === "up" ? "text-up" : "text-down";
   const arrow = tone === "up" ? "↑" : "↓";
   return (
     <div className="rounded-md border border-surface-divider bg-bg-raised/30 p-3">
       <div className="text-[11px] tracking-wider uppercase text-slate-500 font-medium">
-        <span className={cls}>{arrow}</span> {label}
+        <span className={cls}>{arrow}</span> {t(labelKey)}
       </div>
       <div className="mt-1 font-mono text-base font-semibold tabular-nums text-slate-100">
         {formatUsdCompact(usd)}

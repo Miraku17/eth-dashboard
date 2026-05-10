@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchRegime, type RegimeFeature, type RegimeLabel } from "../api";
 import { formatUsdCompact } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import Card from "./ui/Card";
 
 /**
@@ -13,6 +14,7 @@ import Card from "./ui/Card";
  * `app/services/regime.py` and the panel is faithful to that math.
  */
 export default function MarketRegimePanel() {
+  const t = useT();
   const { data, isLoading, error } = useQuery({
     queryKey: ["regime"],
     queryFn: fetchRegime,
@@ -21,11 +23,11 @@ export default function MarketRegimePanel() {
 
   return (
     <Card
-      title="Market regime"
-      subtitle="Rule-based · 6-feature score · refreshes hourly"
+      title={t("market-regime.title")}
+      subtitle={t("market-regime.subtitle")}
     >
-      {isLoading && <p className="text-sm text-slate-500">loading…</p>}
-      {error && <p className="text-sm text-down">unavailable</p>}
+      {isLoading && <p className="text-sm text-slate-500">{t("common.loading")}</p>}
+      {error && <p className="text-sm text-down">{t("common.unavailable")}</p>}
       {data && (
         <div className="space-y-4">
           <RegimeHeader
@@ -52,12 +54,12 @@ const LABEL_TONE: Record<RegimeLabel, string> = {
   capitulation:  "text-emerald-300",   // extreme bullish bias (fear flush)
 };
 
-const LABEL_HINT: Record<RegimeLabel, string> = {
-  euphoria:      "extreme bearish — leverage stretched",
-  distribution:  "mild bearish bias",
-  neutral:       "no strong directional bias",
-  accumulation:  "mild bullish bias",
-  capitulation:  "extreme bullish — fear flush",
+const LABEL_HINT_KEY: Record<RegimeLabel, "market-regime.hint.euphoria" | "market-regime.hint.distribution" | "market-regime.hint.neutral" | "market-regime.hint.accumulation" | "market-regime.hint.capitulation"> = {
+  euphoria:      "market-regime.hint.euphoria",
+  distribution:  "market-regime.hint.distribution",
+  neutral:       "market-regime.hint.neutral",
+  accumulation:  "market-regime.hint.accumulation",
+  capitulation:  "market-regime.hint.capitulation",
 };
 
 function RegimeHeader({
@@ -69,8 +71,9 @@ function RegimeHeader({
   score: number;
   confidence: number;
 }) {
+  const t = useT();
   const tone = LABEL_TONE[label];
-  const hint = LABEL_HINT[label];
+  const hintKey = LABEL_HINT_KEY[label];
   const conf = Math.round(confidence * 100);
   const sign = score > 0 ? "+" : "";
 
@@ -80,11 +83,11 @@ function RegimeHeader({
         <div className={`text-2xl font-semibold capitalize ${tone}`}>
           {label}
         </div>
-        <div className="text-[11px] text-slate-500 mt-0.5">{hint}</div>
+        <div className="text-[11px] text-slate-500 mt-0.5">{t(hintKey)}</div>
       </div>
       <div className="shrink-0 text-right">
         <div className="text-[10px] tracking-wider uppercase text-slate-500">
-          score · confidence
+          {t("market-regime.score_confidence")}
         </div>
         <div className="font-mono text-sm tabular-nums text-slate-300 mt-0.5">
           {sign}

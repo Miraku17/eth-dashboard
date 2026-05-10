@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchDexPoolTvlLatest, type DexPoolTvlPoint } from "../api";
 import { formatUsdCompact } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import Card from "./ui/Card";
 import DataAge from "./ui/DataAge";
 import { SimpleSelect } from "./ui/Select";
@@ -10,6 +11,8 @@ const TOP_N_DISPLAY = 20;
 
 type DexFilter = "ALL" | "uniswap-v3" | "uniswap-v2" | "curve-dex" | "balancer-v2";
 
+// DEX names stay English in both locales (per docs/i18n-glossary.md).
+// Only "All DEXes" varies — pulled from the dictionary inside the component.
 const DEX_LABELS: Record<DexFilter, string> = {
   ALL: "All DEXes",
   "uniswap-v3": "Uniswap v3",
@@ -18,16 +21,17 @@ const DEX_LABELS: Record<DexFilter, string> = {
   "balancer-v2": "Balancer v2",
 };
 
-const DEX_OPTIONS: { value: DexFilter; label: string }[] = [
-  { value: "ALL", label: "All DEXes" },
-  { value: "uniswap-v3", label: "Uniswap v3" },
-  { value: "uniswap-v2", label: "Uniswap v2" },
-  { value: "curve-dex", label: "Curve" },
-  { value: "balancer-v2", label: "Balancer v2" },
-];
-
 export default function DexPoolTvlPanel() {
+  const t = useT();
   const [filter, setFilter] = useState<DexFilter>("ALL");
+
+  const dexOptions: { value: DexFilter; label: string }[] = [
+    { value: "ALL", label: t("dex_pool.all_dexes") },
+    { value: "uniswap-v3", label: "Uniswap v3" },
+    { value: "uniswap-v2", label: "Uniswap v2" },
+    { value: "curve-dex", label: "Curve" },
+    { value: "balancer-v2", label: "Balancer v2" },
+  ];
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["dex-pool-tvl-latest"],
@@ -46,30 +50,30 @@ export default function DexPoolTvlPanel() {
 
   return (
     <Card
-      title="DEX pool TVL"
-      subtitle={`Ethereum mainnet · top ${TOP_N_DISPLAY} pools by TVL · DefiLlama`}
+      title={t("dex-pool-tvl.title")}
+      subtitle={t("dex-pool-tvl.subtitle", { n: String(TOP_N_DISPLAY) })}
       actions={
         <SimpleSelect
           value={filter}
           onChange={setFilter}
-          options={DEX_OPTIONS}
-          ariaLabel="Filter by DEX"
+          options={dexOptions}
+          ariaLabel={t("dex-pool-tvl.aria.filter")}
         />
       }
     >
-      {isLoading && <p className="text-sm text-slate-500">loading…</p>}
-      {error && <p className="text-sm text-down">unavailable</p>}
+      {isLoading && <p className="text-sm text-slate-500">{t("common.loading")}</p>}
+      {error && <p className="text-sm text-down">{t("common.unavailable")}</p>}
       {!isLoading && !error && filtered.length === 0 && (
         <p className="text-sm text-slate-500">
-          no data yet — first hourly sync pending
+          {t("dex-pool-tvl.empty")}
         </p>
       )}
       {filtered.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-baseline justify-between text-xs">
-            <span className="text-slate-500">{filtered.length} pools shown</span>
+            <span className="text-slate-500">{t("dex-pool-tvl.pools_shown", { count: String(filtered.length) })}</span>
             <span className="font-mono tabular-nums text-slate-300">
-              {formatUsdCompact(totalView)} combined
+              {t("dex-pool-tvl.combined", { value: formatUsdCompact(totalView) })}
             </span>
           </div>
           <DataAge ts={data?.ts_bucket ?? null} />

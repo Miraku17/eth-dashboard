@@ -1,7 +1,9 @@
 import { useState, FormEvent } from "react";
 import { login, LoginError } from "../auth";
+import { useT } from "../i18n/LocaleProvider";
 
 export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
+  const t = useT();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -37,11 +39,11 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
         className="w-full max-w-sm rounded-lg border border-surface-border bg-surface-card p-6 shadow-card space-y-4"
       >
         <div>
-          <h1 className="text-lg font-semibold tracking-wide">Etherscope</h1>
-          <p className="text-xs text-slate-500 mt-1">Sign in to continue</p>
+          <h1 className="text-lg font-semibold tracking-wide">{t("login.title")}</h1>
+          <p className="text-xs text-slate-500 mt-1">{t("login.tagline")}</p>
         </div>
         <label className="block">
-          <span className="text-[11px] uppercase tracking-widest text-slate-500">Username</span>
+          <span className="text-[11px] uppercase tracking-widest text-slate-500">{t("login.username")}</span>
           <input
             type="text"
             autoFocus
@@ -53,7 +55,7 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
           />
         </label>
         <label className="block">
-          <span className="text-[11px] uppercase tracking-widest text-slate-500">Password</span>
+          <span className="text-[11px] uppercase tracking-widest text-slate-500">{t("login.password")}</span>
           <input
             type="password"
             autoComplete="current-password"
@@ -73,7 +75,7 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
           disabled={submitting}
           className="w-full rounded-md bg-slate-200 text-slate-900 text-sm font-medium py-2 hover:bg-white disabled:opacity-50"
         >
-          {submitting ? "Signing in…" : "Sign in"}
+          {submitting ? t("login.submitting") : t("login.submit")}
         </button>
       </form>
     </div>

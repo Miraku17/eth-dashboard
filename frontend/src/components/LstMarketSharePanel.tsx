@@ -16,6 +16,7 @@ import {
   type LstSupplyPoint,
 } from "../api";
 import { rgbOf } from "../lib/assetColors";
+import { useT } from "../i18n/LocaleProvider";
 import Card from "./ui/Card";
 import DataAge from "./ui/DataAge";
 import FlowRangeSelector from "./FlowRangeSelector";
@@ -31,6 +32,7 @@ type StackRow = {
 };
 
 export default function LstMarketSharePanel() {
+  const t = useT();
   const [range, setRange] = useState<FlowRange>("30d");
   const hours = rangeToHours(range);
 
@@ -49,45 +51,45 @@ export default function LstMarketSharePanel() {
   const stacked = pivot(data ?? []);
   const latest = stacked.at(-1);
   const totalLatest = latest
-    ? TOKEN_ORDER.reduce((acc, t) => acc + ((latest[t] as number) ?? 0), 0)
+    ? TOKEN_ORDER.reduce((acc, tok) => acc + ((latest[tok] as number) ?? 0), 0)
     : 0;
 
   return (
     <Card
-      title="LST market share"
-      subtitle={`last ${range} · ETH-equivalent supply per token`}
+      title={t("lst-market-share.title")}
+      subtitle={t("lst-market-share.subtitle", { range })}
       actions={<FlowRangeSelector value={range} onChange={setRange} />}
     >
-      {isLoading && <p className="text-sm text-slate-500">loading…</p>}
-      {error && <p className="text-sm text-down">unavailable</p>}
+      {isLoading && <p className="text-sm text-slate-500">{t("common.loading")}</p>}
+      {error && <p className="text-sm text-down">{t("common.unavailable")}</p>}
       {!isLoading && !error && stacked.length === 0 && (
         <p className="text-sm text-slate-500">
-          no data yet — waiting for first hourly sync
+          {t("lst-market-share.empty")}
         </p>
       )}
       {stacked.length > 0 && (
         <div className="space-y-3">
           <DataAge ts={(latest?.ts as string | undefined) ?? null} />
           <ul className="space-y-1.5">
-            {TOKEN_ORDER.map((t) => {
-              const cur = latest ? ((latest[t] as number) ?? 0) : 0;
+            {TOKEN_ORDER.map((tok) => {
+              const cur = latest ? ((latest[tok] as number) ?? 0) : 0;
               const pct = totalLatest > 0 ? (cur / totalLatest) * 100 : 0;
-              const apy = yields?.lst[t] ?? null;
+              const apy = yields?.lst[tok] ?? null;
               return (
                 <li
-                  key={t}
+                  key={tok}
                   className="flex items-center justify-between text-xs font-mono tabular-nums"
                 >
                   <span className="flex items-center gap-2">
                     <span
                       className="inline-block w-2.5 h-2.5 rounded-sm"
-                      style={{ backgroundColor: rgbOf(t) }}
+                      style={{ backgroundColor: rgbOf(tok) }}
                     />
-                    <span className="text-slate-300">{t}</span>
+                    <span className="text-slate-300">{tok}</span>
                   </span>
                   <span className="flex items-center gap-3">
                     <span className="text-slate-500 text-[10px] uppercase tracking-wide">
-                      APR
+                      {t("lst-market-share.apr_label")}
                     </span>
                     <span className="text-up tabular-nums w-12 text-right">
                       {apy != null ? `${apy.toFixed(2)}%` : "—"}
@@ -133,14 +135,14 @@ export default function LstMarketSharePanel() {
                   }}
                   labelStyle={{ color: "rgb(148 163 184)" }}
                 />
-                {TOKEN_ORDER.map((t) => (
+                {TOKEN_ORDER.map((tok) => (
                   <Area
-                    key={t}
+                    key={tok}
                     type="monotone"
-                    dataKey={t}
+                    dataKey={tok}
                     stackId="lst"
-                    stroke={rgbOf(t)}
-                    fill={rgbOf(t)}
+                    stroke={rgbOf(tok)}
+                    fill={rgbOf(tok)}
                     fillOpacity={0.7}
                   />
                 ))}

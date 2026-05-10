@@ -5,6 +5,7 @@ import {
   type AlertRule,
   type AlertRuleInput,
 } from "../../api";
+import { useT } from "../../i18n/LocaleProvider";
 import Button from "../ui/Button";
 
 type Props = {
@@ -35,6 +36,7 @@ function summarizeParams(rule: AlertRule): string {
 }
 
 export default function RulesList({ rules, onEdit }: Props) {
+  const t = useT();
   const qc = useQueryClient();
   const toggle = useMutation({
     mutationFn: (v: { id: number; patch: Partial<AlertRuleInput> }) =>
@@ -49,8 +51,7 @@ export default function RulesList({ rules, onEdit }: Props) {
   if (rules.length === 0) {
     return (
       <p className="p-5 text-sm text-slate-500">
-        No rules yet — click <span className="text-slate-300 font-medium">New rule</span> to
-        create one.
+        {t("rules_list.empty", { new_rule: t("alerts.new_rule") })}
       </p>
     );
   }
@@ -61,25 +62,25 @@ export default function RulesList({ rules, onEdit }: Props) {
         <thead className="text-[11px] tracking-wider uppercase text-slate-500">
           <tr>
             <th className="text-left font-medium px-5 py-3 border-b border-surface-divider">
-              Name
+              {t("rules_list.col.name")}
             </th>
             <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">
-              Type
+              {t("rules_list.col.type")}
             </th>
             <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">
-              Condition
+              {t("rules_list.col.condition")}
             </th>
             <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">
-              Channels
+              {t("rules_list.col.channels")}
             </th>
             <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">
-              Cooldown
+              {t("rules_list.col.cooldown")}
             </th>
             <th className="text-center font-medium px-3 py-3 border-b border-surface-divider">
-              Enabled
+              {t("rules_list.col.enabled")}
             </th>
             <th className="text-right font-medium px-5 py-3 border-b border-surface-divider">
-              Actions
+              {t("rules_list.col.actions")}
             </th>
           </tr>
         </thead>
@@ -108,14 +109,14 @@ export default function RulesList({ rules, onEdit }: Props) {
                 )}
               </td>
               <td className="px-3 py-2.5 text-xs font-mono text-slate-400 border-b border-surface-divider/60">
-                {r.cooldown_min != null ? `${r.cooldown_min}m` : "default"}
+                {r.cooldown_min != null ? `${r.cooldown_min}m` : t("rules_list.cooldown_default")}
               </td>
               <td className="px-3 py-2.5 text-center border-b border-surface-divider/60">
                 <button
                   onClick={() =>
                     toggle.mutate({ id: r.id, patch: { enabled: !r.enabled } })
                   }
-                  aria-label={r.enabled ? "Disable" : "Enable"}
+                  aria-label={r.enabled ? t("rules_list.aria.disable") : t("rules_list.aria.enable")}
                   className={
                     "relative inline-flex items-center h-5 w-9 rounded-full transition " +
                     (r.enabled ? "bg-up/70" : "bg-surface-raised")
@@ -132,16 +133,16 @@ export default function RulesList({ rules, onEdit }: Props) {
               <td className="px-5 py-2.5 text-right border-b border-surface-divider/60">
                 <div className="inline-flex gap-2 justify-end">
                   <Button variant="ghost" onClick={() => onEdit(r)}>
-                    Edit
+                    {t("common.edit")}
                   </Button>
                   <Button
                     variant="danger"
                     onClick={() => {
-                      if (confirm(`Delete rule "${r.name}"?`)) remove.mutate(r.id);
+                      if (confirm(t("rules_list.confirm_delete", { name: r.name }))) remove.mutate(r.id);
                     }}
                     disabled={remove.isPending}
                   >
-                    Delete
+                    {t("common.delete")}
                   </Button>
                 </div>
               </td>

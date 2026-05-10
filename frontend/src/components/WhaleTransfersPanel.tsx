@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { ExternalLink } from "lucide-react";
+import { useT } from "../i18n/LocaleProvider";
 import {
   fetchPendingWhales,
   fetchWhaleTransfers,
@@ -86,25 +87,12 @@ function hasSmartParty(t: { from_score: number | null; to_score: number | null }
       || (t.to_score != null && t.to_score >= SMART_FLOOR_USD);
 }
 
-const ASSET_OPTIONS: readonly { value: WhaleAsset | "ALL"; label: string }[] = [
-  { value: "ALL", label: "All" },
-  { value: "ETH", label: "ETH" },
-  { value: "USDT", label: "USDT" },
-  { value: "USDC", label: "USDC" },
-  { value: "DAI", label: "DAI" },
-  { value: "PYUSD", label: "PYUSD" },
-  { value: "FDUSD", label: "FDUSD" },
-  { value: "USDS", label: "USDS" },
-  { value: "GHO", label: "GHO" },
-  { value: "EUROC", label: "EUROC" },
-  { value: "ZCHF", label: "ZCHF" },
-  { value: "EURCV", label: "EURCV" },
-  { value: "EURe", label: "EURe" },
-  { value: "tGBP", label: "tGBP" },
-  { value: "USDe", label: "USDe" },
-  { value: "XSGD", label: "XSGD" },
-  { value: "BRZ", label: "BRZ" },
-  { value: "EURS", label: "EURS" },
+// Asset symbols stay English per docs/i18n-glossary.md. Only "ALL"
+// varies — computed inside the component via t("common.all").
+const ASSET_VALUES: readonly (WhaleAsset | "ALL")[] = [
+  "ALL", "ETH", "USDT", "USDC", "DAI", "PYUSD", "FDUSD", "USDS",
+  "GHO", "EUROC", "ZCHF", "EURCV", "EURe", "tGBP", "USDe",
+  "XSGD", "BRZ", "EURS",
 ] as const;
 
 const HOUR_OPTIONS = [
@@ -113,7 +101,7 @@ const HOUR_OPTIONS = [
   { value: 24 * 7, label: "7d" },
 ] as const;
 
-const VALID_ASSETS = new Set(ASSET_OPTIONS.map((o) => String(o.value)));
+const VALID_ASSETS = new Set(ASSET_VALUES.map((v) => String(v)));
 const VALID_HOURS = new Set(HOUR_OPTIONS.map((o) => o.value));
 
 // Flow filter chips. Order matches the user's stated 20× priority — CEX
@@ -143,26 +131,28 @@ const FLOW_CHIPS_BY_ID: Record<string, FlowChip> = Object.fromEntries(
 );
 
 /** Display string + tone for an individual flow_kind value (per row badge). */
-function flowKindBadge(kind: FlowKind | null): { label: string; tone: string } | null {
+type T = ReturnType<typeof useT>;
+function flowKindBadge(kind: FlowKind | null, t: T): { label: string; tone: string } | null {
   if (!kind) return null;
   switch (kind) {
-    case "wallet_to_cex":      return { label: "→ CEX",       tone: "text-down bg-down/10 ring-down/30" };
-    case "cex_to_wallet":      return { label: "← CEX",       tone: "text-up bg-up/10 ring-up/30" };
-    case "wallet_to_dex":      return { label: "→ DEX",       tone: "text-fuchsia-300 bg-fuchsia-500/10 ring-fuchsia-400/30" };
-    case "dex_to_wallet":      return { label: "← DEX",       tone: "text-fuchsia-300 bg-fuchsia-500/10 ring-fuchsia-400/30" };
-    case "lending_deposit":    return { label: "→ Lending",   tone: "text-sky-300 bg-sky-500/10 ring-sky-400/30" };
-    case "lending_withdraw":   return { label: "← Lending",   tone: "text-sky-300 bg-sky-500/10 ring-sky-400/30" };
-    case "staking_deposit":    return { label: "→ Staking",   tone: "text-emerald-300 bg-emerald-500/10 ring-emerald-400/30" };
-    case "staking_unstake":    return { label: "← Staking",   tone: "text-emerald-300 bg-emerald-500/10 ring-emerald-400/30" };
-    case "bridge_l2":          return { label: "→ L2",        tone: "text-indigo-300 bg-indigo-500/10 ring-indigo-400/30" };
-    case "bridge_l2_withdraw": return { label: "← L2",        tone: "text-indigo-300 bg-indigo-500/10 ring-indigo-400/30" };
-    case "hyperliquid_in":     return { label: "→ HL",        tone: "text-amber-300 bg-amber-500/10 ring-amber-400/30" };
-    case "hyperliquid_out":    return { label: "← HL",        tone: "text-amber-300 bg-amber-500/10 ring-amber-400/30" };
+    case "wallet_to_cex":      return { label: t("flow.to_cex"),       tone: "text-down bg-down/10 ring-down/30" };
+    case "cex_to_wallet":      return { label: t("flow.from_cex"),     tone: "text-up bg-up/10 ring-up/30" };
+    case "wallet_to_dex":      return { label: t("flow.to_dex"),       tone: "text-fuchsia-300 bg-fuchsia-500/10 ring-fuchsia-400/30" };
+    case "dex_to_wallet":      return { label: t("flow.from_dex"),     tone: "text-fuchsia-300 bg-fuchsia-500/10 ring-fuchsia-400/30" };
+    case "lending_deposit":    return { label: t("flow.to_lending"),   tone: "text-sky-300 bg-sky-500/10 ring-sky-400/30" };
+    case "lending_withdraw":   return { label: t("flow.from_lending"), tone: "text-sky-300 bg-sky-500/10 ring-sky-400/30" };
+    case "staking_deposit":    return { label: t("flow.to_staking"),   tone: "text-emerald-300 bg-emerald-500/10 ring-emerald-400/30" };
+    case "staking_unstake":    return { label: t("flow.from_staking"), tone: "text-emerald-300 bg-emerald-500/10 ring-emerald-400/30" };
+    case "bridge_l2":          return { label: t("flow.to_l2"),        tone: "text-indigo-300 bg-indigo-500/10 ring-indigo-400/30" };
+    case "bridge_l2_withdraw": return { label: t("flow.from_l2"),      tone: "text-indigo-300 bg-indigo-500/10 ring-indigo-400/30" };
+    case "hyperliquid_in":     return { label: t("flow.to_hl"),        tone: "text-amber-300 bg-amber-500/10 ring-amber-400/30" };
+    case "hyperliquid_out":    return { label: t("flow.from_hl"),      tone: "text-amber-300 bg-amber-500/10 ring-amber-400/30" };
     case "wallet_to_wallet":   return null; // default — don't render a badge
   }
 }
 
 export default function WhaleTransfersPanel() {
+  const tFn = useT();
   // Filter state persists in the URL so refresh / share-link preserve view.
   const [searchParams, setSearchParams] = useSearchParams();
   const rawAsset = searchParams.get("whaleAsset");
@@ -258,13 +248,15 @@ export default function WhaleTransfersPanel() {
 
   return (
     <Card
-      title="Whale transfers"
+      title={tFn("whale-transfers.title")}
       subtitle={
         data && data.length > 0
-          ? `${data.length} moves · ${formatUsdCompact(total)} total · last ${hours}h${
-              !smartOnly && smartCount > 0 ? ` · ${smartCount} smart-money` : ""
-            }`
-          : "ETH ≥ 500 · Stables ≥ $1M"
+          ? (
+            !smartOnly && smartCount > 0
+              ? tFn("whale-transfers.subtitle_with_smart", { count: data.length, total: formatUsdCompact(total), hours, smart: smartCount })
+              : tFn("whale-transfers.subtitle", { count: data.length, total: formatUsdCompact(total), hours })
+          )
+          : tFn("whale-transfers.subtitle_default")
       }
       live
       actions={
@@ -273,8 +265,11 @@ export default function WhaleTransfersPanel() {
             size="xs"
             value={asset}
             onChange={setAsset}
-            options={ASSET_OPTIONS}
-            ariaLabel="Filter by asset"
+            options={ASSET_VALUES.map((v) => ({
+              value: v,
+              label: v === "ALL" ? tFn("common.all") : v,
+            }))}
+            ariaLabel={tFn("whale-transfers.aria.asset_filter")}
           />
           <Pill size="xs" value={hours} onChange={setHours} options={HOUR_OPTIONS} />
         </div>
@@ -288,7 +283,7 @@ export default function WhaleTransfersPanel() {
         <button
           type="button"
           onClick={toggleSmart}
-          title="Show only transfers involving wallets with ≥ $100k 30d realized PnL"
+          title={tFn("whale-transfers.smart_only_title")}
           className={
             "rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wide ring-1 transition " +
             (smartOnly
@@ -296,11 +291,18 @@ export default function WhaleTransfersPanel() {
               : "ring-surface-divider text-slate-500 hover:text-emerald-300 opacity-70 hover:opacity-100")
           }
         >
-          ★ Smart only
+          {tFn("whale-transfers.smart_only")}
         </button>
         <span className="mx-1 h-3 w-px bg-surface-divider" aria-hidden />
         {FLOW_CHIPS.map((chip) => {
           const active = activeChipIds.has(chip.id);
+          const chipLabelKeys: Record<string, string> = {
+            cex_in: "flow_chip.cex_in", cex_out: "flow_chip.cex_out",
+            dex: "flow_chip.dex", lending: "flow_chip.lending",
+            staking: "flow_chip.staking", bridge: "flow_chip.bridge",
+            hl: "flow_chip.hyperliquid", wallet: "flow_chip.wallet",
+          };
+          const labelKey = chipLabelKeys[chip.id];
           return (
             <button
               key={chip.id}
@@ -313,7 +315,7 @@ export default function WhaleTransfersPanel() {
                   : "ring-surface-divider text-slate-500 hover:text-slate-300 opacity-70 hover:opacity-100")
               }
             >
-              {chip.label}
+              {labelKey ? tFn(labelKey as Parameters<typeof tFn>[0]) : chip.label}
             </button>
           );
         })}
@@ -323,7 +325,7 @@ export default function WhaleTransfersPanel() {
             onClick={clearFlowFilter}
             className="ml-1 text-[10px] text-slate-500 hover:text-slate-300 underline-offset-2 hover:underline"
           >
-            clear
+            {tFn("common.clear")}
           </button>
         )}
       </div>
@@ -333,7 +335,7 @@ export default function WhaleTransfersPanel() {
           <div className="flex items-center gap-2 mb-2">
             <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
             <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-300">
-              Pending ({pending.length})
+              {tFn("whale-transfers.pending_label", { count: pending.length })}
             </span>
           </div>
           <ul className="space-y-1">
@@ -368,7 +370,7 @@ export default function WhaleTransfersPanel() {
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center gap-1 font-mono text-xs text-slate-500 hover:text-brand-soft transition"
-                      title="Open in Etherscan"
+                      title={tFn("whale-transfers.open_etherscan")}
                     >
                       {p.tx_hash.slice(0, 8)}…
                       <ExternalLink size={10} className="opacity-60" />
@@ -381,17 +383,16 @@ export default function WhaleTransfersPanel() {
         </div>
       )}
 
-      {isLoading && <p className="p-5 text-sm text-slate-500">loading…</p>}
-      {error && <p className="p-5 text-sm text-down">unavailable</p>}
+      {isLoading && <p className="p-5 text-sm text-slate-500">{tFn("common.loading")}</p>}
+      {error && <p className="p-5 text-sm text-down">{tFn("common.unavailable")}</p>}
       {!isLoading && !error && data && data.length === 0 && (
         smartOnly ? (
           <p className="p-5 text-sm text-slate-500">
-            no smart-money moves in the last {hours}h — toggle ★ off to see all whales
+            {tFn("whale-transfers.empty_smart", { hours })}
           </p>
         ) : (
           <p className="p-5 text-sm text-slate-500">
-            no whale transfers yet — listener needs <code className="text-slate-300">ALCHEMY_API_KEY</code>{" "}
-            and a few blocks
+            {tFn("whale-transfers.empty")}
           </p>
         )
       )}
@@ -402,25 +403,25 @@ export default function WhaleTransfersPanel() {
             <thead className="text-[11px] tracking-wider uppercase text-slate-500">
               <tr>
                 <th className="hidden @md:table-cell text-left font-medium px-5 py-3 border-b border-surface-divider">
-                  Time
+                  {tFn("whale-transfers.col.time")}
                 </th>
                 <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">
-                  Asset
+                  {tFn("whale-transfers.col.asset")}
                 </th>
                 <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">
-                  From
+                  {tFn("whale-transfers.col.from")}
                 </th>
                 <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">
-                  To
+                  {tFn("whale-transfers.col.to")}
                 </th>
                 <th className="text-right font-medium px-3 py-3 border-b border-surface-divider">
-                  Amount
+                  {tFn("whale-transfers.col.amount")}
                 </th>
                 <th className="text-right font-medium px-3 py-3 border-b border-surface-divider">
-                  USD
+                  {tFn("whale-transfers.col.usd")}
                 </th>
                 <th className="hidden @md:table-cell text-right font-medium px-5 py-3 border-b border-surface-divider">
-                  Tx
+                  {tFn("whale-transfers.col.tx")}
                 </th>
               </tr>
             </thead>
@@ -446,7 +447,7 @@ export default function WhaleTransfersPanel() {
                     <div className="flex items-center gap-1.5">
                       <AssetBadge asset={t.asset} />
                       {(() => {
-                        const b = flowKindBadge(t.flow_kind);
+                        const b = flowKindBadge(t.flow_kind, tFn);
                         return b ? (
                           <span
                             title={t.flow_kind ?? ""}
@@ -486,7 +487,7 @@ export default function WhaleTransfersPanel() {
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center gap-1 font-mono text-xs text-slate-500 hover:text-brand-soft transition"
-                      title="Open in Etherscan"
+                      title={tFn("whale-transfers.open_etherscan")}
                     >
                       {t.tx_hash.slice(0, 8)}…
                       <ExternalLink size={10} className="opacity-60" />

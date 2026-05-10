@@ -15,12 +15,14 @@ import {
 
 import type { Timeframe } from "../api";
 import { PANELS_BY_ID } from "../lib/panelRegistry";
+import { useT } from "../i18n/LocaleProvider";
 import { useCustomizeMode } from "../state/customizeMode";
 import { useOverviewLayout } from "../state/overviewLayout";
 import AddPanelTile from "../components/ui/AddPanelTile";
 import SortablePanel from "../components/ui/SortablePanel";
 
 export default function OverviewPage() {
+  const t = useT();
   const panels = useOverviewLayout((s) => s.panels);
   const reorder = useOverviewLayout((s) => s.reorder);
   const editing = useCustomizeMode((s) => s.editing);
@@ -53,7 +55,7 @@ export default function OverviewPage() {
   if (panels.length === 0 && !editing) {
     return (
       <div className="text-center text-sm text-slate-500 py-20">
-        Click <span className="text-slate-300">Customize</span> to add panels to your overview.
+        {t("overview.empty", { customize: t("topbar.customize") })}
       </div>
     );
   }

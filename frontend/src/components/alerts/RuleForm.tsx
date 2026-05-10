@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { AlertRuleInput, AlertRule } from "../../api";
+import { useT } from "../../i18n/LocaleProvider";
 import Button from "../ui/Button";
 
 type Props = {
@@ -51,7 +52,7 @@ const DEFAULTS: Record<RuleType, Record<string, unknown>> = {
 const WHALE_ASSETS = ["ANY", "ETH", "USDT", "USDC", "DAI"] as const;
 const EXCHANGES = ["ANY", "Binance", "Coinbase", "Kraken", "OKX", "Bitfinex", "Bybit"] as const;
 
-function label(text: string) {
+function lbl(text: string) {
   return (
     <span className="text-[11px] tracking-wider uppercase text-slate-500 font-medium block mb-1">
       {text}
@@ -68,6 +69,7 @@ function field(cls = "") {
 }
 
 export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Props) {
+  const t = useT();
   const [name, setName] = useState(initial?.name ?? "");
   const [ruleType, setRuleType] = useState<RuleType>(
     (initial?.rule_type as RuleType | undefined) ?? "price_above",
@@ -83,9 +85,9 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
   );
   const [error, setError] = useState<string | null>(null);
 
-  function changeType(t: RuleType) {
-    setRuleType(t);
-    setParams({ ...DEFAULTS[t] });
+  function changeType(rt: RuleType) {
+    setRuleType(rt);
+    setParams({ ...DEFAULTS[rt] });
   }
 
   function setParam(k: string, v: unknown) {
@@ -108,17 +110,17 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
     e.preventDefault();
     setError(null);
     if (!name.trim()) {
-      setError("name is required");
+      setError(t("rule_form.error.name_required"));
       return;
     }
     const wh = channels.find((c) => c.type === "webhook");
     if (wh && !wh.url) {
-      setError("webhook URL is required when webhook channel is enabled");
+      setError(t("rule_form.error.webhook_url_required"));
       return;
     }
     const cd = cooldown.trim() === "" ? undefined : Number(cooldown);
     if (cd !== undefined && (isNaN(cd) || cd < 0)) {
-      setError("cooldown must be a non-negative number");
+      setError(t("rule_form.error.cooldown_invalid"));
       return;
     }
     try {
@@ -129,8 +131,8 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
         cooldown_min: cd ?? null,
         enabled: initial?.enabled ?? true,
       });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to save");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("rule_form.error.save_failed"));
     }
   }
 
@@ -140,34 +142,34 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
   return (
     <form onSubmit={submit} className="space-y-4">
       <div>
-        {label("Name")}
+        {lbl(t("rule_form.label.name"))}
         <input
           className={field()}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. ETH above $4k"
+          placeholder={t("rule_form.placeholder.name")}
           required
           maxLength={128}
         />
       </div>
 
       <div>
-        {label("Rule type")}
+        {lbl(t("rule_form.label.rule_type"))}
         <select
           className={field()}
           value={ruleType}
           onChange={(e) => changeType(e.target.value as RuleType)}
           disabled={!!initial}
         >
-          {(Object.keys(RULE_TYPE_LABELS) as RuleType[]).map((t) => (
-            <option key={t} value={t}>
-              {RULE_TYPE_LABELS[t]}
+          {(Object.keys(RULE_TYPE_LABELS) as RuleType[]).map((rt) => (
+            <option key={rt} value={rt}>
+              {RULE_TYPE_LABELS[rt]}
             </option>
           ))}
         </select>
         {!!initial && (
           <p className="text-[11px] text-slate-500 mt-1">
-            rule type can't be changed after creation
+            {t("rule_form.rule_type_locked")}
           </p>
         )}
       </div>
@@ -177,7 +179,7 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
         {(ruleType === "price_above" || ruleType === "price_below") && (
           <>
             <div>
-              {label("Symbol")}
+              {lbl(t("rule_form.label.symbol"))}
               <input
                 className={field()}
                 value={String(params.symbol ?? "ETHUSDT")}
@@ -185,7 +187,7 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
               />
             </div>
             <div>
-              {label("Threshold (USD)")}
+              {lbl(t("rule_form.label.threshold_usd"))}
               <input
                 type="number"
                 step="any"
@@ -201,7 +203,7 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
         {ruleType === "price_change_pct" && (
           <>
             <div>
-              {label("Symbol")}
+              {lbl(t("rule_form.label.symbol"))}
               <input
                 className={field()}
                 value={String(params.symbol ?? "ETHUSDT")}
@@ -209,7 +211,7 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
               />
             </div>
             <div>
-              {label("Window (minutes)")}
+              {lbl(t("rule_form.label.window_minutes"))}
               <input
                 type="number"
                 className={field()}
@@ -220,7 +222,7 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
               />
             </div>
             <div className="col-span-2">
-              {label("Trigger % (negative = down move)")}
+              {lbl(t("rule_form.label.trigger_pct"))}
               <input
                 type="number"
                 step="any"
@@ -235,7 +237,7 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
         {(ruleType === "whale_transfer" || ruleType === "whale_to_exchange") && (
           <>
             <div>
-              {label("Asset")}
+              {lbl(t("rule_form.label.asset"))}
               <select
                 className={field()}
                 value={String(params.asset ?? "ANY")}
@@ -249,7 +251,7 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
               </select>
             </div>
             <div>
-              {label("Minimum USD")}
+              {lbl(t("rule_form.label.min_usd"))}
               <input
                 type="number"
                 step="any"
@@ -261,15 +263,15 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
             </div>
             {ruleType === "whale_to_exchange" && (
               <div className="col-span-2">
-                {label("Direction")}
+                {lbl(t("rule_form.label.direction"))}
                 <select
                   className={field()}
                   value={String(params.direction ?? "any")}
                   onChange={(e) => setParam("direction", e.target.value)}
                 >
-                  <option value="any">any (either side labeled)</option>
-                  <option value="to">to exchange</option>
-                  <option value="from">from exchange</option>
+                  <option value="any">{t("rule_form.dir.any_exchange")}</option>
+                  <option value="to">{t("rule_form.dir.to_exchange")}</option>
+                  <option value="from">{t("rule_form.dir.from_exchange")}</option>
                 </select>
               </div>
             )}
@@ -279,7 +281,7 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
         {ruleType === "exchange_netflow" && (
           <>
             <div>
-              {label("Exchange")}
+              {lbl(t("rule_form.label.exchange"))}
               <select
                 className={field()}
                 value={String(params.exchange ?? "ANY")}
@@ -293,7 +295,7 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
               </select>
             </div>
             <div>
-              {label("Window (hours)")}
+              {lbl(t("rule_form.label.window_hours"))}
               <input
                 type="number"
                 className={field()}
@@ -304,7 +306,7 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
               />
             </div>
             <div>
-              {label("Threshold (USD)")}
+              {lbl(t("rule_form.label.threshold_usd"))}
               <input
                 type="number"
                 step="any"
@@ -314,15 +316,15 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
               />
             </div>
             <div>
-              {label("Direction")}
+              {lbl(t("rule_form.label.direction"))}
               <select
                 className={field()}
                 value={String(params.direction ?? "net")}
                 onChange={(e) => setParam("direction", e.target.value)}
               >
-                <option value="net">|net|</option>
-                <option value="in">inflow</option>
-                <option value="out">outflow</option>
+                <option value="net">{t("rule_form.dir.net")}</option>
+                <option value="in">{t("rule_form.dir.inflow")}</option>
+                <option value="out">{t("rule_form.dir.outflow")}</option>
               </select>
             </div>
           </>
@@ -331,7 +333,7 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
         {ruleType === "wallet_score_move" && (
           <>
             <div>
-              {label("Asset")}
+              {lbl(t("rule_form.label.asset"))}
               <select
                 className={field()}
                 value={String(params.asset ?? "ANY")}
@@ -345,7 +347,7 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
               </select>
             </div>
             <div>
-              {label("Minimum USD")}
+              {lbl(t("rule_form.label.min_usd"))}
               <input
                 type="number"
                 step="any"
@@ -356,7 +358,7 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
               />
             </div>
             <div>
-              {label("Minimum smart score (USD)")}
+              {lbl(t("rule_form.label.min_score"))}
               <input
                 type="number"
                 step="any"
@@ -367,15 +369,15 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
               />
             </div>
             <div>
-              {label("Direction")}
+              {lbl(t("rule_form.label.direction"))}
               <select
                 className={field()}
                 value={String(params.direction ?? "any")}
                 onChange={(e) => setParam("direction", e.target.value)}
               >
-                <option value="any">any (smart on either side)</option>
-                <option value="from">smart sender (smart →)</option>
-                <option value="to">smart receiver (→ smart)</option>
+                <option value="any">{t("rule_form.dir.any_smart")}</option>
+                <option value="from">{t("rule_form.dir.from_smart")}</option>
+                <option value="to">{t("rule_form.dir.to_smart")}</option>
               </select>
             </div>
           </>
@@ -383,19 +385,19 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
       </div>
 
       <div>
-        {label("Cooldown (minutes, optional)")}
+        {lbl(t("rule_form.label.cooldown"))}
         <input
           type="number"
           className={field()}
           value={cooldown}
           min={0}
-          placeholder="default: 15 (price + netflow only)"
+          placeholder={t("rule_form.placeholder.cooldown")}
           onChange={(e) => setCooldown(e.target.value)}
         />
       </div>
 
       <div>
-        {label("Channels")}
+        {lbl(t("rule_form.label.channels"))}
         <div className="flex gap-2 flex-wrap">
           <button
             type="button"
@@ -407,7 +409,7 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
                 : "bg-surface-sunken text-slate-400 border-surface-border hover:text-white")
             }
           >
-            Telegram
+            {t("rule_form.channel.telegram")}
           </button>
           <button
             type="button"
@@ -419,7 +421,7 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
                 : "bg-surface-sunken text-slate-400 border-surface-border hover:text-white")
             }
           >
-            Webhook
+            {t("rule_form.channel.webhook")}
           </button>
         </div>
         {webhookCh && (
@@ -433,7 +435,7 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
         )}
         {channels.length === 0 && (
           <p className="text-[11px] text-slate-500 mt-1">
-            No channels — events will still be logged in the dashboard.
+            {t("rule_form.no_channels")}
           </p>
         )}
       </div>
@@ -446,10 +448,10 @@ export default function RuleForm({ initial, onSubmit, onCancel, submitting }: Pr
 
       <div className="flex justify-end gap-2 pt-2">
         <Button variant="ghost" type="button" onClick={onCancel} disabled={submitting}>
-          Cancel
+          {t("common.cancel")}
         </Button>
         <Button variant="primary" type="submit" disabled={submitting}>
-          {submitting ? "Saving…" : initial ? "Save changes" : "Create rule"}
+          {submitting ? t("rule_form.submit.saving") : initial ? t("rule_form.submit.save") : t("rule_form.submit.create")}
         </Button>
       </div>
     </form>

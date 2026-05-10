@@ -13,6 +13,7 @@ import {
 
 import { fetchOnchainVolume, rangeToHours, type FlowRange } from "../api";
 import { formatUsdCompact } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import Card from "./ui/Card";
 import FlowRangeSelector from "./FlowRangeSelector";
 
@@ -30,6 +31,7 @@ const OPTIONS: FlowRange[] = ["7d", "30d"];
 type Row = Record<string, number | string>;
 
 export default function OnchainVolumePanel() {
+  const t = useT();
   const [range, setRange] = useState<FlowRange>("30d");
   const hours = rangeToHours(range);
   const { data, isLoading, error } = useQuery({
@@ -56,15 +58,15 @@ export default function OnchainVolumePanel() {
 
   return (
     <Card
-      title="On-chain transfer volume"
-      subtitle="stacked daily USD · live · derived from realtime listener"
+      title={t("onchain-volume.title")}
+      subtitle={t("onchain-volume.subtitle")}
       actions={<FlowRangeSelector value={range} onChange={setRange} options={OPTIONS} />}
     >
-      {isLoading && <p className="text-sm text-slate-500">loading…</p>}
-      {error && <p className="text-sm text-down">unavailable</p>}
+      {isLoading && <p className="text-sm text-slate-500">{t("common.loading")}</p>}
+      {error && <p className="text-sm text-down">{t("common.unavailable")}</p>}
       {!isLoading && !error && pivot.length === 0 && (
         <p className="text-sm text-slate-500">
-          no data yet — waiting for the realtime listener to populate.
+          {t("onchain-volume.empty")}
         </p>
       )}
       {pivot.length > 0 && (

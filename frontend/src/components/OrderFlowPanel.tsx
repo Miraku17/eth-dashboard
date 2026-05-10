@@ -20,6 +20,7 @@ import {
   type OrderFlowPoint,
 } from "../api";
 import { formatUsdCompact } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import Card from "./ui/Card";
 import FlowRangeSelector from "./FlowRangeSelector";
 
@@ -81,6 +82,7 @@ function totalsByDex(points: OrderFlowPoint[]): Map<OrderFlowDex, DexTotals> {
 }
 
 export default function OrderFlowPanel() {
+  const t = useT();
   const [range, setRange] = useState<FlowRange>("7d");
   const hours = rangeToHours(range);
 
@@ -120,18 +122,16 @@ export default function OrderFlowPanel() {
 
   return (
     <Card
-      title="Order flow"
-      subtitle={`DEX buy vs sell pressure · ETH (WETH) · last ${range}`}
+      title={t("order-flow.title")}
+      subtitle={t("order-flow.subtitle", { range })}
       actions={<FlowRangeSelector value={range} onChange={setRange} options={OPTIONS} />}
       bodyClassName="p-0"
     >
-      {isLoading && <p className="p-5 text-sm text-slate-500">loading…</p>}
-      {error && <p className="p-5 text-sm text-down">unavailable</p>}
+      {isLoading && <p className="p-5 text-sm text-slate-500">{t("common.loading")}</p>}
+      {error && <p className="p-5 text-sm text-down">{t("common.unavailable")}</p>}
       {!isLoading && !error && rows.length === 0 && (
         <p className="p-5 text-sm text-slate-500">
-          no data yet — waiting for Dune order-flow sync (first run at worker
-          startup, then every 8h). Needs{" "}
-          <code className="text-slate-300">DUNE_QUERY_ID_ORDER_FLOW</code> set.
+          {t("order-flow.empty")}
         </p>
       )}
 
@@ -140,7 +140,7 @@ export default function OrderFlowPanel() {
           <div className="grid grid-cols-3 divide-x divide-surface-divider border-b border-surface-divider">
             <div className="px-5 py-4">
               <div className="text-[11px] tracking-wider uppercase text-slate-500 font-medium">
-                Buy volume
+                {t("order-flow.tile.buy")}
               </div>
               <div className="mt-1.5 font-mono text-base font-semibold tabular-nums text-up">
                 {formatUsdCompact(totals.buy)}
@@ -148,7 +148,7 @@ export default function OrderFlowPanel() {
             </div>
             <div className="px-5 py-4">
               <div className="text-[11px] tracking-wider uppercase text-slate-500 font-medium">
-                Sell volume
+                {t("order-flow.tile.sell")}
               </div>
               <div className="mt-1.5 font-mono text-base font-semibold tabular-nums text-down">
                 {formatUsdCompact(totals.sell)}
@@ -156,7 +156,7 @@ export default function OrderFlowPanel() {
             </div>
             <div className="px-5 py-4">
               <div className="text-[11px] tracking-wider uppercase text-slate-500 font-medium">
-                Net pressure
+                {t("order-flow.tile.net")}
               </div>
               <div
                 className={
@@ -168,7 +168,7 @@ export default function OrderFlowPanel() {
                 {formatUsdCompact(totals.net)}
               </div>
               <div className="mt-0.5 text-[11px] text-slate-500 font-mono">
-                {totals.trades.toLocaleString()} trades
+                {t("order-flow.tile.trades", { count: totals.trades.toLocaleString() })}
               </div>
             </div>
           </div>
@@ -269,7 +269,7 @@ export default function OrderFlowPanel() {
           {dexEntries.length > 0 && (
             <div className="border-t border-surface-divider p-5 pt-4">
               <div className="text-[11px] tracking-wider uppercase text-slate-500 font-medium mb-2">
-                By DEX · last {range}
+                {t("order-flow.by_dex", { range })}
               </div>
               <ul className="space-y-1.5">
                 {dexEntries.map((d) => {

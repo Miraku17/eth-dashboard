@@ -12,6 +12,7 @@ import {
 
 import { fetchMantleOrderFlow, type MantleOrderFlowResponse } from "../api";
 import { formatUsdCompact } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import Card from "./ui/Card";
 
 type ChartPoint = {
@@ -40,6 +41,7 @@ function buildChartData(resp: MantleOrderFlowResponse | undefined): ChartPoint[]
 }
 
 export default function MantleOrderFlowPanel() {
+  const t = useT();
   const { data, isLoading, error } = useQuery({
     queryKey: ["mantle-order-flow"],
     queryFn: () => fetchMantleOrderFlow(24),
@@ -54,18 +56,15 @@ export default function MantleOrderFlowPanel() {
 
   return (
     <Card
-      title="Mantle order flow (24h)"
-      subtitle="MNT buy / sell pressure on Agni"
+      title={t("mantle-order-flow.title")}
+      subtitle={t("mantle-order-flow.subtitle")}
       bodyClassName="p-0"
     >
-      {isLoading && <p className="p-5 text-sm text-slate-500">loading…</p>}
-      {error && <p className="p-5 text-sm text-down">unavailable</p>}
+      {isLoading && <p className="p-5 text-sm text-slate-500">{t("common.loading")}</p>}
+      {error && <p className="p-5 text-sm text-down">{t("common.unavailable")}</p>}
       {empty && (
         <p className="p-5 text-sm text-slate-500">
-          no data yet — set{" "}
-          <code className="text-slate-300">MANTLE_WS_URL</code> and bring up
-          the <code className="text-slate-300">mantle</code> docker compose
-          profile.
+          {t("mantle-order-flow.empty")}
         </p>
       )}
 
@@ -74,7 +73,7 @@ export default function MantleOrderFlowPanel() {
           <div className="grid grid-cols-3 divide-x divide-surface-divider border-b border-surface-divider">
             <div className="px-5 py-4">
               <div className="text-[11px] tracking-wider uppercase text-slate-500 font-medium">
-                Buy volume
+                {t("mantle-order-flow.tile.buy")}
               </div>
               <div className="mt-1.5 font-mono text-base font-semibold tabular-nums text-up">
                 {formatUsdCompact(summary.buy_usd)}
@@ -82,7 +81,7 @@ export default function MantleOrderFlowPanel() {
             </div>
             <div className="px-5 py-4">
               <div className="text-[11px] tracking-wider uppercase text-slate-500 font-medium">
-                Sell volume
+                {t("mantle-order-flow.tile.sell")}
               </div>
               <div className="mt-1.5 font-mono text-base font-semibold tabular-nums text-down">
                 {formatUsdCompact(summary.sell_usd)}
@@ -90,7 +89,7 @@ export default function MantleOrderFlowPanel() {
             </div>
             <div className="px-5 py-4">
               <div className="text-[11px] tracking-wider uppercase text-slate-500 font-medium">
-                Net pressure
+                {t("mantle-order-flow.tile.net")}
               </div>
               <div
                 className={
@@ -149,8 +148,7 @@ export default function MantleOrderFlowPanel() {
 
           {summary.price_unavailable && (
             <p className="px-5 pb-3 text-xs text-slate-500">
-              USD pricing unavailable (CoinGecko); chart shows MNT-denominated
-              bars when reachable.
+              {t("mantle-order-flow.price_unavailable")}
             </p>
           )}
         </>

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchPendingWhales, type PendingWhale, type WhaleAsset } from "../api";
 import { badgeOf } from "../lib/assetColors";
 import { formatUsdCompact, shortAddr } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import Card from "./ui/Card";
 import Pill from "./ui/Pill";
 
@@ -47,12 +48,14 @@ function Party({ addr, label }: { addr: string; label: string | null }) {
   );
 }
 
-const ASSET_OPTIONS: readonly { value: WhaleAsset | "ALL"; label: string }[] = [
-  { value: "ALL", label: "All" },
-  { value: "ETH", label: "ETH" },
-  { value: "USDT", label: "USDT" },
-  { value: "USDC", label: "USDC" },
-  { value: "DAI", label: "DAI" },
+// Asset symbols stay English per docs/i18n-glossary.md. Only "ALL"
+// varies — computed inside the component via t("common.all").
+const ASSET_VALUES: readonly (WhaleAsset | "ALL")[] = [
+  "ALL",
+  "ETH",
+  "USDT",
+  "USDC",
+  "DAI",
 ] as const;
 
 function ageSeconds(seenAt: string): number {
@@ -73,6 +76,7 @@ function gasTone(gwei: number | null): string {
 }
 
 export default function MempoolPanel() {
+  const t = useT();
   const [asset, setAsset] = useState<WhaleAsset | "ALL">("ALL");
 
   const { data, isLoading, error } = useQuery<PendingWhale[]>({
@@ -93,26 +97,33 @@ export default function MempoolPanel() {
 
   return (
     <Card
-      title="Mempool whales"
+      title={t("mempool.title")}
       subtitle={
         rows.length > 0
-          ? `${rows.length} pending · ${formatUsdCompact(totalUsd)} unconfirmed${
-              medianGas !== null ? ` · ${medianGas.toFixed(1)} gwei median` : ""
-            }`
-          : "live whale-sized pending transactions from the local node"
+          ? medianGas !== null
+            ? t("mempool.subtitle", { count: rows.length, total: formatUsdCompact(totalUsd), gas: medianGas.toFixed(1) })
+            : t("mempool.subtitle_no_gas", { count: rows.length, total: formatUsdCompact(totalUsd) })
+          : t("mempool.subtitle_empty")
       }
       live
       actions={
-        <Pill size="xs" value={asset} onChange={setAsset} options={ASSET_OPTIONS} />
+        <Pill
+          size="xs"
+          value={asset}
+          onChange={setAsset}
+          options={ASSET_VALUES.map((v) => ({
+            value: v,
+            label: v === "ALL" ? t("common.all") : v,
+          }))}
+        />
       }
       bodyClassName="p-0"
     >
-      {isLoading && <p className="p-5 text-sm text-slate-500">loading…</p>}
-      {error && <p className="p-5 text-sm text-down">unavailable</p>}
+      {isLoading && <p className="p-5 text-sm text-slate-500">{t("common.loading")}</p>}
+      {error && <p className="p-5 text-sm text-down">{t("common.unavailable")}</p>}
       {!isLoading && !error && rows.length === 0 && (
         <p className="p-5 text-sm text-slate-500">
-          no pending whales right now — needs a self-hosted node (
-          <code className="text-slate-300">ALCHEMY_WS_URL</code>); whales appear within seconds when broadcast
+          {t("mempool.empty")}
         </p>
       )}
 
@@ -122,28 +133,28 @@ export default function MempoolPanel() {
             <thead className="text-[11px] tracking-wider uppercase text-slate-500">
               <tr>
                 <th className="text-left font-medium px-5 py-3 border-b border-surface-divider">
-                  Age
+                  {t("mempool.col.age")}
                 </th>
                 <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">
-                  Asset
+                  {t("mempool.col.asset")}
                 </th>
                 <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">
-                  From
+                  {t("mempool.col.from")}
                 </th>
                 <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">
-                  To
+                  {t("mempool.col.to")}
                 </th>
                 <th className="text-right font-medium px-3 py-3 border-b border-surface-divider">
-                  Amount
+                  {t("mempool.col.amount")}
                 </th>
                 <th className="text-right font-medium px-3 py-3 border-b border-surface-divider">
-                  USD
+                  {t("mempool.col.usd")}
                 </th>
                 <th className="text-right font-medium px-3 py-3 border-b border-surface-divider">
-                  Gas
+                  {t("mempool.col.gas")}
                 </th>
                 <th className="text-right font-medium px-5 py-3 border-b border-surface-divider">
-                  Tx
+                  {t("mempool.col.tx")}
                 </th>
               </tr>
             </thead>

@@ -11,6 +11,7 @@ import {
   type StakingFlowPoint,
 } from "../api";
 import { formatUsdCompact } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import Card from "./ui/Card";
 import FlowRangeSelector from "./FlowRangeSelector";
 import Sparkline from "./Sparkline";
@@ -22,6 +23,7 @@ type LegAgg = {
 };
 
 export default function StakingFlowsPanel() {
+  const t = useT();
   const [range, setRange] = useState<FlowRange>("48h");
   const hours = rangeToHours(range);
 
@@ -56,21 +58,21 @@ export default function StakingFlowsPanel() {
 
   return (
     <Card
-      title="Beacon flows"
-      subtitle={`last ${range} · staking deposits vs validator exits`}
+      title={t("staking-flows.title")}
+      subtitle={t("staking-flows.subtitle", { range })}
       actions={<FlowRangeSelector value={range} onChange={setRange} />}
     >
-      {flows.isLoading && <p className="text-sm text-slate-500">loading…</p>}
-      {flows.error && <p className="text-sm text-down">unavailable</p>}
+      {flows.isLoading && <p className="text-sm text-slate-500">{t("common.loading")}</p>}
+      {flows.error && <p className="text-sm text-down">{t("common.unavailable")}</p>}
       {!flows.isLoading && !flows.error && (flows.data ?? []).length === 0 && (
-        <p className="text-sm text-slate-500">no data yet — waiting for Dune sync</p>
+        <p className="text-sm text-slate-500">{t("staking-flows.empty")}</p>
       )}
       {(flows.data ?? []).length > 0 && (
         <div className="space-y-3">
           {summary.data?.total_eth_staked != null && (
             <div className="rounded-md border border-surface-border bg-surface-raised/40 px-3 py-2 flex items-baseline justify-between gap-3 @xs:flex-col @xs:items-start @xs:gap-0.5">
               <span className="text-[10px] uppercase tracking-[0.18em] text-slate-500">
-                Total ETH staked
+                {t("staking-flows.total_staked")}
               </span>
               <span className="font-mono tabular-nums text-base text-slate-100">
                 {formatStakedEth(summary.data.total_eth_staked)}
@@ -81,8 +83,8 @@ export default function StakingFlowsPanel() {
           <div className="flex justify-between items-baseline @xs:flex-col @xs:gap-1">
             <span className="text-xs text-slate-500">
               {summary.data?.active_validator_count != null
-                ? `${summary.data.active_validator_count.toLocaleString()} active validators`
-                : "active validators —"}
+                ? t("staking-flows.active_validators", { count: summary.data.active_validator_count.toLocaleString() })
+                : t("staking-flows.active_validators_dash")}
             </span>
             <span
               className={
@@ -96,20 +98,20 @@ export default function StakingFlowsPanel() {
           </div>
 
           <LegRow
-            label="Deposits"
+            label={t("staking-flows.leg.deposits")}
             tone="up"
             leg={legs.deposit}
             maxLeg={maxLeg}
           />
           <LegRow
-            label="Full exits"
+            label={t("staking-flows.leg.full_exits")}
             tone="down"
             leg={legs.withdrawal_full}
             maxLeg={maxLeg}
           />
 
           <div className="text-[11px] text-slate-500 font-mono tabular-nums @xs:hidden border-t border-surface-raised pt-2">
-            rewards skim (partial withdrawals):{" "}
+            {t("staking-flows.partial_withdrawals")}{" "}
             {legs.withdrawal_partial.totalEth.toLocaleString(undefined, {
               maximumFractionDigits: 0,
             })}{" "}
@@ -120,7 +122,7 @@ export default function StakingFlowsPanel() {
           {entityRows.length > 0 && (
             <div className="border-t border-surface-raised pt-3 @xs:hidden">
               <div className="text-[10px] uppercase tracking-[0.18em] text-slate-500 mb-2">
-                By issuer ({range})
+                {t("staking-flows.by_issuer", { range })}
               </div>
               <ul className="space-y-1.5">
                 {entityRows.slice(0, 8).map((row) => (
@@ -148,9 +150,9 @@ export default function StakingFlowsPanel() {
               </ul>
               <div className="mt-1.5 grid grid-cols-[1fr_auto_auto_auto] gap-3 text-[10px] text-slate-500 uppercase tracking-wider">
                 <span></span>
-                <span className="text-right">deposits</span>
-                <span className="text-right">exits</span>
-                <span className="text-right">net</span>
+                <span className="text-right">{t("staking-flows.col.deposits")}</span>
+                <span className="text-right">{t("staking-flows.col.exits")}</span>
+                <span className="text-right">{t("staking-flows.col.net")}</span>
               </div>
             </div>
           )}

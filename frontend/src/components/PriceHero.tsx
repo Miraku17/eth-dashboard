@@ -7,6 +7,7 @@ import {
   formatUsdCompact,
   formatUsdFull,
 } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 
 function EthGlyph() {
   return (
@@ -47,6 +48,7 @@ function StripCell({
 }
 
 export default function PriceHero() {
+  const t = useT();
   const { data, error } = useMarketSummary();
   const trade = useBinanceTrade();
 
@@ -88,7 +90,7 @@ export default function PriceHero() {
                 <span className="text-[11px] font-medium tracking-widest text-slate-500 uppercase border border-surface-border rounded px-1.5 py-0.5">
                   ETH
                 </span>
-                <span className="text-[11px] text-slate-500">· Mainnet</span>
+                <span className="text-[11px] text-slate-500">{t("price-hero.mainnet")}</span>
               </div>
               <div className="mt-3 flex items-baseline gap-3 flex-wrap">
                 {data && livePrice !== null && liveChangePct !== null && liveChangeAbs !== null ? (
@@ -121,13 +123,13 @@ export default function PriceHero() {
                 <div className="mt-5 max-w-md">
                   <div className="flex justify-between text-[11px] tracking-wide text-slate-500 mb-1.5 uppercase">
                     <span>
-                      Low{" "}
+                      {t("price-hero.range.low")}{" "}
                       <span className="font-mono text-slate-300 ml-1">
                         {formatUsdFull(data.low24h)}
                       </span>
                     </span>
                     <span>
-                      High{" "}
+                      {t("price-hero.range.high")}{" "}
                       <span className="font-mono text-slate-300 ml-1">
                         {formatUsdFull(data.high24h)}
                       </span>
@@ -170,15 +172,15 @@ export default function PriceHero() {
       <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-surface-divider border-t border-surface-divider">
         {data ? (
           <>
-            <StripCell label="24h High" value={formatUsdFull(data.high24h)} />
-            <StripCell label="24h Low" value={formatUsdFull(data.low24h)} />
+            <StripCell label={t("price-hero.24h_high")} value={formatUsdFull(data.high24h)} />
+            <StripCell label={t("price-hero.24h_low")} value={formatUsdFull(data.low24h)} />
             <StripCell
-              label="24h Volume"
+              label={t("price-hero.24h_volume")}
               value={formatUsdCompact(data.volumeUsd24h)}
               hint={`${formatNumberCompact(data.volumeEth24h)} ETH`}
             />
             <StripCell
-              label="24h Change"
+              label={t("price-hero.24h_change")}
               value={formatPct(data.change24hPct)}
               tone={up ? "up" : "down"}
             />

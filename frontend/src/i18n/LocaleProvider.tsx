@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { de } from "./de";
 import { en } from "./en";
 import type { Locale, TranslationKey } from "./types";
 
@@ -59,13 +60,9 @@ export function useT() {
   const { locale } = useLocale();
   return useCallback(
     (key: TranslationKey, vars?: Record<string, string | number>): string => {
-      // Task 4 creates `de.ts` and replaces the placeholder alias below
-      // with a real import. Aliasing `de` to `en` here keeps the build
-      // green for Task 1 (where useT is exported but not yet consumed
-      // by any component, and de.ts doesn't exist yet).
       const dicts: Record<Locale, Record<string, string>> = {
         en,
-        de: en,
+        de,
       };
       let s: string = dicts[locale][key] ?? en[key] ?? key;
       if (vars) {

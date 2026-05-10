@@ -22,6 +22,7 @@ import {
   type WalletTransfer,
 } from "../api";
 import { formatUsdCompact, formatUsdFull, relativeTime } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import { useWalletDrawer } from "../state/walletDrawer";
 
 function truncate(addr: string): string {
@@ -43,6 +44,7 @@ function formatPnl(usd: number): string {
 }
 
 function SmartMoneyTile({ score }: { score: WalletScoreInfo }) {
+  const t = useT();
   const isSmart = score.score >= SMART_FLOOR_USD;
   const gold = score.score >= SMART_GOLD_USD;
   const tone = !isSmart
@@ -62,12 +64,12 @@ function SmartMoneyTile({ score }: { score: WalletScoreInfo }) {
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <div className="text-[11px] uppercase tracking-wider text-slate-500">
-            Wallet score · 30d
+            {t("wallet.score.title")}
           </div>
           {isSmart && (
             <span
               className={`inline-flex items-center text-[10px] font-semibold tracking-wide rounded px-1.5 py-0.5 ring-1 ${badgeTone}`}
-              title={`Smart-money tier ${gold ? "(★ gold ≥ $1M)" : "(≥ $100k)"}`}
+              title={t("wallet.score.smart_badge_title", { tier: gold ? "(★ gold ≥ $1M)" : "(≥ $100k)" })}
             >
               ★ {gold ? "Gold" : "Smart"}
             </span>
@@ -77,19 +79,19 @@ function SmartMoneyTile({ score }: { score: WalletScoreInfo }) {
           className="text-[10px] text-slate-500 font-mono tabular-nums"
           title={updated.toISOString()}
         >
-          updated {updatedAge}
+          {t("wallet.score.updated", { age: updatedAge })}
         </div>
       </div>
 
       <div className="mt-2 grid grid-cols-3 gap-3">
         <div>
-          <div className="text-[11px] uppercase tracking-wider text-slate-500">Realized PnL</div>
+          <div className="text-[11px] uppercase tracking-wider text-slate-500">{t("wallet.score.realized_pnl")}</div>
           <div className="font-mono tabular-nums text-lg text-slate-100">
             {formatPnl(score.realized_pnl_30d)}
           </div>
         </div>
         <div>
-          <div className="text-[11px] uppercase tracking-wider text-slate-500">Win rate</div>
+          <div className="text-[11px] uppercase tracking-wider text-slate-500">{t("wallet.score.win_rate")}</div>
           <div className="font-mono tabular-nums text-lg text-slate-100">
             {score.win_rate_30d !== null
               ? `${(score.win_rate_30d * 100).toFixed(0)}%`
@@ -97,7 +99,7 @@ function SmartMoneyTile({ score }: { score: WalletScoreInfo }) {
           </div>
         </div>
         <div>
-          <div className="text-[11px] uppercase tracking-wider text-slate-500">Volume</div>
+          <div className="text-[11px] uppercase tracking-wider text-slate-500">{t("wallet.score.volume")}</div>
           <div className="font-mono tabular-nums text-lg text-slate-100">
             {formatUsdCompact(score.volume_usd_30d)}
           </div>
@@ -105,7 +107,7 @@ function SmartMoneyTile({ score }: { score: WalletScoreInfo }) {
       </div>
 
       <div className="mt-2 text-[11px] text-slate-500">
-        {score.trades_30d.toLocaleString()} swaps · v1 score = realized PnL
+        {t("wallet.score.swaps", { count: score.trades_30d.toLocaleString() })}
       </div>
     </div>
   );
@@ -287,6 +289,7 @@ function NetFlowTooltip({ active, payload }: any) {
 }
 
 function NetFlowChart({ data }: { data: WalletProfile["net_flow_7d"] }) {
+  const t = useT();
   const series = buildNetFlowSeries(data);
   const total7d = series.reduce((s, r) => s + r.net_usd, 0);
   const activeDays = series.filter((r) => r.net_usd !== 0).length;
@@ -306,11 +309,11 @@ function NetFlowChart({ data }: { data: WalletProfile["net_flow_7d"] }) {
         >
           {hasAnyMoves
             ? `${total7d >= 0 ? "+" : ""}${formatUsdCompact(total7d)} net`
-            : "no whale moves in 7d"}
+            : t("wallet.netflow.no_moves")}
         </span>
         {hasAnyMoves && (
           <span className="text-slate-600 font-mono tabular-nums">
-            {activeDays} of 7 days active
+            {t("wallet.netflow.active_days", { count: activeDays })}
           </span>
         )}
       </div>
@@ -360,6 +363,7 @@ function formatTokenAmount(amount: number): string {
 }
 
 function TokenHoldingRow({ h }: { h: TokenHolding }) {
+  const t = useT();
   return (
     <li className="flex items-center justify-between gap-3 py-1.5 text-sm border-b border-surface-divider/60 last:border-0">
       <div className="flex items-center gap-2 min-w-0">
@@ -376,7 +380,7 @@ function TokenHoldingRow({ h }: { h: TokenHolding }) {
             {formatUsdCompact(h.usd_value)}
           </span>
         ) : (
-          <span className="text-[11px] text-slate-500 italic">unpriced</span>
+          <span className="text-[11px] text-slate-500 italic">{t("wallet.token.unpriced")}</span>
         )}
         {h.price_usd !== null && h.price_usd > 0 && (
           <span className="text-[10px] text-slate-600 font-mono tabular-nums">
@@ -415,13 +419,14 @@ function CounterpartyRow({
 }
 
 function TransferRow({
-  t,
+  transfer,
   onAddrClick,
 }: {
-  t: WalletTransfer;
+  transfer: WalletTransfer;
   onAddrClick: (addr: string) => void;
 }) {
-  const inbound = t.direction === "in";
+  const t = useT();
+  const inbound = transfer.direction === "in";
   return (
     <li className="flex items-center justify-between gap-3 py-1.5 text-sm border-b border-surface-divider/60 last:border-0">
       <div className="flex items-center gap-2 min-w-0">
@@ -436,35 +441,35 @@ function TransferRow({
           {inbound ? "IN" : "OUT"}
         </span>
         <span className="font-mono tabular-nums text-slate-100 whitespace-nowrap text-[13px]">
-          {t.amount >= 1000 ? t.amount.toFixed(0) : t.amount.toFixed(2)}{" "}
-          <span className="text-slate-500">{t.asset}</span>
+          {transfer.amount >= 1000 ? transfer.amount.toFixed(0) : transfer.amount.toFixed(2)}{" "}
+          <span className="text-slate-500">{transfer.asset}</span>
         </span>
         <span className="text-slate-600">·</span>
         <button
           type="button"
-          onClick={() => onAddrClick(t.counterparty)}
+          onClick={() => onAddrClick(transfer.counterparty)}
           className="font-mono text-[11px] text-slate-400 hover:text-brand-soft truncate min-w-0"
-          title={t.counterparty}
+          title={transfer.counterparty}
         >
-          {t.counterparty_label ?? truncate(t.counterparty)}
+          {transfer.counterparty_label ?? truncate(transfer.counterparty)}
         </button>
       </div>
       <div className="flex items-center gap-2 whitespace-nowrap">
-        {t.usd_value !== null && (
+        {transfer.usd_value !== null && (
           <span className="font-mono text-[11px] text-slate-300 tabular-nums">
-            {formatUsdCompact(t.usd_value)}
+            {formatUsdCompact(transfer.usd_value)}
           </span>
         )}
         <a
-          href={`https://etherscan.io/tx/${t.tx_hash}`}
+          href={`https://etherscan.io/tx/${transfer.tx_hash}`}
           target="_blank"
           rel="noreferrer"
           className="text-[10px] text-slate-600 hover:text-brand-soft"
-          title="open tx on Etherscan"
+          title={t("wallet.transfer.open_tx")}
         >
           ↗
         </a>
-        <span className="text-[10px] text-slate-600">{relativeTime(t.ts)}</span>
+        <span className="text-[10px] text-slate-600">{relativeTime(transfer.ts)}</span>
       </div>
     </li>
   );
@@ -477,11 +482,12 @@ function ProfileBody({
   data: WalletProfile;
   onAddrClick: (addr: string) => void;
 }) {
+  const t = useT();
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <div className="text-[11px] uppercase tracking-wider text-slate-500">Address</div>
+        <div className="text-[11px] uppercase tracking-wider text-slate-500">{t("wallet.section.address")}</div>
         <div className="font-mono text-sm break-all text-slate-100">{data.address}</div>
         {data.labels.length > 0 && (
           <div className="mt-1.5 flex gap-1 flex-wrap">
@@ -502,7 +508,7 @@ function ProfileBody({
         <div className="flex items-baseline justify-between gap-3">
           <div>
             <div className="text-[11px] uppercase tracking-wider text-slate-500">
-              Current balance
+              {t("wallet.section.current_balance")}
             </div>
             <div className="mt-0.5 font-mono tabular-nums text-2xl text-slate-100">
               {formatEth(data.current_balance_eth)}
@@ -519,7 +525,7 @@ function ProfileBody({
         <div className="mt-3">
           {data.balance_unavailable ? (
             <div className="text-[12px] text-slate-500 italic">
-              Balance history unavailable — RPC endpoint not configured.
+              {t("wallet.balance_history_unavailable")}
             </div>
           ) : (
             <BalanceChart data={data.balance_history} />
@@ -528,19 +534,19 @@ function ProfileBody({
 
         <div className="mt-3 grid grid-cols-3 gap-3 text-[11px]">
           <div>
-            <div className="text-slate-500 uppercase tracking-wider">Active since</div>
+            <div className="text-slate-500 uppercase tracking-wider">{t("wallet.section.active_since")}</div>
             <div className="font-mono tabular-nums text-slate-200">
               {data.first_seen ? new Date(data.first_seen).toLocaleDateString() : "—"}
             </div>
           </div>
           <div>
-            <div className="text-slate-500 uppercase tracking-wider">Last seen</div>
+            <div className="text-slate-500 uppercase tracking-wider">{t("wallet.section.last_seen")}</div>
             <div className="font-mono tabular-nums text-slate-200">
               {data.last_seen ? new Date(data.last_seen).toLocaleDateString() : "—"}
             </div>
           </div>
           <div>
-            <div className="text-slate-500 uppercase tracking-wider">Tx count</div>
+            <div className="text-slate-500 uppercase tracking-wider">{t("wallet.section.tx_count")}</div>
             <div className="font-mono tabular-nums text-slate-200">
               {data.tx_count.toLocaleString()}
             </div>
@@ -557,9 +563,9 @@ function ProfileBody({
       {data.token_holdings.length > 0 && (
         <div>
           <SectionTitle>
-            Token holdings
+            {t("wallet.section.token_holdings")}
             <span className="ml-1.5 normal-case tracking-normal text-slate-600 font-normal">
-              · top {data.token_holdings.length} by USD
+              {t("wallet.token_holdings.subtitle", { count: data.token_holdings.length })}
             </span>
           </SectionTitle>
           <ul>
@@ -578,24 +584,22 @@ function ProfileBody({
         && data.top_counterparties.length === 0
         && data.net_flow_7d.length === 0 && (
         <div className="rounded ring-1 ring-amber-400/20 bg-amber-400/5 px-3 py-2 text-[12px] text-amber-200/90">
-          This wallet is below the whale-tracking threshold (≥100 ETH or
-          ≥$250k stables per transfer). Profile shows on-chain balance only —
-          smaller moves are not indexed.
+          {t("wallet.below_threshold")}
         </div>
       )}
 
       {/* Net flow */}
       <div>
-        <SectionTitle>Net flow · 7d (whale moves)</SectionTitle>
+        <SectionTitle>{t("wallet.section.net_flow")}</SectionTitle>
         <NetFlowChart data={data.net_flow_7d} />
       </div>
 
       {/* Top counterparties */}
       <div>
-        <SectionTitle>Top counterparties · 30d</SectionTitle>
+        <SectionTitle>{t("wallet.section.top_counterparties")}</SectionTitle>
         {data.top_counterparties.length === 0 ? (
           <div className="text-[12px] text-slate-500">
-            No whale-sized counterparties in the last 30 days.
+            {t("wallet.counterparties.empty")}
           </div>
         ) : (
           <ul>
@@ -608,18 +612,17 @@ function ProfileBody({
 
       {/* Recent activity */}
       <div>
-        <SectionTitle>Recent whale activity</SectionTitle>
+        <SectionTitle>{t("wallet.section.recent_activity")}</SectionTitle>
         {data.recent_transfers.length === 0 ? (
           <div className="text-[12px] text-slate-500">
-            No transfers above the whale threshold involving this address.
-            The wallet may still be active in smaller moves.
+            {t("wallet.recent_activity.empty")}
           </div>
         ) : (
           <ul>
-            {data.recent_transfers.map((t) => (
+            {data.recent_transfers.map((tr) => (
               <TransferRow
-                key={`${t.tx_hash}`}
-                t={t}
+                key={`${tr.tx_hash}`}
+                transfer={tr}
                 onAddrClick={onAddrClick}
               />
             ))}
@@ -630,7 +633,7 @@ function ProfileBody({
       {/* Linked wallets */}
       {data.linked_wallets.length > 0 && (
         <div>
-          <SectionTitle>Linked wallets ({data.linked_wallets.length})</SectionTitle>
+          <SectionTitle>{t("wallet.section.linked_wallets", { count: data.linked_wallets.length })}</SectionTitle>
           <ul className="divide-y divide-surface-divider">
             {data.linked_wallets.map((lw) => (
               <li key={lw.address} className="py-2 flex items-start justify-between gap-3">
@@ -656,6 +659,7 @@ function ProfileBody({
 }
 
 export default function WalletDrawer() {
+  const t = useT();
   const open = useWalletDrawer((s) => s.open);
   const address = useWalletDrawer((s) => s.address);
   const close = useWalletDrawer((s) => s.close);
@@ -681,7 +685,7 @@ export default function WalletDrawer() {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-3 border-b border-surface-divider bg-surface-base/95 backdrop-blur">
-          <div className="font-medium text-slate-200">Wallet</div>
+          <div className="font-medium text-slate-200">{t("wallet.drawer.heading")}</div>
           <div className="flex items-center gap-3">
             <a
               href={`https://etherscan.io/address/${address}`}
@@ -689,13 +693,13 @@ export default function WalletDrawer() {
               rel="noreferrer"
               className="text-[12px] text-slate-400 hover:text-brand-soft underline decoration-dotted"
             >
-              Etherscan ↗
+              {t("wallet.etherscan_link")}
             </a>
             <button
               type="button"
               onClick={close}
               className="text-slate-400 hover:text-slate-100 text-lg leading-none px-1"
-              aria-label="Close"
+              aria-label={t("wallet.aria.close")}
             >
               ×
             </button>
@@ -703,8 +707,8 @@ export default function WalletDrawer() {
         </div>
 
         <div className="p-5">
-          {isLoading && <div className="text-sm text-slate-500">loading…</div>}
-          {error && <div className="text-sm text-down">unavailable — try again</div>}
+          {isLoading && <div className="text-sm text-slate-500">{t("common.loading")}</div>}
+          {error && <div className="text-sm text-down">{t("wallet.unavailable")}</div>}
           {data && <ProfileBody data={data} onAddrClick={show} />}
         </div>
       </aside>

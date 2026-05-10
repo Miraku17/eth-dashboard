@@ -13,6 +13,7 @@ import {
 } from "recharts";
 
 import { fetchNetworkSeries, fetchNetworkSummary } from "../api";
+import { useT } from "../i18n/LocaleProvider";
 import Card from "./ui/Card";
 import Pill from "./ui/Pill";
 
@@ -64,6 +65,7 @@ function Stat({
 }
 
 export default function NetworkActivityPanel() {
+  const t = useT();
   const [range, setRange] = useState<Range>("24h");
 
   const summary = useQuery({
@@ -89,11 +91,11 @@ export default function NetworkActivityPanel() {
 
   return (
     <Card
-      title="Network activity"
+      title={t("network-activity.title")}
       subtitle={
         summary.data?.latest_ts
-          ? `last block ${new Date(summary.data.latest_ts).toLocaleTimeString()}`
-          : "per-block stats · needs ALCHEMY_API_KEY"
+          ? t("network-activity.subtitle_live", { time: new Date(summary.data.latest_ts).toLocaleTimeString() })
+          : t("network-activity.subtitle_empty")
       }
       live
       actions={
@@ -109,18 +111,18 @@ export default function NetworkActivityPanel() {
       {/* Stat strip */}
       <div className="grid grid-cols-1 @md:grid-cols-4 divide-y @md:divide-y-0 @md:divide-x divide-surface-divider border-b border-surface-divider">
         <Stat
-          label="Gas price"
+          label={t("network-activity.stat.gas_price")}
           value={fmtGwei(summary.data?.gas_price_gwei ?? null)}
           suffix="gwei"
           tone={gasTone(summary.data?.gas_price_gwei ?? null)}
         />
         <Stat
-          label="Base fee"
+          label={t("network-activity.stat.base_fee")}
           value={fmtGwei(summary.data?.base_fee_gwei ?? null)}
           suffix="gwei"
         />
         <Stat
-          label="Block time"
+          label={t("network-activity.stat.block_time")}
           value={
             summary.data?.avg_block_seconds != null
               ? summary.data.avg_block_seconds.toFixed(1)
@@ -129,7 +131,7 @@ export default function NetworkActivityPanel() {
           suffix="s avg"
         />
         <Stat
-          label="Tx / block"
+          label={t("network-activity.stat.tx_per_block")}
           value={
             summary.data?.avg_tx_per_block != null
               ? Math.round(summary.data.avg_tx_per_block).toString()
@@ -141,8 +143,7 @@ export default function NetworkActivityPanel() {
 
       {empty && (
         <p className="p-5 text-sm text-slate-500">
-          no network data yet — realtime listener must be running with a valid{" "}
-          <code className="text-slate-300">ALCHEMY_API_KEY</code>
+          {t("network-activity.empty")}
         </p>
       )}
 
@@ -151,7 +152,7 @@ export default function NetworkActivityPanel() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-[11px] tracking-wider uppercase text-slate-500 font-medium">
-                Gas (gwei)
+                {t("network-activity.chart.gas")}
               </h3>
             </div>
             <div className="h-48">
@@ -216,7 +217,7 @@ export default function NetworkActivityPanel() {
           <div>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-[11px] tracking-wider uppercase text-slate-500 font-medium">
-                Transactions per block
+                {t("network-activity.chart.tx")}
               </h3>
             </div>
             <div className="h-48">
