@@ -171,7 +171,7 @@ def liquidations(
             long_count=int(summary_row.long_count),
             short_count=int(summary_row.short_count),
             largest_usd=float(summary_row.largest_usd),
-            venue="binance",
+            venue="bybit",
             last_event_ts=last_event_ts,
             listener_stale=listener_stale,
         ),
