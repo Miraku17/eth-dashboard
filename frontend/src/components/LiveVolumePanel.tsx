@@ -24,6 +24,18 @@ const RANGE_OPTIONS: RangeOpt[] = [
   { value: 1440, label: "24h" },
 ];
 
+type MAPeriods = { fast: number; slow: number };
+
+// Fast / slow moving-average periods (in minutes) per window selection.
+// Picked so both lines have enough samples to be smooth without flattening
+// into the slow MA. Keep keys aligned with RANGE_OPTIONS.value.
+const MA_PERIODS_BY_WINDOW: Record<number, MAPeriods> = {
+  15: { fast: 3, slow: 10 },
+  60: { fast: 5, slow: 30 },
+  240: { fast: 15, slow: 60 },
+  1440: { fast: 60, slow: 240 },
+};
+
 type StackRow = {
   ts: string;
   [k: string]: string | number | undefined;
@@ -153,6 +165,20 @@ type Pivoted = {
   totalUsd: number;
   currentByAsset: Record<string, number>;
 };
+
+// Trailing simple moving average over `values` with the given period.
+// Returns an array of the same length; entries before the period is filled
+// are `undefined` so Recharts renders a gap rather than a misleading point.
+function trailingMean(values: number[], period: number): (number | undefined)[] {
+  const out: (number | undefined)[] = new Array(values.length);
+  let sum = 0;
+  for (let i = 0; i < values.length; i++) {
+    sum += values[i];
+    if (i >= period) sum -= values[i - period];
+    out[i] = i >= period - 1 ? sum / period : undefined;
+  }
+  return out;
+}
 
 function pivot(points: RealtimeVolumePoint[]): Pivoted {
   const byTs = new Map<string, StackRow>();
