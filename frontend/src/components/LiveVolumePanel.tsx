@@ -11,6 +11,7 @@ import {
 import { fetchRealtimeVolume, type RealtimeVolumePoint } from "../api";
 import { rgbOf } from "../lib/assetColors";
 import { formatUsdCompact } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import Card from "./ui/Card";
 import DataAge from "./ui/DataAge";
 import { SimpleSelect } from "./ui/Select";
@@ -30,6 +31,7 @@ type StackRow = {
 };
 
 export default function LiveVolumePanel() {
+  const t = useT();
   const [minutes, setMinutes] = useState<number>(60);
 
   const { data, isLoading, error } = useQuery({
@@ -50,8 +52,8 @@ export default function LiveVolumePanel() {
 
   return (
     <Card
-      title="Live on-chain volume"
-      subtitle={`stables · per-minute · ${minutes}m window · ~5s refresh`}
+      title={t("live-volume.title")}
+      subtitle={t("live-volume.subtitle", { minutes: String(minutes) })}
       live
       actions={
         <SimpleSelect
@@ -62,19 +64,19 @@ export default function LiveVolumePanel() {
         />
       }
     >
-      {isLoading && <p className="text-sm text-slate-500">loading…</p>}
-      {error && <p className="text-sm text-down">unavailable</p>}
+      {isLoading && <p className="text-sm text-slate-500">{t("common.loading")}</p>}
+      {error && <p className="text-sm text-down">{t("common.unavailable")}</p>}
       {!isLoading && !error && stacked.length === 0 && (
         <p className="text-sm text-slate-500">
-          no data yet — realtime listener needs blocks to arrive
+          {t("live-volume.empty")}
         </p>
       )}
       {stacked.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-baseline justify-between text-xs">
-            <span className="text-slate-500">{stacked.length} minutes shown</span>
+            <span className="text-slate-500">{t("live-volume.minutes_shown", { count: String(stacked.length) })}</span>
             <span className="font-mono tabular-nums text-slate-200">
-              {formatUsdCompact(totalUsd)} window total
+              {t("live-volume.window_total", { total: formatUsdCompact(totalUsd) })}
             </span>
           </div>
           <DataAge ts={(stacked.at(-1)?.ts as string | undefined) ?? null} label="latest" />

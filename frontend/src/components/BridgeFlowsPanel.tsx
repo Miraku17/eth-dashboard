@@ -8,6 +8,7 @@ import {
   type FlowRange,
 } from "../api";
 import { formatUsdCompact } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import Card from "./ui/Card";
 import DataAge from "./ui/DataAge";
 import FlowRangeSelector from "./FlowRangeSelector";
@@ -31,6 +32,7 @@ type BridgeAgg = {
 };
 
 export default function BridgeFlowsPanel() {
+  const t = useT();
   const [range, setRange] = useState<FlowRange>("48h");
   const hours = rangeToHours(range);
 
@@ -50,15 +52,15 @@ export default function BridgeFlowsPanel() {
 
   return (
     <Card
-      title="Bridge flows"
-      subtitle={`L1 ↔ L2 · last ${range} · Arbitrum / Base / Optimism / zkSync`}
+      title={t("bridge-flows.title")}
+      subtitle={t("bridge-flows.subtitle", { range })}
       actions={<FlowRangeSelector value={range} onChange={setRange} />}
     >
-      {isLoading && <p className="text-sm text-slate-500">loading…</p>}
-      {error && <p className="text-sm text-down">unavailable</p>}
+      {isLoading && <p className="text-sm text-slate-500">{t("common.loading")}</p>}
+      {error && <p className="text-sm text-down">{t("common.unavailable")}</p>}
       {!isLoading && !error && aggs.length === 0 && (
         <p className="text-sm text-slate-500">
-          no data yet — waiting for first Dune sync
+          {t("bridge-flows.empty")}
         </p>
       )}
       {aggs.length > 0 && (
@@ -72,12 +74,12 @@ export default function BridgeFlowsPanel() {
               }
             >
               net {totalNet >= 0 ? "+" : ""}
-              {formatUsdCompact(totalNet)} ({totalNet >= 0 ? "L1 → L2" : "L2 → L1"})
+              {formatUsdCompact(totalNet)} ({totalNet >= 0 ? t("bridge-flows.net_l1_to_l2") : t("bridge-flows.net_l2_to_l1")})
             </span>
           </div>
           <ul className="space-y-2.5">
             {aggs.map((row) => (
-              <BridgeRow key={row.bridge} row={row} maxLeg={maxLeg} />
+              <BridgeRow key={row.bridge} row={row} maxLeg={maxLeg} t={t} />
             ))}
           </ul>
         </div>
@@ -86,7 +88,7 @@ export default function BridgeFlowsPanel() {
   );
 }
 
-function BridgeRow({ row, maxLeg }: { row: BridgeAgg; maxLeg: number }) {
+function BridgeRow({ row, maxLeg, t }: { row: BridgeAgg; maxLeg: number; t: ReturnType<typeof useT> }) {
   const up = row.net >= 0;
   const inPct = (row.inflow / maxLeg) * 100;
   const outPct = (row.outflow / maxLeg) * 100;
@@ -122,7 +124,7 @@ function BridgeRow({ row, maxLeg }: { row: BridgeAgg; maxLeg: number }) {
         />
       </div>
       <div className="mt-0.5 text-[11px] text-slate-500 font-mono tabular-nums @xs:hidden">
-        deposit {formatUsdCompact(row.inflow)} / withdraw {formatUsdCompact(row.outflow)}
+        {t("bridge-flows.deposit_withdraw", { deposit: formatUsdCompact(row.inflow), withdraw: formatUsdCompact(row.outflow) })}
       </div>
     </li>
   );

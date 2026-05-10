@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchLrtTvlLatest, fetchStakingYields } from "../api";
 import { formatUsdCompact } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import Card from "./ui/Card";
 import DataAge from "./ui/DataAge";
 
 export default function LrtTvlPanel() {
+  const t = useT();
   const { data, isLoading, error } = useQuery({
     queryKey: ["lrt-tvl-latest"],
     queryFn: fetchLrtTvlLatest,
@@ -23,14 +25,14 @@ export default function LrtTvlPanel() {
 
   return (
     <Card
-      title="LRT issuers"
-      subtitle="Liquid restaking · Ethereum mainnet · DefiLlama"
+      title={t("lrt-tvl.title")}
+      subtitle={t("lrt-tvl.subtitle")}
     >
-      {isLoading && <p className="text-sm text-slate-500">loading…</p>}
-      {error && <p className="text-sm text-down">unavailable</p>}
+      {isLoading && <p className="text-sm text-slate-500">{t("common.loading")}</p>}
+      {error && <p className="text-sm text-down">{t("common.unavailable")}</p>}
       {!isLoading && !error && protocols.length === 0 && (
         <p className="text-sm text-slate-500">
-          no data yet — first hourly sync pending
+          {t("lrt-tvl.empty")}
         </p>
       )}
       {protocols.length > 0 && (
@@ -38,7 +40,7 @@ export default function LrtTvlPanel() {
           <div className="flex items-baseline justify-between">
             <DataAge ts={data?.ts_bucket ?? null} />
             <span className="font-mono tabular-nums text-base text-slate-100">
-              {formatUsdCompact(totalUsd)} total
+              {t("lrt-tvl.total", { value: formatUsdCompact(totalUsd) })}
             </span>
           </div>
 

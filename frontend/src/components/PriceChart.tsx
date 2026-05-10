@@ -13,6 +13,7 @@ import { fetchCandles, type Candle, type Timeframe } from "../api";
 import { formatUsdCompact, formatUsdFull } from "../lib/format";
 import { binanceWS } from "../lib/binanceWS";
 import { useBinanceStatus } from "../hooks/useBinanceStatus";
+import { useT } from "../i18n/LocaleProvider";
 import Card from "./ui/Card";
 import ChartTypeSelector, { type ChartType } from "./ChartTypeSelector";
 import TimeframeSelector from "./TimeframeSelector";
@@ -90,6 +91,7 @@ function loadChartType(): ChartType {
 }
 
 export default function PriceChart({ timeframe, onTimeframeChange }: Props) {
+  const t = useT();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   // Single price-series ref; the type changes when the user flips chartType
@@ -353,15 +355,15 @@ export default function PriceChart({ timeframe, onTimeframeChange }: Props) {
 
   return (
     <Card
-      title="ETH / USDT"
+      title={t("price-chart.title")}
       subtitle={
         isLoading
-          ? "loading…"
+          ? t("price-chart.subtitle_loading")
           : error
-            ? "chart unavailable"
+            ? t("price-chart.subtitle_error")
             : !wsConnected
-              ? `${data?.candles.length ?? 0} ${timeframe} candles · live disconnected — retrying`
-              : `${data?.candles.length ?? 0} ${timeframe} candles · Binance live`
+              ? t("price-chart.subtitle_disconnected", { count: data?.candles.length ?? 0, tf: timeframe })
+              : t("price-chart.subtitle_live", { count: data?.candles.length ?? 0, tf: timeframe })
       }
       live
       actions={

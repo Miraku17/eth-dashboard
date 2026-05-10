@@ -40,12 +40,12 @@ export type PanelWidth = 1 | 2 | 3 | 4;
  */
 export type OnchainSection = "stablecoins" | "staking" | "defi" | "bridges" | "network";
 
-export const ONCHAIN_SECTIONS: { id: OnchainSection; label: string }[] = [
-  { id: "stablecoins", label: "Stablecoins" },
-  { id: "staking", label: "Staking" },
-  { id: "defi", label: "DeFi" },
-  { id: "bridges", label: "Bridges (L1↔L2)" },
-  { id: "network", label: "Network" },
+export const ONCHAIN_SECTIONS: { id: OnchainSection; labelKey: string }[] = [
+  { id: "stablecoins", labelKey: "section.stablecoins" },
+  { id: "staking", labelKey: "section.staking" },
+  { id: "defi", labelKey: "section.defi" },
+  { id: "bridges", labelKey: "section.bridges" },
+  { id: "network", labelKey: "section.network" },
 ];
 
 export type PanelDef = {

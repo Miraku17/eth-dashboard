@@ -16,6 +16,7 @@ import {
   type FlowRange,
 } from "../api";
 import { formatUsdCompact } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import Card from "./ui/Card";
 import FlowRangeSelector from "./FlowRangeSelector";
 
@@ -28,6 +29,7 @@ type Row = {
 };
 
 export default function LiquidationsPanel() {
+  const t = useT();
   const [range, setRange] = useState<FlowRange>("24h");
   const hours = rangeToHours(range);
 
@@ -54,17 +56,16 @@ export default function LiquidationsPanel() {
 
   return (
     <Card
-      title="Liquidations"
-      subtitle={`Perp futures · ETH-USD · ${summary?.venue ?? "bybit"}`}
+      title={t("liquidations.title")}
+      subtitle={t("liquidations.subtitle", { venue: summary?.venue ?? "bybit" })}
       actions={<FlowRangeSelector value={range} onChange={setRange} options={OPTIONS} />}
       bodyClassName="p-0"
     >
-      {isLoading && <p className="p-5 text-sm text-slate-500">loading…</p>}
-      {error && <p className="p-5 text-sm text-down">unavailable</p>}
+      {isLoading && <p className="p-5 text-sm text-slate-500">{t("common.loading")}</p>}
+      {error && <p className="p-5 text-sm text-down">{t("common.unavailable")}</p>}
       {!isLoading && !error && (!data || rows.length === 0) && (
         <p className="p-5 text-sm text-slate-500">
-          no liquidations in the last {range} — quiet market window. Listener
-          subscribes to Bybit's allLiquidation.ETHUSDT; events stream as they happen.
+          {t("liquidations.empty", { range })}
         </p>
       )}
 
@@ -73,35 +74,35 @@ export default function LiquidationsPanel() {
           <div className="grid grid-cols-3 divide-x divide-surface-divider border-b border-surface-divider">
             <div className="px-5 py-4">
               <div className="text-[11px] tracking-wider uppercase text-slate-500 font-medium">
-                Longs liquidated
+                {t("liquidations.tile.longs")}
               </div>
               <div className="mt-1.5 font-mono text-base font-semibold tabular-nums text-down">
                 {formatUsdCompact(summary.long_usd)}
               </div>
               <div className="mt-0.5 text-[11px] text-slate-500 font-mono">
-                {summary.long_count.toLocaleString()} positions
+                {t("liquidations.positions_count", { count: summary.long_count.toLocaleString() })}
               </div>
             </div>
             <div className="px-5 py-4">
               <div className="text-[11px] tracking-wider uppercase text-slate-500 font-medium">
-                Shorts liquidated
+                {t("liquidations.tile.shorts")}
               </div>
               <div className="mt-1.5 font-mono text-base font-semibold tabular-nums text-up">
                 {formatUsdCompact(summary.short_usd)}
               </div>
               <div className="mt-0.5 text-[11px] text-slate-500 font-mono">
-                {summary.short_count.toLocaleString()} positions
+                {t("liquidations.positions_count", { count: summary.short_count.toLocaleString() })}
               </div>
             </div>
             <div className="px-5 py-4">
               <div className="text-[11px] tracking-wider uppercase text-slate-500 font-medium">
-                Skew · largest
+                {t("liquidations.tile.skew")}
               </div>
               <div className="mt-1.5 font-mono text-base font-semibold tabular-nums text-slate-100">
-                {longSkew.toFixed(0)}% long
+                {t("liquidations.skew_pct", { pct: longSkew.toFixed(0) })}
               </div>
               <div className="mt-0.5 text-[11px] text-slate-500 font-mono">
-                largest {formatUsdCompact(summary.largest_usd)}
+                {t("liquidations.largest", { value: formatUsdCompact(summary.largest_usd) })}
               </div>
             </div>
           </div>

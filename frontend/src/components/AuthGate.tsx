@@ -7,6 +7,7 @@ import {
 } from "react";
 import { AUTH_EXPIRED_EVENT } from "../api";
 import { me, type AuthUser } from "../auth";
+import { useT } from "../i18n/LocaleProvider";
 import LoginPage from "./LoginPage";
 
 const AuthContext = createContext<AuthUser | null>(null);
@@ -21,6 +22,7 @@ type State =
   | { kind: "authed"; user: AuthUser };
 
 export default function AuthGate({ children }: { children: ReactNode }) {
+  const t = useT();
   const [state, setState] = useState<State>({ kind: "loading" });
 
   async function refresh() {
@@ -45,7 +47,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   if (state.kind === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center text-xs text-slate-500">
-        Loading…
+        {t("auth.loading")}
       </div>
     );
   }

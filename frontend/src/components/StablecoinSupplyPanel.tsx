@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchStablecoinFlows, rangeToHours, type FlowRange } from "../api";
 import { formatUsdCompact } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import { PEG_ORDER, pegOf, type PegCurrency } from "../lib/peg";
 import Card from "./ui/Card";
 import FlowRangeSelector from "./FlowRangeSelector";
@@ -16,6 +17,7 @@ type AssetAgg = {
 };
 
 export default function StablecoinSupplyPanel() {
+  const t = useT();
   const [range, setRange] = useState<FlowRange>("48h");
   const hours = rangeToHours(range);
   const { data, isLoading, error } = useQuery({
@@ -36,25 +38,25 @@ export default function StablecoinSupplyPanel() {
 
   return (
     <Card
-      title="Stablecoin supply Δ"
-      subtitle={`last ${range} · mint vs burn`}
+      title={t("stablecoin-supply.title")}
+      subtitle={t("stablecoin-supply.subtitle", { range })}
       actions={<FlowRangeSelector value={range} onChange={setRange} />}
     >
-      {isLoading && <p className="text-sm text-slate-500">loading…</p>}
-      {error && <p className="text-sm text-down">unavailable</p>}
+      {isLoading && <p className="text-sm text-slate-500">{t("common.loading")}</p>}
+      {error && <p className="text-sm text-down">{t("common.unavailable")}</p>}
       {!isLoading && !error && groups.length === 0 && (
-        <p className="text-sm text-slate-500">no data yet — waiting for Dune sync</p>
+        <p className="text-sm text-slate-500">{t("stablecoin-supply.empty")}</p>
       )}
       {groups.length > 0 && (
         <div className="space-y-3">
           {groups.map((g) => (
             <div key={g.peg}>
               <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5">
-                {g.peg} stables
+                {t("stablecoin-supply.group_label", { peg: g.peg })}
               </div>
               <ul className="space-y-2.5">
                 {g.rows.map((row) => (
-                  <AssetRow key={row.asset} row={row} maxLeg={maxLeg} />
+                  <AssetRow key={row.asset} row={row} maxLeg={maxLeg} t={t} />
                 ))}
               </ul>
             </div>
@@ -65,7 +67,7 @@ export default function StablecoinSupplyPanel() {
   );
 }
 
-function AssetRow({ row, maxLeg }: { row: AssetAgg; maxLeg: number }) {
+function AssetRow({ row, maxLeg, t }: { row: AssetAgg; maxLeg: number; t: ReturnType<typeof useT> }) {
   const up = row.net >= 0;
   const mintPct = (row.mint / maxLeg) * 100;
   const burnPct = (row.burn / maxLeg) * 100;
@@ -101,7 +103,7 @@ function AssetRow({ row, maxLeg }: { row: AssetAgg; maxLeg: number }) {
         />
       </div>
       <div className="mt-0.5 text-[11px] text-slate-500 font-mono tabular-nums @xs:hidden">
-        mint {formatUsdCompact(row.mint)} / burn {formatUsdCompact(row.burn)}
+        {t("stablecoin-supply.row.mint_burn", { mint: formatUsdCompact(row.mint), burn: formatUsdCompact(row.burn) })}
       </div>
     </li>
   );

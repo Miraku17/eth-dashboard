@@ -16,6 +16,7 @@ import {
   type DerivativesPoint,
 } from "../api";
 import { formatUsdCompact } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import Card from "./ui/Card";
 import Pill from "./ui/Pill";
 
@@ -68,6 +69,7 @@ function pivotToWide(
 }
 
 export default function DerivativesPanel() {
+  const t = useT();
   const [range, setRange] = useState<Range>("72h");
   const [mode, setMode] = useState<ChartMode>("funding");
 
@@ -90,8 +92,8 @@ export default function DerivativesPanel() {
 
   return (
     <Card
-      title="Derivatives"
-      subtitle="OI + funding rates · ETH perp · Binance / Bybit / OKX / Deribit"
+      title={t("derivatives.title")}
+      subtitle={t("derivatives.subtitle")}
       live
       actions={
         <div className="flex gap-2">
@@ -100,8 +102,8 @@ export default function DerivativesPanel() {
             value={mode}
             onChange={setMode}
             options={[
-              { value: "funding" as ChartMode, label: "Funding" },
-              { value: "oi" as ChartMode, label: "OI" },
+              { value: "funding" as ChartMode, label: t("derivatives.pill.funding") },
+              { value: "oi" as ChartMode, label: t("derivatives.pill.oi") },
             ]}
           />
           <Pill
@@ -116,8 +118,7 @@ export default function DerivativesPanel() {
     >
       {empty && (
         <p className="p-5 text-sm text-slate-500">
-          no derivatives data yet — worker runs once/hour. First sync happens at
-          worker startup; check back in ~60s.
+          {t("derivatives.empty")}
         </p>
       )}
 
@@ -156,7 +157,7 @@ export default function DerivativesPanel() {
           {/* Chart */}
           <div className="p-5">
             <div className="text-[11px] tracking-wider uppercase text-slate-500 font-medium mb-2">
-              {mode === "funding" ? "Funding rate" : "Open interest (USD)"}
+              {mode === "funding" ? t("derivatives.chart.funding") : t("derivatives.chart.oi")}
             </div>
             <div className="h-64">
               <ResponsiveContainer>

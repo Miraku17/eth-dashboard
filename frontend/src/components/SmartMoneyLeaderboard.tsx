@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { fetchSmartMoneyLeaderboard, type SmartMoneyEntry } from "../api";
 import { formatUsdCompact } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import AddressLink from "./AddressLink";
 import Card from "./ui/Card";
 
@@ -24,6 +25,7 @@ function isStale(snapshotIso: string | null): boolean {
 }
 
 export default function SmartMoneyLeaderboard() {
+  const t = useT();
   const { data, isLoading, error } = useQuery({
     queryKey: ["smart-money-leaderboard"],
     queryFn: () => fetchSmartMoneyLeaderboard(),
@@ -34,21 +36,20 @@ export default function SmartMoneyLeaderboard() {
 
   return (
     <Card
-      title="Smart money leaderboard"
-      subtitle="Top 50 ETH DEX traders by 30d realized PnL · WETH only · mainnet"
+      title={t("smart-money.title")}
+      subtitle={t("smart-money.subtitle")}
       bodyClassName="p-0"
     >
-      {isLoading && <p className="p-5 text-sm text-slate-500">loading…</p>}
-      {error && <p className="p-5 text-sm text-down">unavailable</p>}
+      {isLoading && <p className="p-5 text-sm text-slate-500">{t("common.loading")}</p>}
+      {error && <p className="p-5 text-sm text-down">{t("common.unavailable")}</p>}
       {!isLoading && !error && (!data || data.entries.length === 0) && (
         <p className="p-5 text-sm text-slate-500">
-          no snapshot yet — refresh runs daily at 03:00 UTC. Needs{" "}
-          <code className="text-slate-300">DUNE_QUERY_ID_SMART_MONEY_LEADERBOARD</code> set.
+          {t("smart-money.empty")}
         </p>
       )}
       {stale && (
         <p className="px-5 py-2 text-xs text-amber-300/80 border-b border-surface-divider">
-          Snapshot is older than {STALE_HOURS}h — daily refresh may have stalled.
+          {t("smart-money.stale", { hours: STALE_HOURS })}
         </p>
       )}
 
@@ -57,13 +58,13 @@ export default function SmartMoneyLeaderboard() {
           <table className="w-full text-sm">
             <thead className="text-[11px] tracking-wider uppercase text-slate-500 border-b border-surface-divider">
               <tr>
-                <th className="text-left px-4 py-3 font-medium">#</th>
-                <th className="text-left px-4 py-3 font-medium">Wallet</th>
-                <th className="text-right px-4 py-3 font-medium">Realized PnL</th>
-                <th className="hidden @md:table-cell text-right px-4 py-3 font-medium">Unrealized</th>
-                <th className="hidden @md:table-cell text-right px-4 py-3 font-medium">Win rate</th>
-                <th className="text-right px-4 py-3 font-medium">Trades</th>
-                <th className="hidden @md:table-cell text-right px-4 py-3 font-medium">Volume</th>
+                <th className="text-left px-4 py-3 font-medium">{t("smart-money.col.rank")}</th>
+                <th className="text-left px-4 py-3 font-medium">{t("smart-money.col.wallet")}</th>
+                <th className="text-right px-4 py-3 font-medium">{t("smart-money.col.realized_pnl")}</th>
+                <th className="hidden @md:table-cell text-right px-4 py-3 font-medium">{t("smart-money.col.unrealized")}</th>
+                <th className="hidden @md:table-cell text-right px-4 py-3 font-medium">{t("smart-money.col.win_rate")}</th>
+                <th className="text-right px-4 py-3 font-medium">{t("smart-money.col.trades")}</th>
+                <th className="hidden @md:table-cell text-right px-4 py-3 font-medium">{t("smart-money.col.volume")}</th>
               </tr>
             </thead>
             <tbody>

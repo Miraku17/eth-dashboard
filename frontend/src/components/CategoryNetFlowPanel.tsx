@@ -5,6 +5,7 @@ import {
   type CategoryWindow,
 } from "../api";
 import { formatUsdCompact } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import Card from "./ui/Card";
 
 /**
@@ -27,6 +28,7 @@ const TONES: Record<CategorySummary["category"], { ring: string; accent: string 
 };
 
 export default function CategoryNetFlowPanel() {
+  const t = useT();
   const { data, isLoading, error } = useQuery({
     queryKey: ["category-net-flow"],
     queryFn: fetchCategoryNetFlow,
@@ -35,21 +37,20 @@ export default function CategoryNetFlowPanel() {
 
   return (
     <Card
-      title="DeFi flows"
-      subtitle="Live · whale moves into / out of DEX, lending, staking, bridges"
+      title={t("category-net-flow.title")}
+      subtitle={t("category-net-flow.subtitle")}
     >
-      {isLoading && <p className="text-sm text-slate-500">loading…</p>}
-      {error && <p className="text-sm text-down">unavailable</p>}
+      {isLoading && <p className="text-sm text-slate-500">{t("common.loading")}</p>}
+      {error && <p className="text-sm text-down">{t("common.unavailable")}</p>}
       {!isLoading && !error && (!data || data.summaries.length === 0) && (
         <p className="text-sm text-slate-500">
-          no classified transfers yet — listener will populate as whale moves
-          to/from DeFi contracts land.
+          {t("category-net-flow.empty")}
         </p>
       )}
       {data && data.summaries.length > 0 && (
         <div className="grid grid-cols-2 gap-2">
           {data.summaries.map((s) => (
-            <CategoryTile key={s.category} s={s} />
+            <CategoryTile key={s.category} s={s} t={t} />
           ))}
         </div>
       )}
@@ -57,7 +58,7 @@ export default function CategoryNetFlowPanel() {
   );
 }
 
-function CategoryTile({ s }: { s: CategorySummary }) {
+function CategoryTile({ s, t }: { s: CategorySummary; t: ReturnType<typeof useT> }) {
   const tone = TONES[s.category];
   return (
     <div
@@ -68,19 +69,21 @@ function CategoryTile({ s }: { s: CategorySummary }) {
       </div>
       <div className="mt-2 space-y-2">
         {s.windows.map((w) => (
-          <WindowLine key={w.hours} w={w} />
+          <WindowLine key={w.hours} w={w} t={t} />
         ))}
       </div>
     </div>
   );
 }
 
-function WindowLine({ w }: { w: CategoryWindow }) {
-  // Convention: positive net = more in than out (deposit-direction
-  // dominant). Display sign + tone follow that.
+function WindowLine({ w, t }: { w: CategoryWindow; t: ReturnType<typeof useT> }) {
+  // Convention: positive net = more in than out (deposit-direction dominant).
+  // Tone treats outflow as "good for price" (green), inflow as bearish (red).
+  // Display value is flipped so '+' renders green and '−' renders red.
   const isOutflowDominant = w.net_usd < 0;
   const tone = isOutflowDominant ? "text-up" : w.net_usd > 0 ? "text-down" : "text-slate-500";
-  const sign = w.net_usd > 0 ? "+" : "";
+  const displayUsd = -w.net_usd;
+  const sign = displayUsd > 0 ? "+" : "";
   const totalCount = w.inflow_count + w.outflow_count;
 
   return (
@@ -89,11 +92,13 @@ function WindowLine({ w }: { w: CategoryWindow }) {
         <span className="text-slate-500 w-7">{w.hours}h</span>
         <span className={`font-semibold ${tone}`}>
           {sign}
-          {formatUsdCompact(w.net_usd)}
+          {formatUsdCompact(displayUsd)}
         </span>
       </div>
       <span className="text-slate-500 text-[10px]">
-        {totalCount} {totalCount === 1 ? "move" : "moves"}
+        {totalCount === 1
+          ? t("category-net-flow.moves_singular", { count: String(totalCount) })
+          : t("category-net-flow.moves_plural", { count: String(totalCount) })}
       </span>
     </div>
   );

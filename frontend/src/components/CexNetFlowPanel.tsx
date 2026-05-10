@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchCexNetFlow, type CexNetFlowWindow } from "../api";
 import { formatUsdCompact } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import Card from "./ui/Card";
 
 /**
@@ -15,6 +16,7 @@ import Card from "./ui/Card";
  * inflow (money landing on exchanges → bearish, often pre-sell).
  */
 export default function CexNetFlowPanel() {
+  const t = useT();
   const { data, isLoading, error } = useQuery({
     queryKey: ["cex-net-flow"],
     queryFn: fetchCexNetFlow,
@@ -25,32 +27,31 @@ export default function CexNetFlowPanel() {
 
   return (
     <Card
-      title="CEX net flow"
-      subtitle="Live · whale ETH + stables in/out of exchanges"
+      title={t("cex-net-flow.title")}
+      subtitle={t("cex-net-flow.subtitle")}
     >
-      {isLoading && <p className="text-sm text-slate-500">loading…</p>}
-      {error && <p className="text-sm text-down">unavailable</p>}
+      {isLoading && <p className="text-sm text-slate-500">{t("common.loading")}</p>}
+      {error && <p className="text-sm text-down">{t("common.unavailable")}</p>}
       {!isLoading && !error && (!data || data.windows.length === 0) && (
         <p className="text-sm text-slate-500">
-          no CEX-classified whale transfers yet — listener will populate as
-          new whale moves to/from exchange hot wallets land.
+          {t("cex-net-flow.empty")}
         </p>
       )}
       {data && data.windows.length > 0 && (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
             {data.windows.map((w) => (
-              <NetFlowWindowTile key={w.hours} w={w} />
+              <NetFlowWindowTile key={w.hours} w={w} t={t} />
             ))}
           </div>
           <div className="grid grid-cols-2 gap-2 pt-2 border-t border-surface-divider/60 text-[11px]">
             <ExtremeBox
-              label="Biggest single inflow"
+              label={t("cex-net-flow.largest_inflow")}
               usd={data.largest_inflow_usd}
               tone="down"
             />
             <ExtremeBox
-              label="Biggest single outflow"
+              label={t("cex-net-flow.largest_outflow")}
               usd={data.largest_outflow_usd}
               tone="up"
             />
@@ -61,17 +62,18 @@ export default function CexNetFlowPanel() {
   );
 }
 
-function NetFlowWindowTile({ w }: { w: CexNetFlowWindow }) {
+function NetFlowWindowTile({ w, t }: { w: CexNetFlowWindow; t: ReturnType<typeof useT> }) {
   // POSITIVE net = inflow (bearish/red), NEGATIVE net = outflow (bullish/green).
-  // We invert the visual sign so 'green = good for price'.
+  // Display value is flipped so '+' = green outflow (good for price) and '−' = red inflow.
   const isOutflowDominant = w.net_usd < 0;
   const tone = isOutflowDominant ? "text-up" : w.net_usd > 0 ? "text-down" : "text-slate-500";
-  const sign = w.net_usd > 0 ? "+" : "";
+  const displayUsd = -w.net_usd;
+  const sign = displayUsd > 0 ? "+" : "";
   const verdict = w.net_usd === 0
-    ? "balanced"
+    ? t("cex-net-flow.verdict.balanced")
     : isOutflowDominant
-      ? "net outflow"
-      : "net inflow";
+      ? t("cex-net-flow.verdict.outflow")
+      : t("cex-net-flow.verdict.inflow");
 
   return (
     <div className="rounded-md border border-surface-divider bg-bg-raised/30 p-3">
@@ -80,7 +82,7 @@ function NetFlowWindowTile({ w }: { w: CexNetFlowWindow }) {
       </div>
       <div className={`mt-1.5 font-mono text-lg font-semibold tabular-nums ${tone}`}>
         {sign}
-        {formatUsdCompact(w.net_usd)}
+        {formatUsdCompact(displayUsd)}
       </div>
       <div className="mt-0.5 text-[11px] text-slate-500">{verdict}</div>
       <div className="mt-2 grid grid-cols-2 gap-x-2 text-[10px] font-mono tabular-nums">

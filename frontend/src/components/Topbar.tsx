@@ -7,15 +7,9 @@ import { useAuthUser } from "./AuthGate";
 import { NavLink, useLocation } from "react-router-dom";
 import { useCustomizeMode } from "../state/customizeMode";
 import { useOverviewLayout } from "../state/overviewLayout";
+import { useT } from "../i18n/LocaleProvider";
 import Modal from "./ui/Modal";
 import Button from "./ui/Button";
-
-const NAV: readonly { label: string; to: string }[] = [
-  { label: "Overview", to: "/" },
-  { label: "Markets", to: "/markets" },
-  { label: "Onchain", to: "/onchain" },
-  { label: "Mempool", to: "/mempool" },
-];
 
 const SOURCE_LABELS: Record<string, string> = {
   binance_1m: "Binance",
@@ -154,6 +148,7 @@ function SourceRow({ s }: { s: DataSourceStatus }) {
 }
 
 function CustomizeButton() {
+  const t = useT();
   const location = useLocation();
   const editing = useCustomizeMode((s) => s.editing);
   const toggle = useCustomizeMode((s) => s.toggle);
@@ -164,12 +159,13 @@ function CustomizeButton() {
       onClick={toggle}
       className="hidden md:inline-flex items-center gap-2 text-xs text-slate-400 hover:text-slate-200 px-2 py-1 rounded-md border border-transparent hover:border-surface-border"
     >
-      {editing ? "Done" : "Customize"}
+      {editing ? t("topbar.done") : t("topbar.customize")}
     </button>
   );
 }
 
 function ResetButton() {
+  const t = useT();
   const location = useLocation();
   const editing = useCustomizeMode((s) => s.editing);
   const reset = useOverviewLayout((s) => s.reset);
@@ -184,32 +180,30 @@ function ResetButton() {
       <button
         onClick={() => setOpen(true)}
         className="hidden md:inline-flex items-center text-xs text-slate-500 hover:text-down px-2 py-1 rounded-md border border-transparent hover:border-surface-border"
-        title="Restore the default panel selection, order, and sizes"
+        title={t("reset_overview.body")}
       >
-        Reset
+        {t("topbar.reset")}
       </button>
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title="Reset overview"
+        title={t("reset_overview.title")}
         footer={
           <>
             <Button variant="ghost" onClick={() => setOpen(false)}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button variant="danger" onClick={onConfirm}>
-              Reset layout
+              {t("reset_overview.confirm")}
             </Button>
           </>
         }
       >
         <p className="text-sm text-slate-300">
-          This will restore the default panel selection, order, and sizes for
-          your overview.
+          {t("reset_overview.body")}
         </p>
         <p className="mt-2 text-xs text-slate-500">
-          Any panels you've added or removed and any size changes will be
-          discarded. This action can't be undone.
+          {t("reset_overview.detail")}
         </p>
       </Modal>
     </>
@@ -217,6 +211,7 @@ function ResetButton() {
 }
 
 function UserMenu() {
+  const t = useT();
   const user = useAuthUser();
   if (!user) return null;
   async function onLogout() {
@@ -231,19 +226,20 @@ function UserMenu() {
   return (
     <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
       <span className="text-slate-500">
-        Signed in as <span className="text-slate-300">{user.username}</span>
+        {t("topbar.signed_in_as")} <span className="text-slate-300">{user.username}</span>
       </span>
       <button
         onClick={onLogout}
         className="px-2 py-1 rounded-md border border-transparent hover:border-surface-border hover:text-slate-200"
       >
-        Logout
+        {t("topbar.logout")}
       </button>
     </div>
   );
 }
 
 export default function Topbar() {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const { data: health } = useQuery({
     queryKey: ["health"],
@@ -261,7 +257,14 @@ export default function Topbar() {
             <span className="text-sm font-semibold tracking-wide">Etherscope</span>
           </div>
           <nav className="flex items-center gap-0.5">
-            {NAV.map((n) => (
+            {(
+              [
+                { key: "nav.overview" as const, to: "/" },
+                { key: "nav.markets" as const, to: "/markets" },
+                { key: "nav.onchain" as const, to: "/onchain" },
+                { key: "nav.mempool" as const, to: "/mempool" },
+              ] as const
+            ).map((n) => (
               <NavLink
                 key={n.to}
                 to={n.to}
@@ -273,7 +276,7 @@ export default function Topbar() {
                     : "text-slate-400 hover:text-slate-200 hover:bg-surface-raised/60")
                 }
               >
-                {n.label}
+                {t(n.key)}
               </NavLink>
             ))}
           </nav>
@@ -290,7 +293,7 @@ export default function Topbar() {
                 "w-1.5 h-1.5 rounded-full " + (isOk ? "bg-up pulse" : "bg-down")
               }
             />
-            {isOk ? "Systems nominal" : "Degraded"}
+            {isOk ? t("topbar.systems_nominal") : t("topbar.degraded")}
             {health && (
               <span className="text-slate-600 font-mono">v{health.version}</span>
             )}
@@ -311,7 +314,7 @@ export default function Topbar() {
               />
               <div className="absolute top-full right-0 mt-2 w-64 rounded-lg border border-surface-border bg-surface-card shadow-card p-3 z-50">
                 <h4 className="text-[10px] font-semibold tracking-widest text-slate-500 uppercase mb-2">
-                  Data freshness
+                  {t("topbar.data_freshness")}
                 </h4>
                 {health ? (
                   <div className="divide-y divide-surface-divider">
@@ -320,7 +323,7 @@ export default function Topbar() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-500">loading…</p>
+                  <p className="text-xs text-slate-500">{t("common.loading")}</p>
                 )}
               </div>
             </>

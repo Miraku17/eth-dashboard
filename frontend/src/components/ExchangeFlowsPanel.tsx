@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchExchangeFlows, rangeToHours, type FlowRange } from "../api";
 import { formatUsdCompact } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import Card from "./ui/Card";
 import FlowRangeSelector from "./FlowRangeSelector";
 import Sparkline from "./Sparkline";
@@ -15,6 +16,7 @@ type ExchangeAgg = {
 };
 
 export default function ExchangeFlowsPanel() {
+  const t = useT();
   const [range, setRange] = useState<FlowRange>("48h");
   const hours = rangeToHours(range);
   const { data, isLoading, error } = useQuery({
@@ -30,19 +32,19 @@ export default function ExchangeFlowsPanel() {
 
   return (
     <Card
-      title="Exchange netflows"
-      subtitle={`last ${range} · Dune · labeled CEX wallets`}
+      title={t("exchange-flows.title")}
+      subtitle={t("exchange-flows.subtitle", { range })}
       actions={<FlowRangeSelector value={range} onChange={setRange} />}
     >
-      {isLoading && <p className="text-sm text-slate-500">loading…</p>}
-      {error && <p className="text-sm text-down">unavailable</p>}
+      {isLoading && <p className="text-sm text-slate-500">{t("common.loading")}</p>}
+      {error && <p className="text-sm text-down">{t("common.unavailable")}</p>}
       {!isLoading && !error && aggs.length === 0 && (
-        <p className="text-sm text-slate-500">no data yet — waiting for Dune sync</p>
+        <p className="text-sm text-slate-500">{t("exchange-flows.empty")}</p>
       )}
       {aggs.length > 0 && (
         <ul className="space-y-2.5">
           {aggs.map((row) => (
-            <ExchangeRow key={row.exchange} row={row} maxLeg={maxLeg} />
+            <ExchangeRow key={row.exchange} row={row} maxLeg={maxLeg} t={t} />
           ))}
         </ul>
       )}
@@ -50,7 +52,7 @@ export default function ExchangeFlowsPanel() {
   );
 }
 
-function ExchangeRow({ row, maxLeg }: { row: ExchangeAgg; maxLeg: number }) {
+function ExchangeRow({ row, maxLeg, t }: { row: ExchangeAgg; maxLeg: number; t: ReturnType<typeof useT> }) {
   const up = row.net >= 0;
   const inPct = (row.inflow / maxLeg) * 100;
   const outPct = (row.outflow / maxLeg) * 100;
@@ -86,7 +88,7 @@ function ExchangeRow({ row, maxLeg }: { row: ExchangeAgg; maxLeg: number }) {
         />
       </div>
       <div className="mt-0.5 text-[11px] text-slate-500 font-mono tabular-nums @xs:hidden">
-        in {formatUsdCompact(row.inflow)} / out {formatUsdCompact(row.outflow)}
+        {t("exchange-flows.row.in", { value: formatUsdCompact(row.inflow) })} / {t("exchange-flows.row.out", { value: formatUsdCompact(row.outflow) })}
       </div>
     </li>
   );

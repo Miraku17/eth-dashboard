@@ -9,16 +9,11 @@ import {
   type PerpEventKind,
 } from "../api";
 import { formatUsdCompact, relativeTime } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import AddressLink from "./AddressLink";
 import Card from "./ui/Card";
 
 type Tab = "events" | "liquidations" | "positions";
-
-const TAB_LABEL: Record<Tab, string> = {
-  events: "Events",
-  liquidations: "Liquidations",
-  positions: "Open positions",
-};
 
 const KIND_OPTIONS: { value: "" | PerpEventKind; label: string }[] = [
   { value: "", label: "all" },
@@ -30,6 +25,7 @@ const KIND_OPTIONS: { value: "" | PerpEventKind; label: string }[] = [
 ];
 
 export default function OnchainPerpsPanel() {
+  const t = useT();
   const [tab, setTab] = useState<Tab>("events");
 
   const summary = useQuery({
@@ -40,25 +36,32 @@ export default function OnchainPerpsPanel() {
 
   return (
     <Card
-      title="On-chain perps"
-      subtitle="GMX V2 · Arbitrum"
+      title={t("onchain-perps.title")}
+      subtitle={t("onchain-perps.subtitle")}
       live={tab === "events" || tab === "liquidations"}
       actions={
         <div className="inline-flex rounded-md border border-surface-border bg-surface-sunken p-0.5">
-          {(["events", "liquidations", "positions"] as Tab[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={
-                "px-3 py-1 text-xs font-medium tracking-wide rounded transition " +
-                (tab === t
-                  ? "bg-surface-raised text-white"
-                  : "text-slate-400 hover:text-slate-200")
-              }
-            >
-              {TAB_LABEL[t]}
-            </button>
-          ))}
+          {(["events", "liquidations", "positions"] as Tab[]).map((tabVal) => {
+            const tabLabelKeys: Record<Tab, "onchain-perps.tab.events" | "onchain-perps.tab.liquidations" | "onchain-perps.tab.positions"> = {
+              events: "onchain-perps.tab.events",
+              liquidations: "onchain-perps.tab.liquidations",
+              positions: "onchain-perps.tab.positions",
+            };
+            return (
+              <button
+                key={tabVal}
+                onClick={() => setTab(tabVal)}
+                className={
+                  "px-3 py-1 text-xs font-medium tracking-wide rounded transition " +
+                  (tab === tabVal
+                    ? "bg-surface-raised text-white"
+                    : "text-slate-400 hover:text-slate-200")
+                }
+              >
+                {t(tabLabelKeys[tabVal])}
+              </button>
+            );
+          })}
         </div>
       }
       bodyClassName="p-0"
@@ -73,6 +76,7 @@ export default function OnchainPerpsPanel() {
 // --- tabs ------------------------------------------------------------------
 
 function EventsTab() {
+  const t = useT();
   const [kind, setKind] = useState<"" | PerpEventKind>("");
   const [minSizeUsd, setMinSizeUsd] = useState<number>(10_000);
 
@@ -92,7 +96,7 @@ function EventsTab() {
     <>
       <div className="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-surface-divider text-xs">
         <label className="flex items-center gap-2">
-          <span className="text-slate-500 uppercase tracking-wider">Kind</span>
+          <span className="text-slate-500 uppercase tracking-wider">{t("onchain-perps.filter.kind")}</span>
           <select
             value={kind}
             onChange={(e) => setKind(e.target.value as "" | PerpEventKind)}
@@ -106,13 +110,13 @@ function EventsTab() {
           </select>
         </label>
         <label className="flex items-center gap-2">
-          <span className="text-slate-500 uppercase tracking-wider">Min size</span>
+          <span className="text-slate-500 uppercase tracking-wider">{t("onchain-perps.filter.min_size")}</span>
           <select
             value={minSizeUsd}
             onChange={(e) => setMinSizeUsd(Number(e.target.value))}
             className="bg-surface-sunken border border-surface-border rounded px-2 py-1 font-mono"
           >
-            <option value={0}>any</option>
+            <option value={0}>{t("onchain-perps.filter.any")}</option>
             <option value={10_000}>$10K</option>
             <option value={50_000}>$50K</option>
             <option value={100_000}>$100K</option>
@@ -122,12 +126,11 @@ function EventsTab() {
         </label>
       </div>
 
-      {events.isLoading && <p className="p-5 text-sm text-slate-500">loading…</p>}
-      {events.error && <p className="p-5 text-sm text-down">unavailable</p>}
+      {events.isLoading && <p className="p-5 text-sm text-slate-500">{t("common.loading")}</p>}
+      {events.error && <p className="p-5 text-sm text-down">{t("common.unavailable")}</p>}
       {!events.isLoading && !events.error && events.data && events.data.events.length === 0 && (
         <p className="p-5 text-sm text-slate-500">
-          no events in the last 24h matching this filter — Arbitrum listener may
-          still be warming up if the deploy is recent.
+          {t("onchain-perps.events.empty")}
         </p>
       )}
 
@@ -139,6 +142,7 @@ function EventsTab() {
 }
 
 function LiquidationsTab({ summaryQuery }: { summaryQuery: ReturnType<typeof useQuery> }) {
+  const t = useT();
   const liqs = useQuery({
     queryKey: ["perp-events", "liquidation", 0],
     queryFn: () =>
@@ -152,19 +156,19 @@ function LiquidationsTab({ summaryQuery }: { summaryQuery: ReturnType<typeof use
     <>
       <div className="grid grid-cols-3 divide-x divide-surface-divider border-b border-surface-divider">
         <Tile
-          label="Longs liquidated"
+          label={t("onchain-perps.tile.longs_liq")}
           value={formatUsdCompact(summary?.total_long_liq_usd)}
-          sub={`${summary?.liquidations_count ?? 0} events 24h`}
+          sub={t("onchain-perps.tile.events_sub", { count: summary?.liquidations_count ?? 0 })}
           tone="down"
         />
         <Tile
-          label="Shorts liquidated"
+          label={t("onchain-perps.tile.shorts_liq")}
           value={formatUsdCompact(summary?.total_short_liq_usd)}
-          sub={`biggest ${formatUsdCompact(summary?.biggest_liq_usd ?? 0)}`}
+          sub={t("onchain-perps.tile.biggest_sub", { value: formatUsdCompact(summary?.biggest_liq_usd ?? 0) })}
           tone="up"
         />
         <Tile
-          label="Open skew"
+          label={t("onchain-perps.tile.open_skew")}
           value={
             summary
               ? `${(summary.long_short_skew * 100).toFixed(0)}% ${
@@ -179,9 +183,9 @@ function LiquidationsTab({ summaryQuery }: { summaryQuery: ReturnType<typeof use
         />
       </div>
 
-      {liqs.isLoading && <p className="p-5 text-sm text-slate-500">loading…</p>}
+      {liqs.isLoading && <p className="p-5 text-sm text-slate-500">{t("common.loading")}</p>}
       {!liqs.isLoading && liqs.data && liqs.data.events.length === 0 && (
-        <p className="p-5 text-sm text-slate-500">no liquidations in 24h.</p>
+        <p className="p-5 text-sm text-slate-500">{t("onchain-perps.liq.empty")}</p>
       )}
       {liqs.data && liqs.data.events.length > 0 && (
         <EventsTable rows={liqs.data.events} hideKind />
@@ -191,16 +195,17 @@ function LiquidationsTab({ summaryQuery }: { summaryQuery: ReturnType<typeof use
 }
 
 function PositionsTab() {
+  const t = useT();
   const positions = useQuery({
     queryKey: ["perp-positions", 20],
     queryFn: () => fetchPerpLargestPositions(20),
     refetchInterval: 30_000,
   });
 
-  if (positions.isLoading) return <p className="p-5 text-sm text-slate-500">loading…</p>;
-  if (positions.error) return <p className="p-5 text-sm text-down">unavailable</p>;
+  if (positions.isLoading) return <p className="p-5 text-sm text-slate-500">{t("common.loading")}</p>;
+  if (positions.error) return <p className="p-5 text-sm text-down">{t("common.unavailable")}</p>;
   if (!positions.data || positions.data.positions.length === 0) {
-    return <p className="p-5 text-sm text-slate-500">no open positions yet.</p>;
+    return <p className="p-5 text-sm text-slate-500">{t("onchain-perps.positions.empty")}</p>;
   }
 
   return (
@@ -208,12 +213,12 @@ function PositionsTab() {
       <table className="w-full text-sm border-separate border-spacing-0">
         <thead className="text-[11px] tracking-wider uppercase text-slate-500">
           <tr>
-            <th className="text-left font-medium px-5 py-3 border-b border-surface-divider">Account</th>
-            <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">Market</th>
-            <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">Side</th>
-            <th className="text-right font-medium px-3 py-3 border-b border-surface-divider">Size</th>
-            <th className="text-right font-medium px-3 py-3 border-b border-surface-divider">Lev</th>
-            <th className="text-right font-medium px-5 py-3 border-b border-surface-divider">Opened</th>
+            <th className="text-left font-medium px-5 py-3 border-b border-surface-divider">{t("onchain-perps.col.account")}</th>
+            <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">{t("onchain-perps.col.market")}</th>
+            <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">{t("onchain-perps.col.side")}</th>
+            <th className="text-right font-medium px-3 py-3 border-b border-surface-divider">{t("onchain-perps.col.size")}</th>
+            <th className="text-right font-medium px-3 py-3 border-b border-surface-divider">{t("onchain-perps.col.lev")}</th>
+            <th className="text-right font-medium px-5 py-3 border-b border-surface-divider">{t("onchain-perps.col.opened")}</th>
           </tr>
         </thead>
         <tbody>
@@ -251,22 +256,23 @@ function PositionsTab() {
 // --- shared bits -----------------------------------------------------------
 
 function EventsTable({ rows, hideKind = false }: { rows: PerpEvent[]; hideKind?: boolean }) {
+  const t = useT();
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm border-separate border-spacing-0">
         <thead className="text-[11px] tracking-wider uppercase text-slate-500">
           <tr>
-            <th className="text-left font-medium px-5 py-3 border-b border-surface-divider">When</th>
-            <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">Account</th>
-            <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">Market</th>
+            <th className="text-left font-medium px-5 py-3 border-b border-surface-divider">{t("onchain-perps.col.when")}</th>
+            <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">{t("onchain-perps.col.account")}</th>
+            <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">{t("onchain-perps.col.market")}</th>
             {!hideKind && (
-              <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">Kind</th>
+              <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">{t("onchain-perps.col.kind")}</th>
             )}
-            <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">Side</th>
-            <th className="text-right font-medium px-3 py-3 border-b border-surface-divider">Size</th>
-            <th className="text-right font-medium px-3 py-3 border-b border-surface-divider">Lev</th>
-            <th className="text-right font-medium px-3 py-3 border-b border-surface-divider">Price</th>
-            <th className="text-right font-medium px-5 py-3 border-b border-surface-divider">PnL</th>
+            <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">{t("onchain-perps.col.side")}</th>
+            <th className="text-right font-medium px-3 py-3 border-b border-surface-divider">{t("onchain-perps.col.size")}</th>
+            <th className="text-right font-medium px-3 py-3 border-b border-surface-divider">{t("onchain-perps.col.lev")}</th>
+            <th className="text-right font-medium px-3 py-3 border-b border-surface-divider">{t("onchain-perps.col.price")}</th>
+            <th className="text-right font-medium px-5 py-3 border-b border-surface-divider">{t("onchain-perps.col.pnl")}</th>
           </tr>
         </thead>
         <tbody>

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchDefiTvlLatest, type DefiTvlProtocolSnapshot } from "../api";
 import { formatUsdCompact } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import Card from "./ui/Card";
 import DataAge from "./ui/DataAge";
 import { SimpleSelect } from "./ui/Select";
@@ -9,6 +10,7 @@ import { SimpleSelect } from "./ui/Select";
 const TOP_N_ASSETS = 12;
 
 export default function DefiTvlPanel() {
+  const t = useT();
   const { data, isLoading, error } = useQuery({
     queryKey: ["defi-tvl-latest"],
     queryFn: fetchDefiTvlLatest,
@@ -36,37 +38,37 @@ export default function DefiTvlPanel() {
 
   return (
     <Card
-      title="DeFi TVL"
-      subtitle="Ethereum mainnet · per-protocol locked balances · DefiLlama"
+      title={t("defi-tvl.title")}
+      subtitle={t("defi-tvl.subtitle")}
       actions={
         options.length > 0 && (
           <SimpleSelect
             value={effectiveSlug}
             onChange={setSelectedSlug}
             options={options}
-            ariaLabel="Select DeFi protocol"
+            ariaLabel={t("defi-tvl.aria.select_protocol")}
           />
         )
       }
     >
-      {isLoading && <p className="text-sm text-slate-500">loading…</p>}
-      {error && <p className="text-sm text-down">unavailable</p>}
+      {isLoading && <p className="text-sm text-slate-500">{t("common.loading")}</p>}
+      {error && <p className="text-sm text-down">{t("common.unavailable")}</p>}
       {!isLoading && !error && protocols.length === 0 && (
         <p className="text-sm text-slate-500">
-          no data yet — first hourly sync pending
+          {t("defi-tvl.empty")}
         </p>
       )}
       {current && (
         <div className="space-y-3">
           <DataAge ts={data?.ts_bucket ?? null} />
-          <ProtocolBreakdown snapshot={current} />
+          <ProtocolBreakdown snapshot={current} t={t} />
         </div>
       )}
     </Card>
   );
 }
 
-function ProtocolBreakdown({ snapshot }: { snapshot: DefiTvlProtocolSnapshot }) {
+function ProtocolBreakdown({ snapshot, t }: { snapshot: DefiTvlProtocolSnapshot; t: ReturnType<typeof useT> }) {
   const top = snapshot.assets.slice(0, TOP_N_ASSETS);
   const restCount = Math.max(0, snapshot.assets.length - TOP_N_ASSETS);
   const restUsd = snapshot.assets
@@ -79,7 +81,7 @@ function ProtocolBreakdown({ snapshot }: { snapshot: DefiTvlProtocolSnapshot }) 
       <div className="flex items-baseline justify-between">
         <span className="text-sm text-slate-300">{snapshot.display_name}</span>
         <span className="font-mono tabular-nums text-base text-slate-100">
-          {formatUsdCompact(snapshot.total_usd)} locked
+          {t("defi-tvl.locked", { value: formatUsdCompact(snapshot.total_usd) })}
         </span>
       </div>
 
@@ -112,7 +114,7 @@ function ProtocolBreakdown({ snapshot }: { snapshot: DefiTvlProtocolSnapshot }) 
 
       {restCount > 0 && (
         <div className="text-[11px] text-slate-500 font-mono tabular-nums @xs:hidden">
-          + {restCount} more assets · {formatUsdCompact(restUsd)} combined
+          {t("defi-tvl.more_assets", { count: String(restCount), value: formatUsdCompact(restUsd) })}
         </div>
       )}
     </div>

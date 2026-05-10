@@ -11,6 +11,7 @@ import {
 } from "../api";
 import { NEW_RULE_EVENT } from "../hooks/useGlobalShortcuts";
 import { formatUsdCompact, relativeTime } from "../lib/format";
+import { useT } from "../i18n/LocaleProvider";
 import Button from "./ui/Button";
 import Card from "./ui/Card";
 import Modal from "./ui/Modal";
@@ -94,6 +95,7 @@ function DeliveredDots({ delivered }: { delivered: AlertEvent["delivered"] }) {
 type Tab = "events" | "rules";
 
 export default function AlertEventsPanel() {
+  const t = useT();
   const qc = useQueryClient();
   const toast = useToast();
   const [tab, setTab] = useState<Tab>("events");
@@ -158,7 +160,7 @@ export default function AlertEventsPanel() {
       qc.invalidateQueries({ queryKey: ["alert-rules"] });
       setModalOpen(false);
       setEditing(null);
-      toast.push({ title: "Rule created", tone: "up" });
+      toast.push({ title: t("alerts.toast.created"), tone: "up" });
     },
   });
   const update = useMutation({
@@ -168,7 +170,7 @@ export default function AlertEventsPanel() {
       qc.invalidateQueries({ queryKey: ["alert-rules"] });
       setModalOpen(false);
       setEditing(null);
-      toast.push({ title: "Rule updated", tone: "up" });
+      toast.push({ title: t("alerts.toast.updated"), tone: "up" });
     },
   });
 
@@ -183,28 +185,28 @@ export default function AlertEventsPanel() {
   return (
     <>
       <Card
-        title="Alerts"
+        title={t("alerts.title")}
         subtitle={
           rules.data
-            ? `${activeRules}/${totalRules} rules active · fires in last 24h`
-            : "rules · fires in last 24h"
+            ? t("alerts.subtitle_with_rules", { active: activeRules, total: totalRules })
+            : t("alerts.subtitle_no_rules")
         }
         live={tab === "events"}
         actions={
           <div className="flex flex-col gap-2 @sm:flex-row @sm:items-center @sm:justify-between @sm:gap-0">
             <div className="inline-flex rounded-md border border-surface-border bg-surface-sunken p-0.5">
-              {(["events", "rules"] as Tab[]).map((t) => (
+              {(["events", "rules"] as Tab[]).map((tabVal) => (
                 <button
-                  key={t}
-                  onClick={() => setTab(t)}
+                  key={tabVal}
+                  onClick={() => setTab(tabVal)}
                   className={
                     "px-3 py-1 text-xs font-medium tracking-wide rounded transition " +
-                    (tab === t
+                    (tab === tabVal
                       ? "bg-surface-raised text-white"
                       : "text-slate-400 hover:text-slate-200")
                   }
                 >
-                  {t === "events" ? "Events" : "Rules"}
+                  {tabVal === "events" ? t("alerts.tab.events") : t("alerts.tab.rules")}
                 </button>
               ))}
             </div>
@@ -216,7 +218,7 @@ export default function AlertEventsPanel() {
                   setModalOpen(true);
                 }}
               >
-                + New rule
+                {t("alerts.new_rule")}
               </Button>
             )}
           </div>
@@ -225,15 +227,14 @@ export default function AlertEventsPanel() {
       >
         {tab === "events" && (
           <>
-            {events.isLoading && <p className="p-5 text-sm text-slate-500">loading…</p>}
-            {events.error && <p className="p-5 text-sm text-down">unavailable</p>}
+            {events.isLoading && <p className="p-5 text-sm text-slate-500">{t("common.loading")}</p>}
+            {events.error && <p className="p-5 text-sm text-down">{t("common.unavailable")}</p>}
             {!events.isLoading &&
               !events.error &&
               events.data &&
               events.data.length === 0 && (
                 <p className="p-5 text-sm text-slate-500">
-                  no alerts in the last 24h
-                  {totalRules === 0 && " — no rules configured yet"}
+                  {totalRules === 0 ? t("alerts.empty_no_rules") : t("alerts.empty")}
                 </p>
               )}
 
@@ -243,19 +244,19 @@ export default function AlertEventsPanel() {
                   <thead className="text-[11px] tracking-wider uppercase text-slate-500">
                     <tr>
                       <th className="text-left font-medium px-5 py-3 border-b border-surface-divider">
-                        Fired
+                        {t("alerts.col.fired")}
                       </th>
                       <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">
-                        Rule
+                        {t("alerts.col.rule")}
                       </th>
                       <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">
-                        Type
+                        {t("alerts.col.type")}
                       </th>
                       <th className="text-left font-medium px-3 py-3 border-b border-surface-divider">
-                        Detail
+                        {t("alerts.col.detail")}
                       </th>
                       <th className="text-center font-medium px-5 py-3 border-b border-surface-divider">
-                        Delivery
+                        {t("alerts.col.delivery")}
                       </th>
                     </tr>
                   </thead>
@@ -298,8 +299,8 @@ export default function AlertEventsPanel() {
 
         {tab === "rules" && (
           <>
-            {rules.isLoading && <p className="p-5 text-sm text-slate-500">loading…</p>}
-            {rules.error && <p className="p-5 text-sm text-down">unavailable</p>}
+            {rules.isLoading && <p className="p-5 text-sm text-slate-500">{t("common.loading")}</p>}
+            {rules.error && <p className="p-5 text-sm text-down">{t("common.unavailable")}</p>}
             {rules.data && (
               <RulesList
                 rules={rules.data}
@@ -321,7 +322,7 @@ export default function AlertEventsPanel() {
             setEditing(null);
           }
         }}
-        title={editing ? `Edit rule · ${editing.name}` : "New alert rule"}
+        title={editing ? t("alerts.modal.edit", { name: editing.name }) : t("alerts.modal.new")}
         wide
       >
         <RuleForm
