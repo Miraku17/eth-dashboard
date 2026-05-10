@@ -133,7 +133,11 @@ export default function LiveVolumePanel() {
                     fontSize: 12,
                   }}
                   labelStyle={{ color: "rgb(148 163 184)" }}
-                  formatter={(v: number) => formatUsdCompact(v)}
+                  formatter={(v: number, name: string) => {
+                    if (name === "_fastMA") return [formatUsdCompact(v), `${fastPeriod}m MA`];
+                    if (name === "_slowMA") return [formatUsdCompact(v), `${slowPeriod}m MA`];
+                    return [formatUsdCompact(v), name];
+                  }}
                 />
                 {sortedAssets.map((a) => (
                   <Area
