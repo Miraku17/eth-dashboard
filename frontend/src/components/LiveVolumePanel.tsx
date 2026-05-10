@@ -50,10 +50,16 @@ export default function LiveVolumePanel() {
     refetchInterval: 5_000, // close to live
   });
 
-  const { stacked, assets, totalUsd, currentByAsset } = useMemo(
-    () => pivot(data ?? []),
-    [data],
-  );
+  const {
+    stacked,
+    assets,
+    totalUsd,
+    currentByAsset,
+    fastPeriod,
+    slowPeriod,
+    lastTotal,
+    lastSlowMA,
+  } = useMemo(() => pivot(data ?? [], minutes), [data, minutes]);
 
   const sortedAssets = useMemo(
     () => [...assets].sort((a, b) => (currentByAsset[b] ?? 0) - (currentByAsset[a] ?? 0)),
@@ -164,6 +170,10 @@ type Pivoted = {
   assets: string[];
   totalUsd: number;
   currentByAsset: Record<string, number>;
+  fastPeriod: number;
+  slowPeriod: number;
+  lastTotal: number | undefined;
+  lastSlowMA: number | undefined;
 };
 
 // Trailing simple moving average over `values` with the given period.
@@ -180,7 +190,7 @@ function trailingMean(values: number[], period: number): (number | undefined)[] 
   return out;
 }
 
-function pivot(points: RealtimeVolumePoint[]): Pivoted {
+function pivot(points: RealtimeVolumePoint[], window: number): Pivoted {
   const byTs = new Map<string, StackRow>();
   const assetSet = new Set<string>();
   let totalUsd = 0;
@@ -197,6 +207,27 @@ function pivot(points: RealtimeVolumePoint[]): Pivoted {
   const stacked = [...byTs.values()].sort((a, b) =>
     (a.ts as string).localeCompare(b.ts as string),
   );
+  // Per-row total across all assets (sum of stacked values).
+  const totals: number[] = stacked.map((row) => {
+    let t = 0;
+    for (const a of assetSet) {
+      const v = row[a];
+      if (typeof v === "number") t += v;
+    }
+    (row as StackRow & { _total: number })._total = t;
+    return t;
+  });
+
+  // MA periods come from the window selection; default to 1h's pair if the
+  // caller passes an unmapped value (defensive — RANGE_OPTIONS is the only
+  // source today).
+  const periods = MA_PERIODS_BY_WINDOW[window] ?? MA_PERIODS_BY_WINDOW[60];
+  const fastMA = trailingMean(totals, periods.fast);
+  const slowMA = trailingMean(totals, periods.slow);
+  for (let i = 0; i < stacked.length; i++) {
+    (stacked[i] as StackRow)._fastMA = fastMA[i];
+    (stacked[i] as StackRow)._slowMA = slowMA[i];
+  }
   // "Current" = most recent minute's per-asset totals.
   const currentByAsset: Record<string, number> = {};
   const last = stacked.at(-1);
@@ -206,5 +237,15 @@ function pivot(points: RealtimeVolumePoint[]): Pivoted {
       if (typeof v === "number") currentByAsset[a] = v;
     }
   }
-  return { stacked, assets: [...assetSet], totalUsd, currentByAsset };
+  const lastIdx = stacked.length - 1;
+  return {
+    stacked,
+    assets: [...assetSet],
+    totalUsd,
+    currentByAsset,
+    fastPeriod: periods.fast,
+    slowPeriod: periods.slow,
+    lastTotal: lastIdx >= 0 ? totals[lastIdx] : undefined,
+    lastSlowMA: lastIdx >= 0 ? slowMA[lastIdx] : undefined,
+  };
 }
