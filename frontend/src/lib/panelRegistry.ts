@@ -12,6 +12,7 @@ import LiquidationsPanel from "../components/LiquidationsPanel";
 import LiveVolumePanel from "../components/LiveVolumePanel";
 import LrtTvlPanel from "../components/LrtTvlPanel";
 import LstMarketSharePanel from "../components/LstMarketSharePanel";
+import MantleOrderFlowPanel from "../components/MantleOrderFlowPanel";
 import MarketRegimePanel from "../components/MarketRegimePanel";
 import MempoolPanel from "../components/MempoolPanel";
 import NetworkActivityPanel from "../components/NetworkActivityPanel";
@@ -75,6 +76,7 @@ export const PANELS: PanelDef[] = [
   { id: "liquidations", label: "Liquidations", component: LiquidationsPanel, defaultPage: "markets", defaultWidth: 2 },
   { id: "smart-money", label: "Smart money", component: SmartMoneyLeaderboard, defaultPage: "markets", defaultWidth: 2 },
   { id: "order-flow", label: "Order flow", component: OrderFlowPanel, defaultPage: "markets", defaultWidth: 2 },
+  { id: "mantle-order-flow", label: "Mantle order flow", component: MantleOrderFlowPanel, defaultPage: "markets", defaultWidth: 2 },
   { id: "volume-structure", label: "Volume structure", component: VolumeStructurePanel, defaultPage: "markets", defaultWidth: 2 },
   { id: "onchain-perps", label: "On-chain perps", component: OnchainPerpsPanel, defaultPage: "markets", defaultWidth: 3 },
   { id: "stablecoin-supply", label: "Stablecoin supply", component: StablecoinSupplyPanel, defaultPage: "onchain", defaultWidth: 1, section: "stablecoins" },
