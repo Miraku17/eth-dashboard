@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Area,
   AreaChart,
+  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -14,6 +15,12 @@ import { formatUsdCompact } from "../lib/format";
 import Card from "./ui/Card";
 import DataAge from "./ui/DataAge";
 import { SimpleSelect } from "./ui/Select";
+
+// MA overlay colors: amber for fast (draws the eye), slate for slow (muted
+// reference). Avoids the asset palette so the lines are visually distinct
+// from the stacked area underneath.
+const FAST_MA_COLOR = "rgb(251 191 36)"; // tailwind amber-400
+const SLOW_MA_COLOR = "rgb(148 163 184)"; // tailwind slate-400
 
 type RangeOpt = { value: number; label: string };
 
@@ -139,6 +146,24 @@ export default function LiveVolumePanel() {
                     fillOpacity={0.65}
                   />
                 ))}
+                <Line
+                  type="monotone"
+                  dataKey="_fastMA"
+                  stroke={FAST_MA_COLOR}
+                  strokeWidth={1.5}
+                  dot={false}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="_slowMA"
+                  stroke={SLOW_MA_COLOR}
+                  strokeWidth={1.5}
+                  dot={false}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
