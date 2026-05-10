@@ -155,6 +155,23 @@ class OrderFlow(Base):
     trade_count: Mapped[int] = mapped_column(BigInteger)
 
 
+class MantleOrderFlow(Base):
+    """Hourly DEX buy/sell pressure for MNT on Mantle DEXes (post-v4 backlog).
+
+    Sibling table to OrderFlow but stores raw MNT volume rather than USD,
+    because the writer (mantle_realtime) is intentionally price-independent —
+    USD valuation happens at read time using a Redis-cached CoinGecko
+    snapshot. v1 only ships rows with dex='agni'; the column accommodates
+    additional Mantle DEXes (fusionx, cleopatra, butter, …) without schema
+    change."""
+    __tablename__ = "mantle_order_flow"
+    ts_bucket: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    dex: Mapped[str] = mapped_column(String(16), primary_key=True)
+    side: Mapped[str] = mapped_column(String(8), primary_key=True)  # "buy" | "sell"
+    count: Mapped[int] = mapped_column(BigInteger)
+    mnt_amount: Mapped[float] = mapped_column(Numeric(38, 18))
+
+
 class VolumeBucket(Base):
     """Hourly ETH DEX volume bucketed by trade size (v2).
 
