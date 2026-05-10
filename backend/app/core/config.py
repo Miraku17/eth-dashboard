@@ -27,6 +27,10 @@ class Settings(BaseSettings):
     # both are unset, the listener container starts in no-op mode.
     arbitrum_ws_url: str = ""
     arbitrum_http_url: str = ""
+    # Mantle WS endpoint — used by the mantle_realtime sibling listener.
+    # No Alchemy fallback in v1; defaults to "" so the listener idles
+    # cleanly. Public RPC (e.g. wss://mantle-rpc.publicnode.com) is fine.
+    mantle_ws_url: str = ""
     dune_api_key: str = ""
     etherscan_api_key: str = ""
     coingecko_api_key: str = ""
