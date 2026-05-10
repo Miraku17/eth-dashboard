@@ -111,6 +111,28 @@ services:
     volumes:
       - ./backend:/app
 
+  # Sibling listener for Mantle DEX activity (Agni V3 swaps on MNT pools).
+  # Runs in its own process so a Mantle public-RPC stall or Agni decoder
+  # bug can't disrupt mainnet realtime processing. When MANTLE_WS_URL is
+  # unset, the entrypoint logs a notice and idles — no crash loop.
+  mantle_realtime:
+    # Opt-in via profile so the listener doesn't crash-loop or burn CUs
+    # against an unconfigured Mantle endpoint by default. Start explicitly
+    # with `docker compose --profile mantle up -d mantle_realtime`.
+    profiles: ["mantle"]
+    build: ./backend
+    dns: [1.1.1.1, 8.8.8.8]
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    command: python -m app.realtime.mantle_listener
+    volumes:
+      - ./backend:/app
+
   frontend:
     build: ./frontend
     restart: unless-stopped
