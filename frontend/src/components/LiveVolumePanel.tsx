@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Area,
   AreaChart,
+  Line,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -15,6 +16,12 @@ import Card from "./ui/Card";
 import DataAge from "./ui/DataAge";
 import { SimpleSelect } from "./ui/Select";
 
+// MA overlay colors: amber for fast (draws the eye), slate for slow (muted
+// reference). Avoids the asset palette so the lines are visually distinct
+// from the stacked area underneath.
+const FAST_MA_COLOR = "rgb(251 191 36)"; // tailwind amber-400
+const SLOW_MA_COLOR = "rgb(148 163 184)"; // tailwind slate-400
+
 type RangeOpt = { value: number; label: string };
 
 const RANGE_OPTIONS: RangeOpt[] = [
@@ -23,6 +30,18 @@ const RANGE_OPTIONS: RangeOpt[] = [
   { value: 240, label: "4h" },
   { value: 1440, label: "24h" },
 ];
+
+type MAPeriods = { fast: number; slow: number };
+
+// Fast / slow moving-average periods (in minutes) per window selection.
+// Picked so both lines have enough samples to be smooth without flattening
+// into the slow MA. Keep keys aligned with RANGE_OPTIONS.value.
+const MA_PERIODS_BY_WINDOW: Record<number, MAPeriods> = {
+  15: { fast: 3, slow: 10 },
+  60: { fast: 5, slow: 30 },
+  240: { fast: 15, slow: 60 },
+  1440: { fast: 60, slow: 240 },
+};
 
 type StackRow = {
   ts: string;
@@ -38,10 +57,16 @@ export default function LiveVolumePanel() {
     refetchInterval: 5_000, // close to live
   });
 
-  const { stacked, assets, totalUsd, currentByAsset } = useMemo(
-    () => pivot(data ?? []),
-    [data],
-  );
+  const {
+    stacked,
+    assets,
+    totalUsd,
+    currentByAsset,
+    fastPeriod,
+    slowPeriod,
+    lastTotal,
+    lastSlowMA,
+  } = useMemo(() => pivot(data ?? [], minutes), [data, minutes]);
 
   const sortedAssets = useMemo(
     () => [...assets].sort((a, b) => (currentByAsset[b] ?? 0) - (currentByAsset[a] ?? 0)),
@@ -71,6 +96,12 @@ export default function LiveVolumePanel() {
       )}
       {stacked.length > 0 && (
         <div className="space-y-3">
+          <TrendHeadline
+            lastTotal={lastTotal}
+            lastSlowMA={lastSlowMA}
+            slowPeriod={slowPeriod}
+            rowsSoFar={stacked.length}
+          />
           <div className="flex items-baseline justify-between text-xs">
             <span className="text-slate-500">{stacked.length} minutes shown</span>
             <span className="font-mono tabular-nums text-slate-200">
@@ -108,7 +139,11 @@ export default function LiveVolumePanel() {
                     fontSize: 12,
                   }}
                   labelStyle={{ color: "rgb(148 163 184)" }}
-                  formatter={(v: number) => formatUsdCompact(v)}
+                  formatter={(v: number, name: string) => {
+                    if (name === "_fastMA") return [formatUsdCompact(v), `${fastPeriod}m MA`];
+                    if (name === "_slowMA") return [formatUsdCompact(v), `${slowPeriod}m MA`];
+                    return [formatUsdCompact(v), name];
+                  }}
                 />
                 {sortedAssets.map((a) => (
                   <Area
@@ -121,11 +156,49 @@ export default function LiveVolumePanel() {
                     fillOpacity={0.65}
                   />
                 ))}
+                <Line
+                  type="monotone"
+                  dataKey="_fastMA"
+                  stroke={FAST_MA_COLOR}
+                  strokeWidth={1.5}
+                  dot={false}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="_slowMA"
+                  stroke={SLOW_MA_COLOR}
+                  strokeWidth={1.5}
+                  dot={false}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
 
           <ul className="grid grid-cols-2 @xs:grid-cols-1 gap-x-3 gap-y-1.5 text-[11px] font-mono tabular-nums">
+            <li className="flex items-center justify-between">
+              <span className="flex items-center gap-2 min-w-0 truncate">
+                <span
+                  className="inline-block w-2 h-2 rounded-sm shrink-0"
+                  style={{ backgroundColor: FAST_MA_COLOR }}
+                />
+                <span className="text-slate-300">{fastPeriod}m MA</span>
+              </span>
+              <span className="text-slate-400">trend</span>
+            </li>
+            <li className="flex items-center justify-between">
+              <span className="flex items-center gap-2 min-w-0 truncate">
+                <span
+                  className="inline-block w-2 h-2 rounded-sm shrink-0"
+                  style={{ backgroundColor: SLOW_MA_COLOR }}
+                />
+                <span className="text-slate-300">{slowPeriod}m MA</span>
+              </span>
+              <span className="text-slate-400">baseline</span>
+            </li>
             {sortedAssets.slice(0, 8).map((a) => (
               <li key={a} className="flex items-center justify-between">
                 <span className="flex items-center gap-2 min-w-0 truncate">
@@ -152,9 +225,27 @@ type Pivoted = {
   assets: string[];
   totalUsd: number;
   currentByAsset: Record<string, number>;
+  fastPeriod: number;
+  slowPeriod: number;
+  lastTotal: number | undefined;
+  lastSlowMA: number | undefined;
 };
 
-function pivot(points: RealtimeVolumePoint[]): Pivoted {
+// Trailing simple moving average over `values` with the given period.
+// Returns an array of the same length; entries before the period is filled
+// are `undefined` so Recharts renders a gap rather than a misleading point.
+function trailingMean(values: number[], period: number): (number | undefined)[] {
+  const out: (number | undefined)[] = new Array(values.length);
+  let sum = 0;
+  for (let i = 0; i < values.length; i++) {
+    sum += values[i];
+    if (i >= period) sum -= values[i - period];
+    out[i] = i >= period - 1 ? sum / period : undefined;
+  }
+  return out;
+}
+
+function pivot(points: RealtimeVolumePoint[], window: number): Pivoted {
   const byTs = new Map<string, StackRow>();
   const assetSet = new Set<string>();
   let totalUsd = 0;
@@ -171,6 +262,27 @@ function pivot(points: RealtimeVolumePoint[]): Pivoted {
   const stacked = [...byTs.values()].sort((a, b) =>
     (a.ts as string).localeCompare(b.ts as string),
   );
+  // Per-row total across all assets (sum of stacked values).
+  const totals: number[] = stacked.map((row) => {
+    let t = 0;
+    for (const a of assetSet) {
+      const v = row[a];
+      if (typeof v === "number") t += v;
+    }
+    (row as StackRow & { _total: number })._total = t;
+    return t;
+  });
+
+  // MA periods come from the window selection; default to 1h's pair if the
+  // caller passes an unmapped value (defensive — RANGE_OPTIONS is the only
+  // source today).
+  const periods = MA_PERIODS_BY_WINDOW[window] ?? MA_PERIODS_BY_WINDOW[60];
+  const fastMA = trailingMean(totals, periods.fast);
+  const slowMA = trailingMean(totals, periods.slow);
+  for (let i = 0; i < stacked.length; i++) {
+    (stacked[i] as StackRow)._fastMA = fastMA[i];
+    (stacked[i] as StackRow)._slowMA = slowMA[i];
+  }
   // "Current" = most recent minute's per-asset totals.
   const currentByAsset: Record<string, number> = {};
   const last = stacked.at(-1);
@@ -180,5 +292,56 @@ function pivot(points: RealtimeVolumePoint[]): Pivoted {
       if (typeof v === "number") currentByAsset[a] = v;
     }
   }
-  return { stacked, assets: [...assetSet], totalUsd, currentByAsset };
+  const lastIdx = stacked.length - 1;
+  return {
+    stacked,
+    assets: [...assetSet],
+    totalUsd,
+    currentByAsset,
+    fastPeriod: periods.fast,
+    slowPeriod: periods.slow,
+    lastTotal: lastIdx >= 0 ? totals[lastIdx] : undefined,
+    lastSlowMA: lastIdx >= 0 ? slowMA[lastIdx] : undefined,
+  };
+}
+
+function TrendHeadline({
+  lastTotal,
+  lastSlowMA,
+  slowPeriod,
+  rowsSoFar,
+}: {
+  lastTotal: number | undefined;
+  lastSlowMA: number | undefined;
+  slowPeriod: number;
+  rowsSoFar: number;
+}) {
+  // Warming up: not enough samples to fill the slow window yet.
+  if (lastSlowMA === undefined || lastTotal === undefined) {
+    const remaining = Math.max(0, slowPeriod - rowsSoFar);
+    return (
+      <div className="text-xs text-slate-500">
+        warming up — {slowPeriod}m baseline in {remaining}m
+      </div>
+    );
+  }
+
+  const delta = lastSlowMA > 0 ? lastTotal / lastSlowMA - 1 : 0;
+  const absPct = Math.abs(delta) * 100;
+  const flat = absPct < 5;
+  const up = !flat && delta > 0;
+  const tint = flat ? "text-slate-500" : up ? "text-up" : "text-down";
+  const arrow = flat ? "→" : up ? "▲" : "▼";
+  const sign = delta > 0 ? "+" : delta < 0 ? "−" : "";
+  return (
+    <div className="flex items-baseline justify-between text-sm">
+      <span className="font-mono tabular-nums text-slate-200">
+        {formatUsdCompact(lastTotal)} / min
+      </span>
+      <span className={`font-mono tabular-nums ${tint}`}>
+        {sign}
+        {absPct.toFixed(0)}% vs {slowPeriod}m avg {arrow}
+      </span>
+    </div>
+  );
 }
