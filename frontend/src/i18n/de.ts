@@ -31,6 +31,23 @@ export const de: Record<TranslationKey, string> = {
   "common.delete": "Löschen",
   "common.clear": "Zurücksetzen",
   "common.positions": "Positionen",
+  "common.all": "Alle",
+  "common.full": "Voll",
+
+  // Chart-type selector (PriceChart)
+  "chart_type.candles": "Kerzen",
+  "chart_type.line": "Linie",
+  "chart_type.area": "Fläche",
+  "chart_type.baseline": "Basislinie",
+
+  // DEX pool filter (DexPoolTvlPanel)
+  "dex_pool.all_dexes": "Alle DEXes",
+
+  // Volume structure mode toggle (VolumeStructurePanel)
+  "volume_structure.pct_share": "% Anteil",
+
+  // Sortable panel resize tooltips (SortablePanel)
+  "panel_size.resize_to": "Größe ändern auf {{label}}",
 
   // ---------------------------------------------------------------------------
   // Topbar / DashboardShell
@@ -222,8 +239,8 @@ export const de: Record<TranslationKey, string> = {
   // ---------------------------------------------------------------------------
   // Flow filter chip labels (WhaleTransfersPanel chips)
   // ---------------------------------------------------------------------------
-  "flow_chip.cex_in": "→ Exchange",
-  "flow_chip.cex_out": "← Exchange",
+  "flow_chip.cex_in": "→ Börse",
+  "flow_chip.cex_out": "← Börse",
   "flow_chip.dex": "DEX",
   "flow_chip.lending": "Lending",
   "flow_chip.staking": "Staking",

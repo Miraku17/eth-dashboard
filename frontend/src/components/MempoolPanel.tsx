@@ -48,12 +48,14 @@ function Party({ addr, label }: { addr: string; label: string | null }) {
   );
 }
 
-const ASSET_OPTIONS: readonly { value: WhaleAsset | "ALL"; label: string }[] = [
-  { value: "ALL", label: "All" },
-  { value: "ETH", label: "ETH" },
-  { value: "USDT", label: "USDT" },
-  { value: "USDC", label: "USDC" },
-  { value: "DAI", label: "DAI" },
+// Asset symbols stay English per docs/i18n-glossary.md. Only "ALL"
+// varies — computed inside the component via t("common.all").
+const ASSET_VALUES: readonly (WhaleAsset | "ALL")[] = [
+  "ALL",
+  "ETH",
+  "USDT",
+  "USDC",
+  "DAI",
 ] as const;
 
 function ageSeconds(seenAt: string): number {
@@ -105,7 +107,15 @@ export default function MempoolPanel() {
       }
       live
       actions={
-        <Pill size="xs" value={asset} onChange={setAsset} options={ASSET_OPTIONS} />
+        <Pill
+          size="xs"
+          value={asset}
+          onChange={setAsset}
+          options={ASSET_VALUES.map((v) => ({
+            value: v,
+            label: v === "ALL" ? t("common.all") : v,
+          }))}
+        />
       }
       bodyClassName="p-0"
     >

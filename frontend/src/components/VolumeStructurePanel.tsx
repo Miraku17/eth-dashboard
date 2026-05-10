@@ -40,12 +40,10 @@ const BUCKET_COLOR: Record<VolumeBucket, string> = {
   whale: "#19c37d",
 };
 
-const MODE_OPTIONS = [
-  { value: "abs", label: "USD" },
-  { value: "pct", label: "% share" },
-] as const;
-
-type Mode = (typeof MODE_OPTIONS)[number]["value"];
+// "USD" stays English; "% share" is the only translatable label, computed
+// inside the component via t("volume_structure.pct_share").
+const MODE_VALUES = ["abs", "pct"] as const;
+type Mode = (typeof MODE_VALUES)[number];
 
 type Row = {
   t: number;
@@ -121,19 +119,19 @@ export default function VolumeStructurePanel() {
       actions={
         <div className="flex items-center gap-2">
           <div className="inline-flex rounded-md ring-1 ring-surface-border bg-surface-raised text-[11px] overflow-hidden">
-            {MODE_OPTIONS.map((o) => (
+            {MODE_VALUES.map((m) => (
               <button
-                key={o.value}
+                key={m}
                 type="button"
-                onClick={() => setMode(o.value)}
+                onClick={() => setMode(m)}
                 className={
                   "px-2.5 py-1 transition " +
-                  (mode === o.value
+                  (mode === m
                     ? "bg-brand/20 text-brand-soft"
                     : "text-slate-400 hover:text-slate-200")
                 }
               >
-                {o.label}
+                {m === "abs" ? "USD" : t("volume_structure.pct_share")}
               </button>
             ))}
           </div>

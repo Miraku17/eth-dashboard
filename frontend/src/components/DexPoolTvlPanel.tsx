@@ -11,6 +11,8 @@ const TOP_N_DISPLAY = 20;
 
 type DexFilter = "ALL" | "uniswap-v3" | "uniswap-v2" | "curve-dex" | "balancer-v2";
 
+// DEX names stay English in both locales (per docs/i18n-glossary.md).
+// Only "All DEXes" varies — pulled from the dictionary inside the component.
 const DEX_LABELS: Record<DexFilter, string> = {
   ALL: "All DEXes",
   "uniswap-v3": "Uniswap v3",
@@ -19,17 +21,17 @@ const DEX_LABELS: Record<DexFilter, string> = {
   "balancer-v2": "Balancer v2",
 };
 
-const DEX_OPTIONS: { value: DexFilter; label: string }[] = [
-  { value: "ALL", label: "All DEXes" },
-  { value: "uniswap-v3", label: "Uniswap v3" },
-  { value: "uniswap-v2", label: "Uniswap v2" },
-  { value: "curve-dex", label: "Curve" },
-  { value: "balancer-v2", label: "Balancer v2" },
-];
-
 export default function DexPoolTvlPanel() {
   const t = useT();
   const [filter, setFilter] = useState<DexFilter>("ALL");
+
+  const dexOptions: { value: DexFilter; label: string }[] = [
+    { value: "ALL", label: t("dex_pool.all_dexes") },
+    { value: "uniswap-v3", label: "Uniswap v3" },
+    { value: "uniswap-v2", label: "Uniswap v2" },
+    { value: "curve-dex", label: "Curve" },
+    { value: "balancer-v2", label: "Balancer v2" },
+  ];
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["dex-pool-tvl-latest"],
@@ -54,7 +56,7 @@ export default function DexPoolTvlPanel() {
         <SimpleSelect
           value={filter}
           onChange={setFilter}
-          options={DEX_OPTIONS}
+          options={dexOptions}
           ariaLabel={t("dex-pool-tvl.aria.filter")}
         />
       }

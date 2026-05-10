@@ -25,6 +25,23 @@ export const en = {
   "common.delete": "Delete",
   "common.clear": "clear",
   "common.positions": "positions",
+  "common.all": "All",
+  "common.full": "Full",
+
+  // Chart-type selector (PriceChart)
+  "chart_type.candles": "Candles",
+  "chart_type.line": "Line",
+  "chart_type.area": "Area",
+  "chart_type.baseline": "Baseline",
+
+  // DEX pool filter (DexPoolTvlPanel)
+  "dex_pool.all_dexes": "All DEXes",
+
+  // Volume structure mode toggle (VolumeStructurePanel)
+  "volume_structure.pct_share": "% share",
+
+  // Sortable panel resize tooltips (SortablePanel)
+  "panel_size.resize_to": "Resize to {{label}}",
 
   // ---------------------------------------------------------------------------
   // Topbar / DashboardShell

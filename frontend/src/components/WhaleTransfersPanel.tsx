@@ -87,25 +87,12 @@ function hasSmartParty(t: { from_score: number | null; to_score: number | null }
       || (t.to_score != null && t.to_score >= SMART_FLOOR_USD);
 }
 
-const ASSET_OPTIONS: readonly { value: WhaleAsset | "ALL"; label: string }[] = [
-  { value: "ALL", label: "All" },
-  { value: "ETH", label: "ETH" },
-  { value: "USDT", label: "USDT" },
-  { value: "USDC", label: "USDC" },
-  { value: "DAI", label: "DAI" },
-  { value: "PYUSD", label: "PYUSD" },
-  { value: "FDUSD", label: "FDUSD" },
-  { value: "USDS", label: "USDS" },
-  { value: "GHO", label: "GHO" },
-  { value: "EUROC", label: "EUROC" },
-  { value: "ZCHF", label: "ZCHF" },
-  { value: "EURCV", label: "EURCV" },
-  { value: "EURe", label: "EURe" },
-  { value: "tGBP", label: "tGBP" },
-  { value: "USDe", label: "USDe" },
-  { value: "XSGD", label: "XSGD" },
-  { value: "BRZ", label: "BRZ" },
-  { value: "EURS", label: "EURS" },
+// Asset symbols stay English per docs/i18n-glossary.md. Only "ALL"
+// varies — computed inside the component via t("common.all").
+const ASSET_VALUES: readonly (WhaleAsset | "ALL")[] = [
+  "ALL", "ETH", "USDT", "USDC", "DAI", "PYUSD", "FDUSD", "USDS",
+  "GHO", "EUROC", "ZCHF", "EURCV", "EURe", "tGBP", "USDe",
+  "XSGD", "BRZ", "EURS",
 ] as const;
 
 const HOUR_OPTIONS = [
@@ -114,7 +101,7 @@ const HOUR_OPTIONS = [
   { value: 24 * 7, label: "7d" },
 ] as const;
 
-const VALID_ASSETS = new Set(ASSET_OPTIONS.map((o) => String(o.value)));
+const VALID_ASSETS = new Set(ASSET_VALUES.map((v) => String(v)));
 const VALID_HOURS = new Set(HOUR_OPTIONS.map((o) => o.value));
 
 // Flow filter chips. Order matches the user's stated 20× priority — CEX
@@ -278,7 +265,10 @@ export default function WhaleTransfersPanel() {
             size="xs"
             value={asset}
             onChange={setAsset}
-            options={ASSET_OPTIONS}
+            options={ASSET_VALUES.map((v) => ({
+              value: v,
+              label: v === "ALL" ? tFn("common.all") : v,
+            }))}
             ariaLabel={tFn("whale-transfers.aria.asset_filter")}
           />
           <Pill size="xs" value={hours} onChange={setHours} options={HOUR_OPTIONS} />

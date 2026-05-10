@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
+import { useT } from "../../i18n/LocaleProvider";
 import { SPAN_CLASS, type PanelWidth } from "../../lib/panelRegistry";
 import { useCustomizeMode } from "../../state/customizeMode";
 import { useOverviewLayout } from "../../state/overviewLayout";
@@ -17,11 +18,14 @@ type Props = {
 
 function SizeButtons({ id, width }: { id: string; width: PanelWidth }) {
   const resize = useOverviewLayout((s) => s.resize);
+  const t = useT();
+  // S/M/L are universal letter abbreviations and stay in both locales.
+  // "Full" varies — pulled from common.full.
   const sizes: { w: PanelWidth; label: string }[] = [
     { w: 1, label: "S" },
     { w: 2, label: "M" },
     { w: 3, label: "L" },
-    { w: 4, label: "Full" },
+    { w: 4, label: t("common.full") },
   ];
   return (
     <div className="flex items-center text-[10px] divide-x divide-surface-border">
@@ -36,7 +40,7 @@ function SizeButtons({ id, width }: { id: string; width: PanelWidth }) {
               ? "bg-brand/30 text-brand-soft"
               : "text-slate-400 hover:text-slate-200 hover:bg-surface-raised")
           }
-          title={`Resize to ${label}`}
+          title={t("panel_size.resize_to", { label })}
         >
           {label}
         </button>
