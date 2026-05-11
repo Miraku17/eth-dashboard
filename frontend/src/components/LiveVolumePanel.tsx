@@ -85,7 +85,7 @@ export default function LiveVolumePanel() {
           value={minutes}
           onChange={setMinutes}
           options={RANGE_OPTIONS}
-          ariaLabel="Time window"
+          ariaLabel={t("live-volume.aria.time_window")}
         />
       }
     >
@@ -110,7 +110,7 @@ export default function LiveVolumePanel() {
               {t("live-volume.window_total", { total: formatUsdCompact(totalUsd) })}
             </span>
           </div>
-          <DataAge ts={(stacked.at(-1)?.ts as string | undefined) ?? null} label="latest" />
+          <DataAge ts={(stacked.at(-1)?.ts as string | undefined) ?? null} label={t("live-volume.data_age_latest")} />
 
           <div className="h-44">
             <ResponsiveContainer width="100%" height="100%">
@@ -142,8 +142,8 @@ export default function LiveVolumePanel() {
                   }}
                   labelStyle={{ color: "rgb(148 163 184)" }}
                   formatter={(v: number, name: string) => {
-                    if (name === "_fastMA") return [formatUsdCompact(v), `${fastPeriod}m MA`];
-                    if (name === "_slowMA") return [formatUsdCompact(v), `${slowPeriod}m MA`];
+                    if (name === "_fastMA") return [formatUsdCompact(v), t("live-volume.tooltip.ma_period", { period: String(fastPeriod) })];
+                    if (name === "_slowMA") return [formatUsdCompact(v), t("live-volume.tooltip.ma_period", { period: String(slowPeriod) })];
                     return [formatUsdCompact(v), name];
                   }}
                 />
@@ -187,9 +187,9 @@ export default function LiveVolumePanel() {
                   className="inline-block w-2 h-2 rounded-sm shrink-0"
                   style={{ backgroundColor: FAST_MA_COLOR }}
                 />
-                <span className="text-slate-300">{fastPeriod}m MA</span>
+                <span className="text-slate-300">{t("live-volume.tooltip.ma_period", { period: String(fastPeriod) })}</span>
               </span>
-              <span className="text-slate-400">trend</span>
+              <span className="text-slate-400">{t("live-volume.legend.trend")}</span>
             </li>
             <li className="flex items-center justify-between">
               <span className="flex items-center gap-2 min-w-0 truncate">
@@ -197,9 +197,9 @@ export default function LiveVolumePanel() {
                   className="inline-block w-2 h-2 rounded-sm shrink-0"
                   style={{ backgroundColor: SLOW_MA_COLOR }}
                 />
-                <span className="text-slate-300">{slowPeriod}m MA</span>
+                <span className="text-slate-300">{t("live-volume.tooltip.ma_period", { period: String(slowPeriod) })}</span>
               </span>
-              <span className="text-slate-400">baseline</span>
+              <span className="text-slate-400">{t("live-volume.legend.baseline")}</span>
             </li>
             {sortedAssets.slice(0, 8).map((a) => (
               <li key={a} className="flex items-center justify-between">
@@ -318,12 +318,13 @@ function TrendHeadline({
   slowPeriod: number;
   rowsSoFar: number;
 }) {
+  const t = useT();
   // Warming up: not enough samples to fill the slow window yet.
   if (lastSlowMA === undefined || lastTotal === undefined) {
     const remaining = Math.max(0, slowPeriod - rowsSoFar);
     return (
       <div className="text-xs text-slate-500">
-        warming up — {slowPeriod}m baseline in {remaining}m
+        {t("live-volume.warming_up", { period: String(slowPeriod), remaining: String(remaining) })}
       </div>
     );
   }
@@ -341,8 +342,12 @@ function TrendHeadline({
         {formatUsdCompact(lastTotal)} / min
       </span>
       <span className={`font-mono tabular-nums ${tint}`}>
-        {sign}
-        {absPct.toFixed(0)}% vs {slowPeriod}m avg {arrow}
+        {t("live-volume.trend_vs_avg", {
+          sign,
+          pct: absPct.toFixed(0),
+          period: String(slowPeriod),
+          arrow,
+        })}
       </span>
     </div>
   );

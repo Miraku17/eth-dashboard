@@ -49,6 +49,15 @@ export const de: Record<TranslationKey, string> = {
   // Sortable panel resize tooltips (SortablePanel)
   "panel_size.resize_to": "Größe ändern auf {{label}}",
 
+  // LiveVolume MA-overlay extras (added post-merge with the MA overlay PR)
+  "live-volume.aria.time_window": "Zeitfenster",
+  "live-volume.data_age_latest": "zuletzt",
+  "live-volume.tooltip.ma_period": "{{period}}m MA",
+  "live-volume.legend.trend": "Trend",
+  "live-volume.legend.baseline": "Baseline",
+  "live-volume.warming_up": "Aufwärmen — {{period}}m Baseline in {{remaining}}m",
+  "live-volume.trend_vs_avg": "{{sign}}{{pct}}% vs {{period}}m Schnitt {{arrow}}",
+
   // ---------------------------------------------------------------------------
   // Topbar / DashboardShell
   // ---------------------------------------------------------------------------
