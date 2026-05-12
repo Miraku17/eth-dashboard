@@ -110,36 +110,40 @@ export default function StableFlowCurvePanel() {
     [supplyData],
   );
 
+  // Anchor "X ago" labels to the moment the data lands rather than each
+  // re-render so the axis ticks don't shift with the React frame clock.
+  const now = useMemo(
+    () => (rows.length > 0 ? Date.now() : Date.now()),
+    [rows.length],
+  );
+
   return (
-    <Card
-      title={t("stable-flow-curve.title")}
-      subtitle={t("stable-flow-curve.subtitle", { bucket })}
-      live
-      actions={
-        <div className="flex flex-wrap items-center gap-2 justify-end">
-          <Pill
-            size="xs"
-            value={asset}
-            onChange={(v) => setAsset(v as AssetFilter)}
-            options={
-              [
-                { value: "ALL", label: t("common.all") },
-                ...TRACKED_STABLES.map((s) => ({ value: s, label: s })),
-              ] as const
-            }
-          />
-          <Pill size="xs" value={bucket} onChange={setBucket} options={BUCKETS} />
-        </div>
-      }
-    >
-      <StatTiles
-        totalUsd={totalUsd}
-        trendPct={trend}
-        slowPeriod={slowPeriod}
-        bucket={bucket}
-        totalCap={totalCap}
-        capDeltaPct={capDeltaPct}
-      />
+    <Card>
+      <div className="flex flex-wrap items-center gap-2 justify-between">
+        <Pill
+          size="xs"
+          value={asset}
+          onChange={(v) => setAsset(v as AssetFilter)}
+          options={
+            [
+              { value: "ALL", label: t("common.all") },
+              ...TRACKED_STABLES.map((s) => ({ value: s, label: s })),
+            ] as const
+          }
+        />
+        <Pill size="xs" value={bucket} onChange={setBucket} options={BUCKETS} />
+      </div>
+
+      <div className="mt-4">
+        <StatTiles
+          totalUsd={totalUsd}
+          trendPct={trend}
+          slowPeriod={slowPeriod}
+          bucket={bucket}
+          totalCap={totalCap}
+          capDeltaPct={capDeltaPct}
+        />
+      </div>
 
       {isLoading && <p className="mt-3 text-sm text-slate-500">{t("common.loading")}</p>}
       {error && <p className="mt-3 text-sm text-down">{t("common.unavailable")}</p>}
@@ -148,8 +152,29 @@ export default function StableFlowCurvePanel() {
       )}
 
       {rows.length > 0 && (
-        <>
-          <div className="h-60 mt-3">
+        <div className="mt-4 relative">
+          <div className="flex items-baseline justify-between mb-2">
+            <h3 className="text-sm font-medium text-slate-200">
+              {t("stable-flow-curve.chart_heading")}
+            </h3>
+            <ChartLegend
+              items={[
+                ...assetsInWindow.slice(0, 6).map((a) => ({
+                  label: a === "__all__" ? t("common.all") : a,
+                  color: colorFor(a),
+                })),
+                {
+                  label: t("stable-flow-curve.legend.ma_fast", { period: String(fastPeriod) }),
+                  color: FAST_MA_COLOR,
+                },
+                {
+                  label: t("stable-flow-curve.legend.ma_slow", { period: String(slowPeriod) }),
+                  color: SLOW_MA_COLOR,
+                },
+              ]}
+            />
+          </div>
+          <div className="h-60">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={rows} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" />
@@ -159,7 +184,7 @@ export default function StableFlowCurvePanel() {
                   axisLine={false}
                   tickLine={false}
                   minTickGap={48}
-                  tickFormatter={(v: string) => formatTs(v, bucket)}
+                  tickFormatter={(v: string) => formatRelative(v, now)}
                 />
                 <YAxis
                   tick={{ fill: "rgb(148 163 184)", fontSize: 10 }}
@@ -224,41 +249,25 @@ export default function StableFlowCurvePanel() {
               </LineChart>
             </ResponsiveContainer>
           </div>
-
-          <ul className="mt-3 grid grid-cols-2 @sm:grid-cols-3 @md:grid-cols-4 gap-x-3 gap-y-1.5 text-[11px] font-mono tabular-nums">
-            <li className="flex items-center gap-2">
-              <span
-                className="inline-block w-2 h-2 rounded-sm shrink-0"
-                style={{ backgroundColor: FAST_MA_COLOR }}
-              />
-              <span className="text-slate-300">
-                {t("stable-flow-curve.legend.ma_fast", { period: String(fastPeriod) })}
-              </span>
-            </li>
-            <li className="flex items-center gap-2">
-              <span
-                className="inline-block w-2 h-2 rounded-sm shrink-0"
-                style={{ backgroundColor: SLOW_MA_COLOR }}
-              />
-              <span className="text-slate-300">
-                {t("stable-flow-curve.legend.ma_slow", { period: String(slowPeriod) })}
-              </span>
-            </li>
-            {assetsInWindow.slice(0, 10).map((a) => (
-              <li key={a} className="flex items-center gap-2">
-                <span
-                  className="inline-block w-2 h-2 rounded-sm shrink-0"
-                  style={{ backgroundColor: colorFor(a) }}
-                />
-                <span className="text-slate-300">
-                  {a === "__all__" ? t("common.all") : a}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </>
+        </div>
       )}
     </Card>
+  );
+}
+
+function ChartLegend({ items }: { items: { label: string; color: string }[] }) {
+  return (
+    <ul className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-mono tabular-nums text-slate-300 justify-end">
+      {items.map((it) => (
+        <li key={it.label} className="flex items-center gap-1.5">
+          <span
+            className="inline-block w-2 h-2 rounded-sm shrink-0"
+            style={{ backgroundColor: it.color }}
+          />
+          <span>{it.label}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -466,16 +475,24 @@ function trailingMean(values: number[], period: number): (number | undefined)[] 
   return out;
 }
 
-function formatTs(iso: string, bucket: BucketWidth): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  if (bucket === "1m" || bucket === "5m" || bucket === "15m" || bucket === "1h") {
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  }
-  if (bucket === "4h") {
-    return d.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit" });
-  }
-  return d.toLocaleDateString([], { month: "short", day: "numeric" });
+/**
+ * Render an axis tick label as "Xm ago" / "Xh ago" / "Xd ago" relative
+ * to `now`. The unit auto-scales: < 60 min → minutes, < 48 h → hours,
+ * else days. Falls back to a calendar date for windows beyond ~90 days
+ * so weekly / monthly buckets stay legible.
+ */
+function formatRelative(iso: string, now: number): string {
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return iso;
+  const secs = Math.max(0, Math.round((now - t) / 1000));
+  if (secs < 60) return `${secs}s ago`;
+  const mins = Math.round(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 48) return `${hrs}h ago`;
+  const days = Math.round(hrs / 24);
+  if (days <= 90) return `${days}d ago`;
+  return new Date(t).toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
 function formatTsLong(iso: string): string {

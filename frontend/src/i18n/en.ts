@@ -319,6 +319,7 @@ export const en = {
   "stable-flow-curve.tile.vs_ma_hint": "Latest bucket vs trailing avg",
   "stable-flow-curve.legend.ma_fast": "MA{{period}} (fast)",
   "stable-flow-curve.legend.ma_slow": "MA{{period}} (slow)",
+  "stable-flow-curve.chart_heading": "Transfer volume",
 
   // ---------------------------------------------------------------------------
   // Stablecoin marketcap (StablecoinMarketcapPanel)

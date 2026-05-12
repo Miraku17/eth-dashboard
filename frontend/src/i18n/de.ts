@@ -323,6 +323,7 @@ export const de: Record<TranslationKey, string> = {
   "stable-flow-curve.tile.vs_ma_hint": "Letzter Bucket vs. gleitender Durchschnitt",
   "stable-flow-curve.legend.ma_fast": "MA{{period}} (schnell)",
   "stable-flow-curve.legend.ma_slow": "MA{{period}} (langsam)",
+  "stable-flow-curve.chart_heading": "Transfervolumen",
 
   // Stablecoin-Marktkapitalisierung
   "stable-marketcap.title": "Stablecoin-Marktkapitalisierung",
