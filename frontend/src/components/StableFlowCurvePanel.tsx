@@ -11,8 +11,10 @@ import {
 } from "recharts";
 
 import {
+  fetchStableSupplySeries,
   fetchVolumeSeries,
   type BucketWidth,
+  type SupplyPoint,
   type VolumeSeriesPoint,
 } from "../api";
 import { rgbOf } from "../lib/assetColors";
@@ -82,6 +84,16 @@ export default function StableFlowCurvePanel() {
     queryFn: () => fetchVolumeSeries(bucket, { assets: assetsParam }),
     refetchInterval: bucket === "1m" || bucket === "5m" ? 15_000 : 60_000,
   });
+  // Marketcap stats share the asset + bucket filters so both halves of
+  // the panel describe the same selection. We only need the supply
+  // series to derive `total cap` (latest total across the window) and
+  // `cap Δ window` (latest vs first), so the response is small even on
+  // long windows.
+  const { data: supplyData } = useQuery({
+    queryKey: ["supply-series", bucket, asset],
+    queryFn: () => fetchStableSupplySeries(bucket, { assets: assetsParam }),
+    refetchInterval: 60_000,
+  });
 
   const { rows, assetsInWindow, totalUsd, lastTotal, lastSlowMA, fastPeriod, slowPeriod } =
     useMemo(() => pivot(data?.points ?? [], bucket, asset === "ALL"), [data, bucket, asset]);
@@ -92,6 +104,11 @@ export default function StableFlowCurvePanel() {
     const pct = (lastTotal / lastSlowMA - 1) * 100;
     return pct;
   }, [lastTotal, lastSlowMA]);
+
+  const { totalCap, capDeltaPct } = useMemo(
+    () => summariseCap(supplyData?.points ?? []),
+    [supplyData],
+  );
 
   return (
     <Card
@@ -120,6 +137,8 @@ export default function StableFlowCurvePanel() {
         trendPct={trend}
         slowPeriod={slowPeriod}
         bucket={bucket}
+        totalCap={totalCap}
+        capDeltaPct={capDeltaPct}
       />
 
       {isLoading && <p className="mt-3 text-sm text-slate-500">{t("common.loading")}</p>}
@@ -248,15 +267,19 @@ function StatTiles({
   trendPct,
   slowPeriod,
   bucket,
+  totalCap,
+  capDeltaPct,
 }: {
   totalUsd: number;
   trendPct: number | null;
   slowPeriod: number;
   bucket: BucketWidth;
+  totalCap: number;
+  capDeltaPct: number | null;
 }) {
   const t = useT();
   const up = (trendPct ?? 0) >= 0;
-  const tint =
+  const volTint =
     trendPct === null
       ? "text-slate-400"
       : Math.abs(trendPct) < 5
@@ -264,34 +287,105 @@ function StatTiles({
         : up
           ? "text-up"
           : "text-down";
+  const capTint =
+    capDeltaPct === null
+      ? "text-slate-400"
+      : Math.abs(capDeltaPct) < 0.05
+        ? "text-slate-400"
+        : capDeltaPct >= 0
+          ? "text-up"
+          : "text-down";
   return (
-    <div className="grid grid-cols-2 gap-3">
-      <div className="rounded-lg border border-surface-border bg-surface-sunken px-3 py-2">
-        <div className="text-[10px] tracking-wider uppercase text-slate-500">
-          {t("stable-flow-curve.tile.total_volume")}
-        </div>
-        <div className="mt-0.5 font-mono text-base font-semibold tabular-nums text-slate-100">
-          {formatUsdCompact(totalUsd)}
-        </div>
-        <div className="text-[10px] text-slate-500">
-          {t("stable-flow-curve.tile.window", { bucket })}
-        </div>
-      </div>
-      <div className="rounded-lg border border-surface-border bg-surface-sunken px-3 py-2">
-        <div className="text-[10px] tracking-wider uppercase text-slate-500">
-          {t("stable-flow-curve.tile.vs_ma", { period: String(slowPeriod) })}
-        </div>
-        <div className={"mt-0.5 font-mono text-base font-semibold tabular-nums " + tint}>
-          {trendPct === null
+    <div className="grid grid-cols-2 @sm:grid-cols-4 gap-3">
+      <Tile
+        label={t("stable-flow-curve.tile.total_volume")}
+        value={formatUsdCompact(totalUsd)}
+        hint={t("stable-flow-curve.tile.window", { bucket })}
+      />
+      <Tile
+        label={t("stable-flow-curve.tile.vs_ma", { period: String(slowPeriod) })}
+        value={
+          trendPct === null
             ? "—"
-            : `${trendPct >= 0 ? "+" : ""}${trendPct.toFixed(1)}%`}
-        </div>
-        <div className="text-[10px] text-slate-500">
-          {t("stable-flow-curve.tile.vs_ma_hint")}
-        </div>
-      </div>
+            : `${trendPct >= 0 ? "+" : ""}${trendPct.toFixed(1)}%`
+        }
+        valueClass={volTint}
+        hint={t("stable-flow-curve.tile.vs_ma_hint")}
+      />
+      <Tile
+        label={t("stable-marketcap.tile.total_cap")}
+        value={totalCap > 0 ? formatUsdCompact(totalCap) : "—"}
+        hint={t("stable-marketcap.tile.latest")}
+      />
+      <Tile
+        label={t("stable-marketcap.tile.delta_window", { bucket })}
+        value={
+          capDeltaPct === null
+            ? "—"
+            : `${capDeltaPct >= 0 ? "+" : ""}${capDeltaPct.toFixed(2)}%`
+        }
+        valueClass={capTint}
+        hint={t("stable-marketcap.tile.delta_hint")}
+      />
     </div>
   );
+}
+
+function Tile({
+  label,
+  value,
+  hint,
+  valueClass,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+  valueClass?: string;
+}) {
+  return (
+    <div className="rounded-lg border border-surface-border bg-surface-sunken px-3 py-2">
+      <div className="text-[10px] tracking-wider uppercase text-slate-500">{label}</div>
+      <div
+        className={
+          "mt-0.5 font-mono text-base font-semibold tabular-nums " +
+          (valueClass ?? "text-slate-100")
+        }
+      >
+        {value}
+      </div>
+      <div className="text-[10px] text-slate-500">{hint}</div>
+    </div>
+  );
+}
+
+/**
+ * Compute total-cap (latest snapshot summed across assets) and
+ * cap-Δ-window (latest vs first across the window) from a flat supply
+ * series. The series may have multiple rows per asset across timestamps
+ * — we pick the latest row per asset for "total" and pair earliest with
+ * latest for the window delta.
+ */
+function summariseCap(points: SupplyPoint[]): {
+  totalCap: number;
+  capDeltaPct: number | null;
+} {
+  if (points.length === 0) return { totalCap: 0, capDeltaPct: null };
+  const byAsset: Map<string, SupplyPoint[]> = new Map();
+  for (const p of points) {
+    const list = byAsset.get(p.asset);
+    if (list) list.push(p);
+    else byAsset.set(p.asset, [p]);
+  }
+  let totalCap = 0;
+  let firstTotal = 0;
+  for (const list of byAsset.values()) {
+    // Points already arrive in ts asc order from the API.
+    totalCap += list[list.length - 1].supply_usd;
+    firstTotal += list[0].supply_usd;
+  }
+  const capDeltaPct =
+    firstTotal > 0 ? ((totalCap - firstTotal) / firstTotal) * 100 : null;
+  return { totalCap, capDeltaPct };
 }
 
 type Pivoted = {

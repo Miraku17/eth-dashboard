@@ -27,7 +27,6 @@ import PriceHero from "../components/PriceHero";
 import SmartMoneyDirectionPanel from "../components/SmartMoneyDirectionPanel";
 import SmartMoneyLeaderboard from "../components/SmartMoneyLeaderboard";
 import StableFlowCurvePanel from "../components/StableFlowCurvePanel";
-import StablecoinMarketcapPanel from "../components/StablecoinMarketcapPanel";
 import StablecoinSupplyPanel from "../components/StablecoinSupplyPanel";
 import StakingFlowsPanel from "../components/StakingFlowsPanel";
 import VolumeStructurePanel from "../components/VolumeStructurePanel";
@@ -86,8 +85,7 @@ export const PANELS: PanelDef[] = [
   { id: "onchain-perps", label: "On-chain perps", component: OnchainPerpsPanel, defaultPage: "markets", defaultWidth: 3 },
   { id: "stablecoin-supply", label: "Stablecoin supply", component: StablecoinSupplyPanel, defaultPage: "onchain", defaultWidth: 1, section: "stablecoins" },
   { id: "live-volume", label: "Live volume", component: LiveVolumePanel, defaultPage: "onchain", defaultWidth: 2, section: "stablecoins" },
-  { id: "stable-flow-curve", label: "Stablecoin volume curve", component: StableFlowCurvePanel, defaultPage: "onchain", defaultWidth: 3, section: "stablecoins" },
-  { id: "stable-marketcap", label: "Stablecoin marketcap", component: StablecoinMarketcapPanel, defaultPage: "onchain", defaultWidth: 3, section: "stablecoins" },
+  { id: "stable-flow-curve", label: "Stablecoin volume + cap", component: StableFlowCurvePanel, defaultPage: "onchain", defaultWidth: 3, section: "stablecoins" },
   { id: "cex-flow-curve", label: "CEX flow curve", component: CexFlowCurvePanel, defaultPage: "onchain", defaultWidth: 3, section: "stablecoins" },
   { id: "dex-flow-curve", label: "DEX flow curve", component: DexFlowCurvePanel, defaultPage: "onchain", defaultWidth: 3, section: "defi" },
   { id: "defi-tvl-curve", label: "DeFi TVL curve", component: DefiTvlCurvePanel, defaultPage: "onchain", defaultWidth: 3, section: "defi" },
