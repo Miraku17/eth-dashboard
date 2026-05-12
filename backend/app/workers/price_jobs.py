@@ -10,7 +10,7 @@ from app.services.price_sync import backfill_timeframe, sync_latest
 log = logging.getLogger(__name__)
 
 SYMBOL = "ETHUSDT"
-TIMEFRAMES = ("1m", "5m", "15m", "1h", "4h", "1d")
+TIMEFRAMES = ("1m", "5m", "15m", "1h", "4h", "1d", "1w", "1M")
 
 BACKFILL_WINDOWS_DAYS = {
     "1m": 7,
@@ -19,6 +19,10 @@ BACKFILL_WINDOWS_DAYS = {
     "1h": 30,
     "4h": 90,
     "1d": 365,
+    # ~10y of weekly bars; ~30y of monthly bars. Binance caps `limit` at 1000
+    # and these tables are tiny, so a generous window costs nothing.
+    "1w": 365 * 10,
+    "1M": 365 * 30,
 }
 
 

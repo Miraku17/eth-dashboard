@@ -1,4 +1,3 @@
-import { Line, LineChart, ResponsiveContainer } from "recharts";
 import { useMarketSummary } from "../hooks/useMarketSummary";
 import { useBinanceTrade } from "../hooks/useBinanceTrade";
 import {
@@ -67,7 +66,6 @@ export default function PriceHero() {
   const up = (liveChangePct ?? 0) >= 0;
   const color = up ? "text-up" : "text-down";
   const arrow = up ? "▲" : "▼";
-  const lineColor = up ? "#19c37d" : "#ff5c62";
 
   const rangePct =
     data && data.high24h > data.low24h && livePrice !== null
@@ -79,9 +77,8 @@ export default function PriceHero() {
 
   return (
     <section className="rounded-xl border border-surface-border bg-gradient-to-br from-surface-card to-surface-sunken shadow-card overflow-hidden">
-      <div className="flex flex-col @2xl:flex-row">
-        {/* Left: identity + price */}
-        <div className="flex-1 p-6 border-b @2xl:border-b-0 @2xl:border-r border-surface-divider min-w-0">
+      <div>
+        <div className="p-6 min-w-0">
           <div className="flex items-start gap-4">
             <EthGlyph />
             <div className="min-w-0">
@@ -144,27 +141,6 @@ export default function PriceHero() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-
-        <div className="@2xl:w-[40%] p-6 flex items-center">
-          <div className="w-full h-28">
-            {data ? (
-              <ResponsiveContainer>
-                <LineChart data={data.sparkline}>
-                  <Line
-                    type="monotone"
-                    dataKey="value"
-                    stroke={lineColor}
-                    strokeWidth={2}
-                    dot={false}
-                    isAnimationActive={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="skeleton h-full w-full" />
-            )}
           </div>
         </div>
       </div>

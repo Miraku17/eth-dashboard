@@ -13,12 +13,16 @@ export class LoginError extends Error {
   }
 }
 
-export async function login(username: string, password: string): Promise<AuthUser> {
+export async function login(
+  username: string,
+  password: string,
+  remember = false,
+): Promise<AuthUser> {
   const r = await fetch(url("/api/auth/login"), {
     method: "POST",
     credentials: "include",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, remember }),
   });
   if (r.status === 429) {
     const retry = Number(r.headers.get("Retry-After") ?? 60);

@@ -10,7 +10,11 @@ import redis
 from app.core.config import get_settings
 
 KEY_PREFIX = "session:"
-SESSION_TTL_SECONDS = 60 * 60 * 24  # 24h
+SESSION_TTL_SECONDS = 60 * 60 * 24  # 24h — default, unchecked "remember me"
+# Long-lived TTL when the user opts in to "remember me" on the login form.
+# 90 days mirrors the cookie-lifetime norm for consumer dashboards and is
+# longer than the typical browser session-restore window.
+REMEMBER_ME_TTL_SECONDS = 60 * 60 * 24 * 90  # 90d
 
 _client_instance: redis.Redis | None = None
 
@@ -30,9 +34,16 @@ def _reset_client_for_tests() -> None:
     _client_instance = None
 
 
-def create_session(username: str) -> str:
+def create_session(username: str, ttl_seconds: int = SESSION_TTL_SECONDS) -> str:
+    """Mint a session id and store the username in Redis with the given TTL.
+
+    Default TTL matches the short-lived 24h session; pass
+    `REMEMBER_ME_TTL_SECONDS` (or any explicit duration) to opt in to a
+    longer window. The same `ttl_seconds` should be used as the cookie's
+    `max_age` so client and server expire together.
+    """
     sid = secrets.token_urlsafe(32)
-    _client().setex(f"{KEY_PREFIX}{sid}", SESSION_TTL_SECONDS, username)
+    _client().setex(f"{KEY_PREFIX}{sid}", ttl_seconds, username)
     return sid
 
 

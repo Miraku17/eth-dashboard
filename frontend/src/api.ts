@@ -19,7 +19,7 @@ async function apiFetch(path: string, init: RequestInit = {}): Promise<Response>
   return r;
 }
 
-export type Timeframe = "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
+export type Timeframe = "1m" | "5m" | "15m" | "1h" | "4h" | "1d" | "1w" | "1M";
 
 export type Candle = {
   time: number;
@@ -249,6 +249,135 @@ export async function fetchRealtimeVolume(minutes: number): Promise<RealtimeVolu
   const r = await apiFetch(`/api/volume/realtime?minutes=${minutes}`);
   if (!r.ok) throw new Error(`realtime volume ${r.status}`);
   return (await r.json()).points;
+}
+
+export type BucketWidth = "1m" | "5m" | "15m" | "1h" | "4h" | "1d" | "1w" | "1M";
+
+export type VolumeSeriesPoint = {
+  ts_bucket: string;
+  asset: string;
+  usd_volume: number;
+  transfer_count: number;
+};
+
+export type VolumeSeriesResponse = {
+  bucket: BucketWidth;
+  assets: string[];
+  points: VolumeSeriesPoint[];
+};
+
+export async function fetchVolumeSeries(
+  bucket: BucketWidth,
+  opts: { minutes?: number; assets?: string[] } = {},
+): Promise<VolumeSeriesResponse> {
+  const params = new URLSearchParams();
+  params.set("bucket", bucket);
+  if (opts.minutes !== undefined) params.set("minutes", String(opts.minutes));
+  for (const a of opts.assets ?? []) params.append("asset", a);
+  const r = await apiFetch(`/api/volume/series?${params.toString()}`);
+  if (!r.ok) throw new Error(`volume series ${r.status}`);
+  return r.json();
+}
+
+export type SupplyPoint = {
+  ts_bucket: string;
+  asset: string;
+  supply_usd: number;
+};
+
+export type SupplyCurrent = {
+  asset: string;
+  supply_usd: number;
+  delta_usd: number;
+  delta_pct: number;
+};
+
+export type StableSupplySeriesResponse = {
+  bucket: BucketWidth;
+  assets: string[];
+  points: SupplyPoint[];
+  current: SupplyCurrent[];
+  window_label: string;
+};
+
+export async function fetchStableSupplySeries(
+  bucket: BucketWidth,
+  opts: { minutes?: number; assets?: string[] } = {},
+): Promise<StableSupplySeriesResponse> {
+  const params = new URLSearchParams();
+  params.set("bucket", bucket);
+  if (opts.minutes !== undefined) params.set("minutes", String(opts.minutes));
+  for (const a of opts.assets ?? []) params.append("asset", a);
+  const r = await apiFetch(`/api/stablecoins/supply-series?${params.toString()}`);
+  if (!r.ok) throw new Error(`supply series ${r.status}`);
+  return r.json();
+}
+
+export type FlowSeriesPoint = {
+  ts_bucket: string;
+  asset: string;
+  inflow_usd: number;
+  outflow_usd: number;
+  net_usd: number;
+};
+
+export type FlowSeriesResponse = {
+  bucket: BucketWidth;
+  assets: string[];
+  points: FlowSeriesPoint[];
+};
+
+async function fetchFlowSeries(
+  path: string,
+  bucket: BucketWidth,
+  opts: { minutes?: number; assets?: string[] } = {},
+): Promise<FlowSeriesResponse> {
+  const params = new URLSearchParams();
+  params.set("bucket", bucket);
+  if (opts.minutes !== undefined) params.set("minutes", String(opts.minutes));
+  for (const a of opts.assets ?? []) params.append("asset", a);
+  const r = await apiFetch(`${path}?${params.toString()}`);
+  if (!r.ok) throw new Error(`flow series ${r.status}`);
+  return r.json();
+}
+
+export function fetchCexSeries(
+  bucket: BucketWidth,
+  opts: { minutes?: number; assets?: string[] } = {},
+): Promise<FlowSeriesResponse> {
+  return fetchFlowSeries("/api/flows/cex-series", bucket, opts);
+}
+
+export function fetchDexSeries(
+  bucket: BucketWidth,
+  opts: { minutes?: number; assets?: string[] } = {},
+): Promise<FlowSeriesResponse> {
+  return fetchFlowSeries("/api/flows/dex-series", bucket, opts);
+}
+
+export type TvlSeriesPoint = {
+  ts_bucket: string;
+  protocol: string;
+  tvl_usd: number;
+};
+
+export type TvlSeriesResponse = {
+  bucket: BucketWidth;
+  protocols: string[];
+  points: TvlSeriesPoint[];
+};
+
+export async function fetchTvlSeries(
+  bucket: BucketWidth,
+  opts: { minutes?: number; protocols?: string[] } = {},
+): Promise<TvlSeriesResponse> {
+  const params = new URLSearchParams();
+  params.set("bucket", bucket);
+  if (opts.minutes !== undefined) params.set("minutes", String(opts.minutes));
+  for (const p of opts.protocols ?? []) params.append("protocol", p);
+  const r = await apiFetch(`/api/defi/tvl-series?${params.toString()}`);
+  if (!r.ok) throw new Error(`tvl series ${r.status}`);
+  return r.json();
 }
 
 export type OnchainVolumePoint = {

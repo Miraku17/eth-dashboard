@@ -327,6 +327,22 @@ class RealtimeVolume(Base):
     usd_volume: Mapped[float] = mapped_column(Numeric(38, 6))
 
 
+class StableSupply(Base):
+    """Per-asset stablecoin supply snapshot.
+
+    Live cron `sync_stable_supply` runs hourly, batches `totalSupply()`
+    JSON-RPC reads for the 16 tracked stables, and upserts one row per
+    (ts, asset). A one-shot DefiLlama backfill at startup seeds daily
+    history so the marketcap panel has multi-year context before the
+    live cron has accumulated its own samples. (v6-stable-marketcap)
+    """
+    __tablename__ = "stable_supply"
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    asset: Mapped[str] = mapped_column(String(16), primary_key=True)
+    supply: Mapped[float] = mapped_column(Numeric(38, 6))
+    supply_usd: Mapped[float] = mapped_column(Numeric(38, 2))
+
+
 class SmartMoneyLeaderboard(Base):
     """Per-wallet realized-PnL ranking snapshot. One `run_id` per daily refresh. (v2)"""
     __tablename__ = "smart_money_leaderboard"

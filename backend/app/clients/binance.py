@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import httpx
 
 BINANCE_BASE_URL = "https://api.binance.com"
-VALID_INTERVALS = {"1m", "5m", "15m", "1h", "4h", "1d"}
+VALID_INTERVALS = {"1m", "5m", "15m", "1h", "4h", "1d", "1w", "1M"}
 
 
 @dataclass(slots=True)

@@ -20,6 +20,7 @@ from app.workers.lrt_jobs import sync_lrt_tvl
 from app.workers.lst_jobs import sync_lst_supply
 from app.workers.pending_cleanup import cleanup_pending_transfers
 from app.workers.price_jobs import backfill_price_history, sync_price_latest
+from app.workers.stable_supply_jobs import sync_stable_supply
 from app.workers.yields_jobs import sync_staking_yields
 
 
@@ -100,6 +101,7 @@ class WorkerSettings:
         run_backfill_if_needed,
         cleanup_pending_transfers,
         purge_expired_clusters,
+        sync_stable_supply,
     ]
     cron_jobs = [
         cron(sync_price_latest, minute=set(range(0, 60)), run_at_startup=False),
@@ -152,6 +154,10 @@ class WorkerSettings:
         # wallet_score. Once daily at 04:13 UTC — offset from the 03:00
         # smart-money cron so the two heavy daily jobs don't collide.
         cron(score_wallets, hour={4}, minute={13}, run_at_startup=False),
+        # v6: per-minute totalSupply() reads for the 16 tracked stables.
+        # Single JSON-RPC batch to the self-hosted Geth node. Backs the
+        # stablecoin marketcap curve (StablecoinMarketcapPanel).
+        cron(sync_stable_supply, minute=set(range(0, 60)), run_at_startup=True),
     ]
     on_startup = startup
     on_shutdown = shutdown

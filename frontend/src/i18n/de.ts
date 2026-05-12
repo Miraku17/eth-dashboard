@@ -34,11 +34,13 @@ export const de: Record<TranslationKey, string> = {
   "common.all": "Alle",
   "common.full": "Voll",
 
-  // Chart-type selector (PriceChart)
-  "chart_type.candles": "Kerzen",
-  "chart_type.line": "Linie",
-  "chart_type.area": "Fläche",
-  "chart_type.baseline": "Basislinie",
+  // Indicator picker (PriceChart)
+  "indicators.label": "Indikatoren",
+  "indicators.ma": "MA (20 / 50 / 200)",
+  "indicators.ema": "EMA (12 / 26)",
+  "indicators.bb": "Bollinger-Bänder",
+  "indicators.rsi": "RSI (14)",
+  "indicators.macd": "MACD (12, 26, 9)",
 
   // DEX pool filter (DexPoolTvlPanel)
   "dex_pool.all_dexes": "Alle DEXes",
@@ -93,6 +95,7 @@ export const de: Record<TranslationKey, string> = {
   "login.password": "Passwort",
   "login.submit": "Anmelden",
   "login.submitting": "Anmeldung läuft…",
+  "login.remember": "90 Tage angemeldet bleiben",
   "auth.loading": "Laden…",
 
   // ---------------------------------------------------------------------------
@@ -307,6 +310,63 @@ export const de: Record<TranslationKey, string> = {
   "price-chart.subtitle_error": "Chart nicht verfügbar",
   "price-chart.subtitle_disconnected": "{{count}} {{tf}} Kerzen · Live getrennt — Wiederverbindung läuft",
   "price-chart.subtitle_live": "{{count}} {{tf}} Kerzen · Binance Live",
+  "price-chart.zoom_in": "Hereinzoomen",
+  "price-chart.zoom_out": "Herauszoomen",
+
+  // Stablecoin-Flow-Kurve
+  "stable-flow-curve.title": "Stablecoin-Volumenkurve",
+  "stable-flow-curve.subtitle": "On-Chain-Transfervolumen pro Asset · {{bucket}}-Buckets",
+  "stable-flow-curve.empty": "noch keine Daten in diesem Fenster",
+  "stable-flow-curve.tile.total_volume": "Gesamtvolumen",
+  "stable-flow-curve.tile.window": "Fenster ({{bucket}})",
+  "stable-flow-curve.tile.vs_ma": "vs. MA{{period}}",
+  "stable-flow-curve.tile.vs_ma_hint": "Letzter Bucket vs. gleitender Durchschnitt",
+  "stable-flow-curve.legend.ma_fast": "MA{{period}} (schnell)",
+  "stable-flow-curve.legend.ma_slow": "MA{{period}} (langsam)",
+
+  // Stablecoin-Marktkapitalisierung
+  "stable-marketcap.title": "Stablecoin-Marktkapitalisierung",
+  "stable-marketcap.subtitle": "Umlaufende Versorgung pro Asset · {{bucket}}-Buckets",
+  "stable-marketcap.empty": "noch keine Daten — erster Cron-Tick in ca. 60 s",
+  "stable-marketcap.tile.total_cap": "Gesamt-Cap",
+  "stable-marketcap.tile.latest": "Letzter Bucket",
+  "stable-marketcap.tile.delta_window": "Δ Fenster ({{bucket}})",
+  "stable-marketcap.tile.delta_hint": "Letzter Bucket vs. Erster",
+
+  // Geteilte Kurven-Panels
+  "curve.legend.ma_fast": "MA{{period}} (schnell)",
+  "curve.legend.ma_slow": "MA{{period}} (langsam)",
+  "flow-curve.line.inflow": "Zufluss",
+  "flow-curve.line.outflow": "Abfluss",
+  "flow-curve.line.net": "Netto",
+  "flow-curve.tile.inflow": "Gesamtzufluss",
+  "flow-curve.tile.outflow": "Gesamtabfluss",
+  "flow-curve.tile.net_last": "Netto (letzter Bucket)",
+  "flow-curve.tile.net_hint": "Zufluss − Abfluss",
+  "flow-curve.tile.window": "Fenster ({{bucket}})",
+  "flow-curve.tile.vs_ma": "vs. MA{{period}}",
+  "flow-curve.tile.vs_ma_hint": "Aktuell vs. gleitender Durchschnitt",
+
+  "cex-flow-curve.title": "CEX-Flow-Kurve",
+  "cex-flow-curve.subtitle": "Wal-Flüsse in/aus CEX-Hot-Wallets · {{bucket}}-Buckets",
+  "cex-flow-curve.empty": "keine CEX-Flüsse in diesem Fenster",
+
+  "dex-flow-curve.title": "DEX-Flow-Kurve",
+  "dex-flow-curve.subtitle": "Wal-Flüsse in/aus DEX-Routern + Pools · {{bucket}}-Buckets",
+  "dex-flow-curve.empty": "keine DEX-Flüsse in diesem Fenster",
+  "dex-flow-curve.line.sell": "Verkäufe (Wallet → DEX)",
+  "dex-flow-curve.line.buy": "Käufe (DEX → Wallet)",
+  "dex-flow-curve.tile.sell": "Verkaufsvolumen",
+  "dex-flow-curve.tile.buy": "Kaufvolumen",
+  "dex-flow-curve.tile.net_hint": "Verkauf − Kauf",
+
+  "defi-tvl-curve.title": "DeFi-TVL-Kurve",
+  "defi-tvl-curve.subtitle": "TVL pro Protokoll · {{bucket}}-Buckets",
+  "defi-tvl-curve.empty": "keine TVL-Daten in diesem Fenster",
+  "defi-tvl-curve.tile.total": "Gesamt-TVL",
+  "defi-tvl-curve.tile.latest": "Letzter Bucket",
+  "defi-tvl-curve.tile.delta": "Δ Fenster ({{bucket}})",
+  "defi-tvl-curve.tile.delta_hint": "Letzter Bucket vs. erster",
 
   // ---------------------------------------------------------------------------
   // Derivatives panel (DerivativesPanel)

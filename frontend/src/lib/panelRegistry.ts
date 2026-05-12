@@ -3,8 +3,11 @@ import type { ComponentType } from "react";
 import AlertEventsPanel from "../components/AlertEventsPanel";
 import BridgeFlowsPanel from "../components/BridgeFlowsPanel";
 import CategoryNetFlowPanel from "../components/CategoryNetFlowPanel";
+import CexFlowCurvePanel from "../components/CexFlowCurvePanel";
 import CexNetFlowPanel from "../components/CexNetFlowPanel";
+import DefiTvlCurvePanel from "../components/DefiTvlCurvePanel";
 import DefiTvlPanel from "../components/DefiTvlPanel";
+import DexFlowCurvePanel from "../components/DexFlowCurvePanel";
 import DexPoolTvlPanel from "../components/DexPoolTvlPanel";
 import DerivativesPanel from "../components/DerivativesPanel";
 import ExchangeFlowsPanel from "../components/ExchangeFlowsPanel";
@@ -23,6 +26,8 @@ import PriceChart from "../components/PriceChart";
 import PriceHero from "../components/PriceHero";
 import SmartMoneyDirectionPanel from "../components/SmartMoneyDirectionPanel";
 import SmartMoneyLeaderboard from "../components/SmartMoneyLeaderboard";
+import StableFlowCurvePanel from "../components/StableFlowCurvePanel";
+import StablecoinMarketcapPanel from "../components/StablecoinMarketcapPanel";
 import StablecoinSupplyPanel from "../components/StablecoinSupplyPanel";
 import StakingFlowsPanel from "../components/StakingFlowsPanel";
 import VolumeStructurePanel from "../components/VolumeStructurePanel";
@@ -81,6 +86,11 @@ export const PANELS: PanelDef[] = [
   { id: "onchain-perps", label: "On-chain perps", component: OnchainPerpsPanel, defaultPage: "markets", defaultWidth: 3 },
   { id: "stablecoin-supply", label: "Stablecoin supply", component: StablecoinSupplyPanel, defaultPage: "onchain", defaultWidth: 1, section: "stablecoins" },
   { id: "live-volume", label: "Live volume", component: LiveVolumePanel, defaultPage: "onchain", defaultWidth: 2, section: "stablecoins" },
+  { id: "stable-flow-curve", label: "Stablecoin volume curve", component: StableFlowCurvePanel, defaultPage: "onchain", defaultWidth: 3, section: "stablecoins" },
+  { id: "stable-marketcap", label: "Stablecoin marketcap", component: StablecoinMarketcapPanel, defaultPage: "onchain", defaultWidth: 3, section: "stablecoins" },
+  { id: "cex-flow-curve", label: "CEX flow curve", component: CexFlowCurvePanel, defaultPage: "onchain", defaultWidth: 3, section: "stablecoins" },
+  { id: "dex-flow-curve", label: "DEX flow curve", component: DexFlowCurvePanel, defaultPage: "onchain", defaultWidth: 3, section: "defi" },
+  { id: "defi-tvl-curve", label: "DeFi TVL curve", component: DefiTvlCurvePanel, defaultPage: "onchain", defaultWidth: 3, section: "defi" },
   { id: "whale-transfers", label: "Whale transfers", component: WhaleTransfersPanel, defaultPage: "onchain", defaultWidth: 2, section: "stablecoins" },
   { id: "exchange-flows", label: "Exchange flows", component: ExchangeFlowsPanel, defaultPage: "onchain", defaultWidth: 1, section: "stablecoins" },
   { id: "staking-flows", label: "Beacon flows", component: StakingFlowsPanel, defaultPage: "onchain", defaultWidth: 1, section: "staking" },
@@ -102,11 +112,11 @@ export const PANELS_BY_ID: Record<string, PanelDef> = Object.fromEntries(
 /** Default Overview layout. v2 shape: each entry carries an explicit width. */
 export const DEFAULT_OVERVIEW_LAYOUT: { id: string; width: PanelWidth }[] = [
   { id: "price-hero", width: 4 },
+  { id: "price-chart", width: 4 },
   { id: "market-regime", width: 2 },
   { id: "smart-money-direction", width: 2 },
   { id: "cex-net-flow", width: 2 },
   { id: "category-net-flow", width: 2 },
-  { id: "price-chart", width: 2 },
   { id: "whale-transfers", width: 2 },
   { id: "smart-money", width: 2 },
 ];

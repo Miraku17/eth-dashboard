@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
@@ -15,6 +15,8 @@ from app.api.schemas import (
     CexNetFlowWindow,
     ExchangeFlowPoint,
     ExchangeFlowsResponse,
+    FlowSeriesPoint,
+    FlowSeriesResponse,
     OnchainVolumePoint,
     OnchainVolumeResponse,
     OrderFlowPoint,
@@ -24,6 +26,7 @@ from app.api.schemas import (
     VolumeBucketPoint,
     VolumeBucketsResponse,
 )
+from app.api.schemas import VolumeBucket as BucketWidth
 from app.core.db import get_session
 from app.core.models import (
     BridgeFlow,
@@ -211,6 +214,143 @@ def bridge_flows(
             )
             for r in rows
         ]
+    )
+
+
+# Lookback per bucket — picked so every timeframe returns ~60 buckets.
+_FLOW_BUCKET_WINDOWS: dict[BucketWidth, int] = {
+    "1m": 60,
+    "5m": 60 * 6,
+    "15m": 60 * 18,
+    "1h": 60 * 48,
+    "4h": 60 * 24 * 7,
+    "1d": 60 * 24 * 60,
+    "1w": 60 * 24 * 365,
+    "1M": 60 * 24 * 365 * 5,
+}
+
+
+def _flow_bucket_expr(bucket: BucketWidth):
+    """Snap `transfers.ts` onto the bucket's lower edge, mirroring the
+    same date_trunc / floor(epoch / width) pattern as the volume and
+    supply series so all three feel identical to consumers."""
+    col = Transfer.ts
+    if bucket == "1m":
+        return func.date_trunc("minute", col).label("ts_bucket")
+    if bucket in ("1h", "1d", "1w", "1M"):
+        unit = {"1h": "hour", "1d": "day", "1w": "week", "1M": "month"}[bucket]
+        return func.date_trunc(unit, col).label("ts_bucket")
+    width_seconds = {"5m": 300, "15m": 900, "4h": 14_400}[bucket]
+    epoch = func.extract("epoch", col)
+    snapped = func.floor(epoch / width_seconds) * width_seconds
+    return func.to_timestamp(snapped).label("ts_bucket")
+
+
+def _flow_series(
+    session: Session,
+    bucket: BucketWidth,
+    minutes: int | None,
+    asset: list[str] | None,
+    inflow_kind: str,
+    outflow_kind: str,
+    limit: int,
+) -> FlowSeriesResponse:
+    """Shared body for the CEX + DEX series endpoints. Filters `transfers`
+    to the two relevant flow_kinds, buckets by (ts, asset), then derives
+    inflow/outflow/net per row.
+    """
+    if minutes is None:
+        minutes = _FLOW_BUCKET_WINDOWS[bucket]
+    cutoff = datetime.now(UTC) - timedelta(minutes=minutes)
+
+    ts_bucket = _flow_bucket_expr(bucket)
+    stmt = (
+        select(
+            ts_bucket,
+            Transfer.asset,
+            func.coalesce(
+                func.sum(
+                    case((Transfer.flow_kind == inflow_kind, Transfer.usd_value), else_=0)
+                ),
+                0,
+            ).label("inflow_usd"),
+            func.coalesce(
+                func.sum(
+                    case((Transfer.flow_kind == outflow_kind, Transfer.usd_value), else_=0)
+                ),
+                0,
+            ).label("outflow_usd"),
+        )
+        .where(
+            Transfer.ts >= cutoff,
+            Transfer.flow_kind.in_([inflow_kind, outflow_kind]),
+        )
+        .group_by("ts_bucket", Transfer.asset)
+        .order_by("ts_bucket", Transfer.asset)
+        .limit(limit)
+    )
+    if asset:
+        stmt = stmt.where(Transfer.asset.in_(asset))
+    rows = session.execute(stmt).all()
+    if len(rows) == limit:
+        raise HTTPException(status_code=400, detail="row limit exceeded")
+
+    assets = sorted({r.asset for r in rows})
+    return FlowSeriesResponse(
+        bucket=bucket,
+        assets=assets,
+        points=[
+            FlowSeriesPoint(
+                ts_bucket=r.ts_bucket,
+                asset=r.asset,
+                inflow_usd=float(r.inflow_usd),
+                outflow_usd=float(r.outflow_usd),
+                net_usd=float(r.inflow_usd) - float(r.outflow_usd),
+            )
+            for r in rows
+        ],
+    )
+
+
+@router.get("/cex-series", response_model=FlowSeriesResponse)
+def cex_series(
+    session: Annotated[Session, Depends(get_session)],
+    bucket: BucketWidth = Query("1h"),
+    minutes: int | None = Query(None, ge=1, le=60 * 24 * 365 * 5),
+    asset: list[str] | None = Query(None),
+    limit: int = Query(10000, ge=1, le=100000),
+) -> FlowSeriesResponse:
+    """Per-asset CEX inflow / outflow / net curve, bucket-resampled from
+    `transfers` filtered by the WALLET_TO_CEX + CEX_TO_WALLET flow_kinds."""
+    return _flow_series(
+        session,
+        bucket,
+        minutes,
+        asset,
+        FlowKind.WALLET_TO_CEX,
+        FlowKind.CEX_TO_WALLET,
+        limit,
+    )
+
+
+@router.get("/dex-series", response_model=FlowSeriesResponse)
+def dex_series(
+    session: Annotated[Session, Depends(get_session)],
+    bucket: BucketWidth = Query("1h"),
+    minutes: int | None = Query(None, ge=1, le=60 * 24 * 365 * 5),
+    asset: list[str] | None = Query(None),
+    limit: int = Query(10000, ge=1, le=100000),
+) -> FlowSeriesResponse:
+    """Per-asset DEX inflow / outflow / net curve, bucket-resampled from
+    `transfers` filtered by the WALLET_TO_DEX + DEX_TO_WALLET flow_kinds."""
+    return _flow_series(
+        session,
+        bucket,
+        minutes,
+        asset,
+        FlowKind.WALLET_TO_DEX,
+        FlowKind.DEX_TO_WALLET,
+        limit,
     )
 
 

@@ -6,6 +6,9 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
   const t = useT();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  // Default ON — the user's intent here is "don't log me out every day"
+  // and the cookie still expires after 90d so this isn't permanent state.
+  const [remember, setRemember] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -14,7 +17,7 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
     setError(null);
     setSubmitting(true);
     try {
-      await login(username, password);
+      await login(username, password, remember);
       onSuccess();
     } catch (err) {
       if (err instanceof LoginError) {
@@ -64,6 +67,15 @@ export default function LoginPage({ onSuccess }: { onSuccess: () => void }) {
             className="mt-1 w-full rounded-md border border-surface-border bg-surface-base px-3 py-2 text-sm focus:outline-none focus:border-slate-400"
             required
           />
+        </label>
+        <label className="flex items-center gap-2 text-xs text-slate-300 select-none cursor-pointer">
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+            className="accent-brand h-4 w-4 cursor-pointer"
+          />
+          <span>{t("login.remember")}</span>
         </label>
         {error && (
           <p className="text-xs text-red-400" role="alert">

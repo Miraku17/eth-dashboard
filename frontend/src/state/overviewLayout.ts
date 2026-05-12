@@ -9,7 +9,7 @@ import {
 } from "../lib/panelRegistry";
 
 const STORAGE_KEY = "etherscope.overviewLayout";
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 export type StoredPanel = { id: string; width: PanelWidth };
 
@@ -61,27 +61,25 @@ export const useOverviewLayout = create<State>()(
       migrate: (persisted: any, fromVersion) => {
         const known = new Set(PANELS.map((p) => p.id));
 
-        if (fromVersion === 1 && persisted && Array.isArray(persisted.panelIds)) {
-          // v1 → v2: panelIds: string[]  →  panels: { id, width }[]
-          const panels: StoredPanel[] = persisted.panelIds
-            .filter((id: string) => known.has(id))
-            .map((id: string) => ({
-              id,
-              width: PANELS_BY_ID[id]?.defaultWidth ?? 4,
-            }));
-          return {
-            version: SCHEMA_VERSION,
-            panels: panels.length > 0 ? panels : DEFAULT_OVERVIEW_LAYOUT,
-          };
+        // Helper: take a cleaned list of {id,width}, drop any existing
+        // `price-chart` entry, then re-insert it at full width directly
+        // after `price-hero` (or at the front if no `price-hero`). This is
+        // what guarantees the chart sits right below the price tile after
+        // migration — see the v2 → v3 bump.
+        function pinChartBelowHero(list: StoredPanel[]): StoredPanel[] {
+          const withoutChart = list.filter((p) => p.id !== "price-chart");
+          const heroIdx = withoutChart.findIndex((p) => p.id === "price-hero");
+          const insertAt = heroIdx === -1 ? 0 : heroIdx + 1;
+          const chart: StoredPanel = { id: "price-chart", width: 4 };
+          return [
+            ...withoutChart.slice(0, insertAt),
+            chart,
+            ...withoutChart.slice(insertAt),
+          ];
         }
 
-        if (
-          fromVersion === SCHEMA_VERSION &&
-          persisted &&
-          Array.isArray(persisted.panels)
-        ) {
-          // Same version — prune unknown ids and clamp invalid widths.
-          const cleaned: StoredPanel[] = persisted.panels
+        function cleanPanels(raw: any[]): StoredPanel[] {
+          return raw
             .filter((p: any) => p && typeof p.id === "string" && known.has(p.id))
             .map((p: any) => ({
               id: p.id,
@@ -90,6 +88,42 @@ export const useOverviewLayout = create<State>()(
                   ? p.width
                   : (PANELS_BY_ID[p.id]?.defaultWidth ?? 4),
             }));
+        }
+
+        if (fromVersion === 1 && persisted && Array.isArray(persisted.panelIds)) {
+          // v1 → v3: panelIds: string[]  →  panels: { id, width }[], then pin chart.
+          const panels: StoredPanel[] = persisted.panelIds
+            .filter((id: string) => known.has(id))
+            .map((id: string) => ({
+              id,
+              width: PANELS_BY_ID[id]?.defaultWidth ?? 4,
+            }));
+          return {
+            version: SCHEMA_VERSION,
+            panels: pinChartBelowHero(
+              panels.length > 0 ? panels : DEFAULT_OVERVIEW_LAYOUT,
+            ),
+          };
+        }
+
+        if (fromVersion === 2 && persisted && Array.isArray(persisted.panels)) {
+          // v2 → v3: same shape; force price-chart to sit right below price-hero
+          // at full width so the user doesn't have to drag it themselves.
+          const cleaned = cleanPanels(persisted.panels);
+          return {
+            version: SCHEMA_VERSION,
+            panels: pinChartBelowHero(
+              cleaned.length > 0 ? cleaned : DEFAULT_OVERVIEW_LAYOUT,
+            ),
+          };
+        }
+
+        if (
+          fromVersion === SCHEMA_VERSION &&
+          persisted &&
+          Array.isArray(persisted.panels)
+        ) {
+          const cleaned = cleanPanels(persisted.panels);
           return {
             version: SCHEMA_VERSION,
             panels: cleaned.length > 0 ? cleaned : DEFAULT_OVERVIEW_LAYOUT,

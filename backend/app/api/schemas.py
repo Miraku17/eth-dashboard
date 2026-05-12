@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
-Timeframe = Literal["1m", "5m", "15m", "1h", "4h", "1d"]
+Timeframe = Literal["1m", "5m", "15m", "1h", "4h", "1d", "1w", "1M"]
 
 
 class Candle(BaseModel):
@@ -550,6 +550,80 @@ class RealtimeVolumePoint(BaseModel):
 
 class RealtimeVolumeResponse(BaseModel):
     points: list[RealtimeVolumePoint]
+
+
+# ---------- Resampled volume series ----------
+
+VolumeBucket = Literal["1m", "5m", "15m", "1h", "4h", "1d", "1w", "1M"]
+
+
+class VolumeSeriesPoint(BaseModel):
+    ts_bucket: datetime
+    asset: str
+    usd_volume: float
+    transfer_count: int
+
+
+class VolumeSeriesResponse(BaseModel):
+    bucket: VolumeBucket
+    assets: list[str]
+    points: list[VolumeSeriesPoint]
+
+
+# ---------- Stablecoin supply / marketcap series ----------
+
+
+class SupplyPoint(BaseModel):
+    ts_bucket: datetime
+    asset: str
+    supply_usd: float
+
+
+class SupplyCurrent(BaseModel):
+    asset: str
+    supply_usd: float
+    delta_usd: float
+    delta_pct: float
+
+
+class StableSupplySeriesResponse(BaseModel):
+    bucket: VolumeBucket
+    assets: list[str]
+    points: list[SupplyPoint]
+    current: list[SupplyCurrent]
+    window_label: str
+
+
+# ---------- CEX / DEX flow series ----------
+
+
+class FlowSeriesPoint(BaseModel):
+    ts_bucket: datetime
+    asset: str
+    inflow_usd: float
+    outflow_usd: float
+    net_usd: float
+
+
+class FlowSeriesResponse(BaseModel):
+    bucket: VolumeBucket
+    assets: list[str]
+    points: list[FlowSeriesPoint]
+
+
+# ---------- DeFi TVL series ----------
+
+
+class TvlSeriesPoint(BaseModel):
+    ts_bucket: datetime
+    protocol: str
+    tvl_usd: float
+
+
+class TvlSeriesResponse(BaseModel):
+    bucket: VolumeBucket
+    protocols: list[str]
+    points: list[TvlSeriesPoint]
 
 
 # ---------- Smart-money leaderboard (v2) ----------

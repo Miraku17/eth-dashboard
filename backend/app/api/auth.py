@@ -14,6 +14,9 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 class LoginRequest(BaseModel):
     username: str
     password: str
+    # When true, mint a 90-day session instead of the 24h default. The
+    # cookie's max_age and the Redis TTL both follow this flag.
+    remember: bool = False
 
 
 class LoginResponse(BaseModel):
@@ -27,12 +30,12 @@ def _client_ip(request: Request) -> str:
     return request.client.host
 
 
-def _set_session_cookie(response: Response, session_id: str) -> None:
+def _set_session_cookie(response: Response, session_id: str, max_age: int) -> None:
     settings = get_settings()
     response.set_cookie(
         key=COOKIE_NAME,
         value=session_id,
-        max_age=sessions.SESSION_TTL_SECONDS,
+        max_age=max_age,
         httponly=True,
         secure=settings.session_cookie_secure,
         samesite="lax",
@@ -70,8 +73,13 @@ def login(body: LoginRequest, request: Request, response: Response) -> LoginResp
             detail="invalid credentials",
         )
 
-    sid = sessions.create_session(body.username)
-    _set_session_cookie(response, sid)
+    ttl = (
+        sessions.REMEMBER_ME_TTL_SECONDS
+        if body.remember
+        else sessions.SESSION_TTL_SECONDS
+    )
+    sid = sessions.create_session(body.username, ttl_seconds=ttl)
+    _set_session_cookie(response, sid, max_age=ttl)
     return LoginResponse(username=body.username)
 
 

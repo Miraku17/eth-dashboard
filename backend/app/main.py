@@ -18,6 +18,7 @@ from app.api.price import router as price_router
 from app.api.regime import router as regime_router
 from app.api.restaking import router as restaking_router
 from app.api.smart_money import router as smart_money_router
+from app.api.stablecoins import router as stablecoins_router
 from app.api.staking import router as staking_router
 from app.api.volume import router as volume_router
 from app.api.wallets import router as wallets_router
@@ -66,3 +67,4 @@ app.include_router(wallets_router, prefix="/api", dependencies=[AuthDep])
 app.include_router(regime_router, prefix="/api", dependencies=[AuthDep])
 app.include_router(perps_router, prefix="/api", dependencies=[AuthDep])
 app.include_router(smart_money_router, prefix="/api", dependencies=[AuthDep])
+app.include_router(stablecoins_router, prefix="/api", dependencies=[AuthDep])
