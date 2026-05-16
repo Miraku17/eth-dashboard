@@ -14,6 +14,7 @@ from sqlalchemy import (
     SmallInteger,
     String,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -487,3 +488,33 @@ class WalletScore(Base):
     win_rate_30d: Mapped[float | None] = mapped_column(nullable=True)
     score: Mapped[float] = mapped_column(default=0, index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class PerpWalletScore(Base):
+    """Latest 90d scoring snapshot per wallet for GMX V2 perp activity."""
+    __tablename__ = "perp_wallet_score"
+    wallet: Mapped[str] = mapped_column(String(42), primary_key=True)
+    trades_90d: Mapped[int] = mapped_column(Integer, nullable=False)
+    win_rate_90d: Mapped[Decimal] = mapped_column(Numeric(5, 4), nullable=False)
+    win_rate_long_90d: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
+    win_rate_short_90d: Mapped[Decimal | None] = mapped_column(Numeric(5, 4), nullable=True)
+    realized_pnl_90d: Mapped[Decimal] = mapped_column(Numeric(20, 2), nullable=False)
+    avg_hold_secs: Mapped[int] = mapped_column(Integer, nullable=False)
+    avg_position_usd: Mapped[Decimal] = mapped_column(Numeric(20, 2), nullable=False)
+    avg_leverage: Mapped[Decimal] = mapped_column(Numeric(6, 2), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), nullable=False
+    )
+
+
+class PerpWatchlist(Base):
+    """Operator-curated set of wallets that fire Telegram alerts on perp open/close."""
+    __tablename__ = "perp_watchlist"
+    wallet: Mapped[str] = mapped_column(String(42), primary_key=True)
+    label: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    min_notional_usd: Mapped[Decimal] = mapped_column(
+        Numeric(20, 2), nullable=False, server_default=text("25000")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()"), nullable=False
+    )
