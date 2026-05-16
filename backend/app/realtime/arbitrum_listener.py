@@ -28,9 +28,11 @@ from datetime import UTC, datetime
 import httpx
 import redis as redis_lib
 import websockets
+from redis.asyncio import Redis as AsyncRedis  # async client, separate from the sync redis_lib used by TxFromResolver
 
 from app.core.config import get_settings
 from app.core.db import get_sessionmaker
+from app.core.models import PerpWatchlist
 from app.realtime.gmx_v2_decoder import (
     GMX_V2_EVENT_EMITTER,
     decode as decode_gmx,
@@ -39,7 +41,10 @@ from app.realtime.gmx_v2_decoder import (
     _TOPIC_POSITION_DECREASE,
     _TOPIC_POSITION_INCREASE,
 )
+from app.realtime.perp_watchlist_cache import PerpWatchlistCache
 from app.realtime.perp_writer import PerpWriter, make_row
+from app.services.perp_watch_dispatch import dispatch_perp_watch
+from sqlalchemy import select
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("arbitrum_realtime")
@@ -158,6 +163,41 @@ async def next_head(queue: asyncio.Queue, timeout: float) -> dict | None:
         return None
 
 
+WATCHED_EVENT_KINDS = {"open", "increase", "close", "decrease", "liquidation"}
+
+
+async def _maybe_dispatch_perp_alerts(
+    rows: list[dict],
+    *,
+    cache: PerpWatchlistCache,
+    http: httpx.AsyncClient,
+    sessionmaker,
+) -> None:
+    """Dispatch a Telegram alert for each row whose account is on the
+    watchlist and whose size clears the per-watch min-notional floor."""
+    for row in rows:
+        if row.get("event_kind") not in WATCHED_EVENT_KINDS:
+            continue
+        account = row.get("account") or ""
+        floor = await cache.lookup(account)
+        if floor is None:
+            continue
+        size_usd = row.get("size_usd")
+        if size_usd is None or size_usd < floor:
+            continue
+        with sessionmaker() as session:
+            watch = session.execute(
+                select(PerpWatchlist).where(PerpWatchlist.wallet == account.lower())
+            ).scalar_one_or_none()
+        if watch is None:
+            # Cache was stale — wallet got removed since lookup. Skip.
+            continue
+        try:
+            await dispatch_perp_watch(http=http, event=row, watch=watch)
+        except Exception:
+            log.exception("dispatch_perp_watch failed account=%s tx=%s", account, row.get("tx_hash"))
+
+
 def _parse_hex(h: str | int | None) -> int:
     if h is None:
         return 0
@@ -171,6 +211,10 @@ async def _process_block(
     resolver: TxFromResolver,
     writer: PerpWriter,
     block_number: int,
+    *,
+    perp_watch_cache: PerpWatchlistCache | None = None,
+    perp_alert_http: httpx.AsyncClient | None = None,
+    sessionmaker=None,
 ) -> None:
     hex_bn = hex(block_number)
     block_res = await client.call("eth_getBlockByNumber", [hex_bn, False])
@@ -240,11 +284,28 @@ async def _process_block(
             "block=%d gmx_events=%d persisted=%d",
             block_number, len(rows), inserted,
         )
+        if perp_watch_cache is not None and perp_alert_http is not None and sessionmaker is not None:
+            await _maybe_dispatch_perp_alerts(
+                rows,
+                cache=perp_watch_cache,
+                http=perp_alert_http,
+                sessionmaker=sessionmaker,
+            )
 
 
 async def run_once(ws_url: str, http_url: str, redis_url: str, sessionmaker) -> None:
     writer = PerpWriter(sessionmaker)
     resolver = TxFromResolver(http_url, redis_url)
+    perp_watch_cache: PerpWatchlistCache | None = None
+    perp_alert_http: httpx.AsyncClient | None = None
+    try:
+        async_redis = AsyncRedis.from_url(redis_url, decode_responses=True)
+        perp_watch_cache = PerpWatchlistCache(async_redis)
+        await perp_watch_cache.start()
+        perp_alert_http = httpx.AsyncClient(timeout=10.0)
+    except Exception:
+        log.exception("perp_watch_cache: failed to initialize; alerts disabled this run")
+        perp_watch_cache = None
     try:
         async with websockets.connect(ws_url, ping_interval=20, ping_timeout=20) as ws:
             client = ArbitrumClient(ws)
@@ -262,7 +323,12 @@ async def run_once(ws_url: str, http_url: str, redis_url: str, sessionmaker) -> 
                         return
                     bn = int(head["number"], 16)
                     try:
-                        await _process_block(client, resolver, writer, bn)
+                        await _process_block(
+                            client, resolver, writer, bn,
+                            perp_watch_cache=perp_watch_cache,
+                            perp_alert_http=perp_alert_http,
+                            sessionmaker=sessionmaker,
+                        )
                     except (asyncio.TimeoutError, ConnectionError):
                         log.warning("arbitrum block %d processing aborted (ws unreachable)", bn)
                         return
@@ -274,6 +340,8 @@ async def run_once(ws_url: str, http_url: str, redis_url: str, sessionmaker) -> 
                     await pump_task
     finally:
         await resolver.aclose()
+        if perp_alert_http is not None:
+            await perp_alert_http.aclose()
 
 
 async def main() -> None:

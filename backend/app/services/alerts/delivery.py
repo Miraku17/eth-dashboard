@@ -78,6 +78,37 @@ def format_telegram_message(rule_name: str, rule_type: str, payload: dict) -> st
             f"out ${_fmt_num(payload.get('outflow_usd'))} · "
             f"net ${_fmt_num(payload.get('net_usd'))}"
         )
+    elif rule_type == "perp_watch":
+        kind = payload.get("event_kind", "?")
+        side = payload.get("side", "?")
+        if kind in {"open", "increase"}:
+            emoji = "🟢" if side == "long" else "🔴"
+        else:
+            emoji = "⚪"
+        score = payload.get("score") or {}
+        if score:
+            wr_pct = float(score["win_rate"]) * 100
+            score_line = (
+                f"\n★ {wr_pct:.0f}% win / "
+                f"{score['trades']} trades / "
+                f"avg {score['avg_hold_secs'] // 60}m"
+            )
+        else:
+            score_line = ""
+        wallet_disp = payload.get("label") or (payload.get("wallet", "?")[:10])
+        try:
+            size = float(payload.get("size_usd", "0"))
+            lev = float(payload.get("leverage", "0"))
+        except (TypeError, ValueError):
+            size, lev = 0.0, 0.0
+        lines.append(
+            f"{emoji} {kind.upper()}  {payload.get('market','?')}  "
+            f"{side.upper()}  ${size:,.0f}  {lev:.1f}x"
+        )
+        lines.append(f"Wallet: {wallet_disp}{score_line}")
+        tx = payload.get("tx_hash", "")
+        if tx:
+            lines.append(f"Tx: {tx[:12]}…")
     else:
         lines.append(f"```json\n{json.dumps(payload, indent=2)}\n```")
     return "\n".join(lines)
