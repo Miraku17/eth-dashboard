@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.alerts import router as alerts_router
+from app.api.copy_trading import router as copy_trading_router
 from app.api.auth import router as auth_router
 from app.api.clusters import router as clusters_router
 from app.api.defi import router as defi_router
@@ -68,3 +69,4 @@ app.include_router(regime_router, prefix="/api", dependencies=[AuthDep])
 app.include_router(perps_router, prefix="/api", dependencies=[AuthDep])
 app.include_router(smart_money_router, prefix="/api", dependencies=[AuthDep])
 app.include_router(stablecoins_router, prefix="/api", dependencies=[AuthDep])
+app.include_router(copy_trading_router, prefix="/api", dependencies=[AuthDep])
