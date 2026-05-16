@@ -16,6 +16,7 @@ from app.core.db import get_sessionmaker
 from app.core.models import AlertEvent, AlertRule, PerpWalletScore, PerpWatchlist
 from app.services.alerts.delivery import dispatch
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 log = logging.getLogger(__name__)
 
@@ -24,22 +25,32 @@ RULE_TYPE = "perp_watch"
 
 
 def _ensure_rule(session) -> AlertRule:
-    """Singleton AlertRule row that all perp_watch events FK to."""
+    """Singleton AlertRule row that all perp_watch events FK to.
+
+    Idempotent across concurrent first-time callers via ON CONFLICT DO NOTHING.
+    """
     rule = session.execute(
         select(AlertRule).where(AlertRule.name == RULE_NAME)
     ).scalar_one_or_none()
     if rule is not None:
         return rule
-    rule = AlertRule(
-        name=RULE_NAME,
-        rule_type=RULE_TYPE,
-        params={},
-        channels=[{"type": "telegram"}],
-        enabled=False,  # cron evaluator skips disabled rules; we dispatch manually.
+    stmt = (
+        pg_insert(AlertRule.__table__)
+        .values(
+            name=RULE_NAME,
+            rule_type=RULE_TYPE,
+            params={},
+            channels=[{"type": "telegram"}],
+            enabled=False,
+        )
+        .on_conflict_do_nothing(index_elements=["name"])
     )
-    session.add(rule)
+    session.execute(stmt)
     session.commit()
-    return rule
+    # After the upsert (either inserted by us or by a concurrent caller), the row exists.
+    return session.execute(
+        select(AlertRule).where(AlertRule.name == RULE_NAME)
+    ).scalar_one()
 
 
 def build_payload(

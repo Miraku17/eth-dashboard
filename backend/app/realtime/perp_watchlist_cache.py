@@ -65,8 +65,3 @@ class PerpWatchlistCache:
                 await self._reload()
             except Exception:
                 log.exception("perp_watchlist_cache reload failed")
-
-
-async def publish_invalidate(redis: Redis) -> None:
-    """Called by the CRUD endpoints after every watchlist mutation."""
-    await redis.publish(INVALIDATE_CHANNEL, json.dumps({"ts": time.time()}))
