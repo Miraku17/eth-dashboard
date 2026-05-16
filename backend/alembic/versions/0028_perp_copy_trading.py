@@ -1,11 +1,25 @@
 """perp copy-trading: perp_wallet_score + perp_watchlist
 
+Adds two tables for the v5-perp-copy-trading subsystem:
+
+- perp_wallet_score: daily 90d snapshot per wallet of GMX V2 perp trading
+  performance (trades, win rate, long/short split, realized PnL, avg hold,
+  avg position, avg leverage). Latest-only — each daily cron run rewrites
+  the wallet's row. Backs the /copy-trading leaderboard.
+- perp_watchlist: operator-curated set of wallets to alert on, with a
+  per-watch min_notional_usd floor (default $25,000) to suppress
+  scale-in noise.
+
+The leaderboard partial index covers the default filter predicate
+(>=30 trades, >=60% win rate, >=$10k realized PnL) so leaderboard
+queries are single index scans rather than full-table filters.
+
 Revision ID: 0028
 Revises: 0027
 Create Date: 2026-05-17
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "0028"
 down_revision = "0027"
@@ -32,14 +46,13 @@ def upgrade() -> None:
             nullable=False,
         ),
     )
-    op.execute(
-        """
-        CREATE INDEX perp_wallet_score_leaderboard_idx
-          ON perp_wallet_score (realized_pnl_90d DESC)
-          WHERE trades_90d >= 30
-            AND win_rate_90d >= 0.6
-            AND realized_pnl_90d >= 10000
-        """
+    op.create_index(
+        "perp_wallet_score_leaderboard_idx",
+        "perp_wallet_score",
+        [sa.text("realized_pnl_90d DESC")],
+        postgresql_where=sa.text(
+            "trades_90d >= 30 AND win_rate_90d >= 0.6 AND realized_pnl_90d >= 10000"
+        ),
     )
     op.create_table(
         "perp_watchlist",
@@ -62,5 +75,5 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("perp_watchlist")
-    op.execute("DROP INDEX IF EXISTS perp_wallet_score_leaderboard_idx")
+    op.drop_index("perp_wallet_score_leaderboard_idx", table_name="perp_wallet_score")
     op.drop_table("perp_wallet_score")
