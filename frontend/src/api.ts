@@ -1074,3 +1074,133 @@ export async function fetchPerpLargestPositions(limit: number = 20): Promise<Per
   if (!r.ok) throw new Error(`fetchPerpLargestPositions failed: ${r.status}`);
   return r.json();
 }
+
+// ---------- Copy trading (v5 — GMX V2 perp scoring + watchlist) ----------
+
+export type CopyTradingConfig = {
+  lookback_days: number;
+  min_trades: number;
+  min_win_rate: number;
+  min_pnl_usd: number;
+  default_watch_notional_usd: number;
+};
+
+export type CopyTradingScoreRow = {
+  wallet: string;
+  trades_90d: number;
+  win_rate_90d: number;
+  win_rate_long_90d: number | null;
+  win_rate_short_90d: number | null;
+  realized_pnl_90d: number;
+  avg_hold_secs: number;
+  avg_position_usd: number;
+  avg_leverage: number;
+  on_watchlist: boolean;
+};
+
+export type CopyTradingTripRow = {
+  ts: string;
+  market: string;
+  side: string;
+  event_kind: string;
+  size_usd: number;
+  pnl_usd: number | null;
+};
+
+export type CopyTradingHistogram = {
+  lt_5m: number;
+  m5_15: number;
+  m15_60: number;
+  h1_24: number;
+  gt_1d: number;
+};
+
+export type CopyTradingWalletDetail = {
+  score: CopyTradingScoreRow | null;
+  last_trades: CopyTradingTripRow[];
+  hold_time_histogram: CopyTradingHistogram;
+};
+
+export type CopyTradingWatchRow = {
+  wallet: string;
+  label: string | null;
+  min_notional_usd: number;
+  created_at: string;
+};
+
+export type CopyTradingWatchCreate = {
+  wallet: string;
+  label?: string;
+  min_notional_usd?: number;
+};
+
+export type CopyTradingWatchUpdate = {
+  label?: string;
+  min_notional_usd?: number;
+};
+
+export async function fetchCopyTradingConfig(): Promise<CopyTradingConfig> {
+  const r = await apiFetch("/api/copy-trading/config");
+  if (!r.ok) throw new Error(`copy-trading config ${r.status}`);
+  return r.json();
+}
+
+export async function fetchCopyTradingLeaderboard(
+  opts: { limit?: number; minTrades?: number; minWin?: number; minPnl?: number } = {},
+): Promise<CopyTradingScoreRow[]> {
+  const p = new URLSearchParams();
+  if (opts.limit != null) p.set("limit", String(opts.limit));
+  if (opts.minTrades != null) p.set("min_trades", String(opts.minTrades));
+  if (opts.minWin != null) p.set("min_win", String(opts.minWin));
+  if (opts.minPnl != null) p.set("min_pnl", String(opts.minPnl));
+  const qs = p.toString();
+  const r = await apiFetch(`/api/copy-trading/leaderboard${qs ? `?${qs}` : ""}`);
+  if (!r.ok) throw new Error(`copy-trading leaderboard ${r.status}`);
+  return r.json();
+}
+
+export async function fetchCopyTradingWallet(
+  address: string,
+): Promise<CopyTradingWalletDetail> {
+  const r = await apiFetch(`/api/copy-trading/wallets/${address}`);
+  if (!r.ok) throw new Error(`copy-trading wallet ${r.status}`);
+  return r.json();
+}
+
+export async function fetchCopyTradingWatchlist(): Promise<CopyTradingWatchRow[]> {
+  const r = await apiFetch("/api/copy-trading/watchlist");
+  if (!r.ok) throw new Error(`copy-trading watchlist ${r.status}`);
+  return r.json();
+}
+
+export async function addCopyTradingWatch(
+  body: CopyTradingWatchCreate,
+): Promise<CopyTradingWatchRow> {
+  const r = await apiFetch("/api/copy-trading/watchlist", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`add watch ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+
+export async function updateCopyTradingWatch(
+  address: string,
+  patch: CopyTradingWatchUpdate,
+): Promise<CopyTradingWatchRow> {
+  const r = await apiFetch(`/api/copy-trading/watchlist/${address}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!r.ok) throw new Error(`update watch ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+
+export async function deleteCopyTradingWatch(address: string): Promise<void> {
+  const r = await apiFetch(`/api/copy-trading/watchlist/${address}`, {
+    method: "DELETE",
+  });
+  if (!r.ok && r.status !== 204) throw new Error(`delete watch ${r.status}`);
+}
