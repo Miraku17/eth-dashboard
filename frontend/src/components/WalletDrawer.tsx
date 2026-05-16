@@ -24,6 +24,7 @@ import {
 import { formatUsdCompact, formatUsdFull, relativeTime } from "../lib/format";
 import { useT } from "../i18n/LocaleProvider";
 import { useWalletDrawer } from "../state/walletDrawer";
+import PerpPerformanceTile from "./copy-trading/PerpPerformanceTile";
 
 function truncate(addr: string): string {
   return addr.length < 10 ? addr : `${addr.slice(0, 6)}…${addr.slice(-4)}`;
@@ -558,6 +559,8 @@ function ProfileBody({
           a row. Wallet may be scored but below the smart floor; the tile
           still renders (greyed) so the user sees raw PnL/win-rate. */}
       {data.wallet_score && <SmartMoneyTile score={data.wallet_score} />}
+
+      <PerpPerformanceTile address={data.address} />
 
       {/* Token holdings */}
       {data.token_holdings.length > 0 && (
