@@ -261,6 +261,7 @@ export default function Topbar() {
               [
                 { key: "nav.overview" as const, to: "/" },
                 { key: "nav.markets" as const, to: "/markets" },
+                { key: "nav.copy_trading" as const, to: "/copy-trading" },
                 { key: "nav.onchain" as const, to: "/onchain" },
                 { key: "nav.mempool" as const, to: "/mempool" },
               ] as const

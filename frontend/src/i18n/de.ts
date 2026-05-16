@@ -15,6 +15,7 @@ export const de: Record<TranslationKey, string> = {
   // ---------------------------------------------------------------------------
   "nav.overview": "Übersicht",
   "nav.markets": "Märkte",
+  "nav.copy_trading": "Copy Trading",
   "nav.onchain": "On-Chain",
   "nav.mempool": "Mempool",
 

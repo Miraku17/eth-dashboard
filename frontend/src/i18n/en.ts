@@ -9,6 +9,7 @@ export const en = {
   // ---------------------------------------------------------------------------
   "nav.overview": "Overview",
   "nav.markets": "Markets",
+  "nav.copy_trading": "Copy Trading",
   "nav.onchain": "Onchain",
   "nav.mempool": "Mempool",
 
