@@ -9,6 +9,7 @@ from app.services.address_label_sync import seed_address_labels
 from app.workers.alert_jobs import evaluate_alerts
 from app.workers.beacon_flows import sync_beacon_flows
 from app.workers.flow_kind_backfill import run_backfill_if_needed
+from app.workers.perp_scoring_jobs import score_perp_wallets
 from app.workers.wallet_scoring_jobs import score_wallets
 from app.workers.cluster_jobs import purge_expired_clusters
 from app.workers.defi_jobs import sync_defi_tvl
@@ -98,6 +99,7 @@ class WorkerSettings:
         sync_staking_yields,
         sync_beacon_flows,
         score_wallets,
+        score_perp_wallets,
         run_backfill_if_needed,
         cleanup_pending_transfers,
         purge_expired_clusters,
@@ -154,6 +156,10 @@ class WorkerSettings:
         # wallet_score. Once daily at 04:13 UTC — offset from the 03:00
         # smart-money cron so the two heavy daily jobs don't collide.
         cron(score_wallets, hour={4}, minute={13}, run_at_startup=False),
+        # v5-perp-copy-trading: daily 90d FIFO scoring of GMX V2 perp
+        # wallets into perp_wallet_score. Offset to 04:23 UTC so it
+        # doesn't collide with the 04:13 spot score_wallets cron.
+        cron(score_perp_wallets, hour={4}, minute={23}, run_at_startup=False),
         # v6: per-minute totalSupply() reads for the 16 tracked stables.
         # Single JSON-RPC batch to the self-hosted Geth node. Backs the
         # stablecoin marketcap curve (StablecoinMarketcapPanel).
